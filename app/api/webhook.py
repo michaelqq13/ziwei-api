@@ -248,7 +248,7 @@ def handle_divination_request(db: Session, user: LineBotUser, session: MemoryUse
         
         # 發送帶有Quick Reply按鈕的訊息
         send_line_message(user.line_user_id, message, quick_reply_items)
-        return None  # 返回None因為訊息已經直接發送
+        return ""  # 返回空字符串而不是None，表示訊息已經發送
 
     return "❓ 占卜流程發生錯誤，請重新開始。"
 
@@ -635,7 +635,7 @@ async def handle_message_event(db: Session, event: Dict[str, Any]):
     logger.info(f"生成回應訊息: {response_message}")
     
     # 發送回應（如果有）
-    if response_message is not None:  # 修改這裡，只在response_message不是None時發送
+    if response_message and response_message.strip():  # 只在有實際內容時發送
         success = send_line_message(user_id, response_message)
         logger.info(f"發送訊息結果: {success}")
 

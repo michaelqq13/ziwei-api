@@ -16,32 +16,76 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual Environment
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
 venv/
-ENV/
 env/
+ENV/
+env.bak/
+venv.bak/
 
-# Environment Variables
+# Environment variables
 .env
+.env.local
+.env.development
+.env.test
+.env.production
 config.env
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
+*~
 
-# Logs
-*.log
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# Database
+# Thumbnails
+._*
+
+# Large data files
+data/calendar_data_1900-2100.csv
+data/calendar_data_current.csv
+*.csv
+
+# Database files
 *.db
 *.sqlite3
 
-# OS
-.DS_Store
-Thumbs.db
+# Log files
+*.log
+
+# Rich menu images
+rich_menu_images/
