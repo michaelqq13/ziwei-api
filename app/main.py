@@ -60,6 +60,20 @@ def init_test_data():
         logger.error(f"初始化測試數據時發生錯誤: {str(e)}")
         # 不拋出異常，讓應用繼續啟動
 
+def setup_rich_menu():
+    """設定 Rich Menu"""
+    try:
+        from app.utils.rich_menu_manager import rich_menu_manager
+        logger.info("開始設定 Rich Menu...")
+        menu_id = rich_menu_manager.ensure_default_rich_menu()
+        if menu_id:
+            logger.info(f"Rich Menu 設定成功，ID: {menu_id}")
+        else:
+            logger.warning("Rich Menu 設定失敗，但應用會繼續運行")
+    except Exception as e:
+        logger.error(f"設定 Rich Menu 時發生錯誤: {str(e)}")
+        # 不拋出異常，讓應用繼續啟動
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用生命週期管理"""
@@ -67,6 +81,7 @@ async def lifespan(app: FastAPI):
     logger.info("應用啟動中...")
     run_database_migrations()
     init_test_data()
+    setup_rich_menu()
     logger.info("應用啟動完成")
     
     yield
