@@ -42,7 +42,7 @@ app.include_router(permission_routes.router, prefix="/api/permissions")
 app.include_router(protected_routes.router, prefix="/api")
 app.include_router(payment_routes.router, prefix="/api/payment")
 app.include_router(chart_binding_routes.router, prefix="/api")
-app.include_router(webhook.router, prefix="/api/linebot")  # LINE Bot webhook
+app.include_router(webhook.router)  # LINE Bot webhook at root path
 
 @app.get("/")
 def read_root():
