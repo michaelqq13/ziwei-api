@@ -64,6 +64,31 @@ class PermissionManager:
             return True
         return False
     
+    @staticmethod
+    def set_admin_permissions(line_user_id: str, db: Session) -> bool:
+        """
+        設定管理員權限（靜態方法，用於管理腳本）
+        """
+        user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+        if user:
+            user.membership_level = LineBotConfig.MembershipLevel.ADMIN
+            user.updated_at = datetime.utcnow()
+            db.commit()
+            return True
+        return False
+    
+    def update_user_nickname(self, db: Session, line_user_id: str, nickname: str) -> bool:
+        """
+        更新用戶暱稱
+        """
+        user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+        if user:
+            user.display_name = nickname.strip()
+            user.updated_at = datetime.utcnow()
+            db.commit()
+            return True
+        return False
+    
     def upgrade_to_premium(self, db: Session, line_user_id: str) -> bool:
         """
         升級為付費會員

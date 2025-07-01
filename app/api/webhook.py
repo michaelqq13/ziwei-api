@@ -199,6 +199,9 @@ def format_user_info(user_stats: Dict) -> str:
     
     message += "⭐ 命盤綁定：✅ 可使用\n"
     
+    message += f"\n📝 **個人設定**\n"
+    message += "• 輸入「設定暱稱」可修改顯示名稱\n"
+    
     if not membership["is_premium"]:
         message += "\n💎 升級付費會員享受更多功能！"
     
@@ -524,6 +527,28 @@ def handle_admin_authentication(db: Session, user: LineBotUser, session: MemoryU
     
     return "❓ 認證流程錯誤。"
 
+def handle_nickname_setting(db: Session, user: LineBotUser, session: MemoryUserSession, text: str) -> str:
+    """處理暱稱設定"""
+    if session.state == "setting_nickname":
+        nickname = text.strip()
+        
+        if not nickname:
+            session.clear()
+            return "❌ 暱稱不能為空，設定取消。"
+        
+        if len(nickname) > 50:
+            return "❌ 暱稱長度不能超過50個字元，請重新輸入："
+        
+        # 更新暱稱
+        if permission_manager.update_user_nickname(db, user.line_user_id, nickname):
+            session.clear()
+            return f"✅ 暱稱已更新為：{nickname}"
+        else:
+            session.clear()
+            return "❌ 暱稱更新失敗，請稍後再試。"
+    
+    return "❓ 暱稱設定流程錯誤。"
+
 @router.post("/webhook")
 async def line_webhook(request: Request, db: Session = Depends(get_db)):
     """LINE Bot Webhook 端點"""
@@ -627,6 +652,9 @@ async def process_user_message(db: Session, user: LineBotUser, session: MemoryUs
     elif session.state.startswith("admin_auth"):
         return handle_admin_authentication(db, user, session, text)
     
+    elif session.state == "setting_nickname":
+        return handle_nickname_setting(db, user, session, text)
+    
     # 處理主要功能請求
     text_lower = text.lower()
     
@@ -649,6 +677,11 @@ async def process_user_message(db: Session, user: LineBotUser, session: MemoryUs
         user_stats = permission_manager.get_user_stats(db, user)
         return format_user_info(user_stats)
     
+    elif text in ["設定暱稱", "修改暱稱", "暱稱設定"]:
+        session.set_state("setting_nickname")
+        current_nickname = user.display_name or "未設定"
+        return f"📝 暱稱設定\n\n目前暱稱：{current_nickname}\n\n請輸入新的暱稱（最多50個字元）："
+    
     elif text == "管理員認證":
         session.set_state("admin_auth_phrase")
         return "🔑 請輸入管理員密語："
@@ -660,7 +693,10 @@ async def process_user_message(db: Session, user: LineBotUser, session: MemoryUs
         # 未知指令
         return """❓ 不認識的指令
 
-🌟 請使用下方選單按鈕，或輸入「說明」查看功能介紹。"""
+🌟 請使用下方選單按鈕，或輸入「說明」查看功能介紹。
+
+📝 額外功能：
+• 輸入「設定暱稱」可修改顯示名稱"""
 
 async def handle_follow_event(db: Session, event: Dict[str, Any]):
     """處理用戶加入事件"""
