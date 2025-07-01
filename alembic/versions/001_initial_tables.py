@@ -1,21 +1,44 @@
-"""create linebot tables
+"""Initial database tables
 
-Revision ID: create_linebot_tables
-Revises: add_minute_gan_zhi_column
-Create Date: 2024-03-20 10:00:00.000000
+Revision ID: 001_initial_tables
+Revises: 
+Create Date: 2024-12-20 12:00:00.000000
 
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'create_linebot_tables'
-down_revision = 'add_minute_gan_zhi_column'
+revision = '001_initial_tables'
+down_revision = None
 branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
+    # 創建 calendar_data 表
+    op.create_table(
+        'calendar_data',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('gregorian_datetime', sa.DateTime(), nullable=False),
+        sa.Column('gregorian_year', sa.Integer(), nullable=False),
+        sa.Column('gregorian_month', sa.Integer(), nullable=False),
+        sa.Column('gregorian_day', sa.Integer(), nullable=False),
+        sa.Column('gregorian_hour', sa.Integer(), nullable=False),
+        sa.Column('lunar_year_in_chinese', sa.String(50), nullable=False),
+        sa.Column('lunar_month_in_chinese', sa.String(50), nullable=False),
+        sa.Column('lunar_day_in_chinese', sa.String(50), nullable=False),
+        sa.Column('is_leap_month_in_chinese', sa.Boolean(), nullable=False),
+        sa.Column('year_gan_zhi', sa.String(50), nullable=False),
+        sa.Column('month_gan_zhi', sa.String(50), nullable=False),
+        sa.Column('day_gan_zhi', sa.String(50), nullable=False),
+        sa.Column('hour_gan_zhi', sa.String(50), nullable=False),
+        sa.Column('minute_gan_zhi', sa.String(50), nullable=True),
+        sa.Column('solar_term_today', sa.String(50), nullable=True),
+        sa.Column('solar_term_in_hour', sa.String(50), nullable=True),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_calendar_data_id'), 'calendar_data', ['id'], unique=False)
+    
     # 創建 linebot_users 表
     op.create_table(
         'linebot_users',
@@ -68,4 +91,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table('chart_bindings')
     op.drop_table('divination_history')
-    op.drop_table('linebot_users') 
+    op.drop_table('linebot_users')
+    op.drop_index(op.f('ix_calendar_data_id'), table_name='calendar_data')
+    op.drop_table('calendar_data') 
