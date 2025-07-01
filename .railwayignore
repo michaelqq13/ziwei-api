@@ -1,0 +1,13 @@
+Dockerfile*
+.git/
+.pytest_cache/
+venv/
+*.pyc
+__pycache__/
+.env
+app.db
+calendar.db
+*.log
+tests/
+*.md
+ziwei-frontend/ 

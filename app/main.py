@@ -2,6 +2,9 @@
 FastAPI 主應用程序
 """
 import os
+import subprocess
+import sys
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import routes
@@ -23,10 +26,47 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def run_database_migrations():
+    """在應用啟動時運行數據庫遷移"""
+    try:
+        logger.info("開始執行數據庫遷移...")
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd()
+        )
+        
+        if result.returncode == 0:
+            logger.info("數據庫遷移成功完成")
+            logger.info(f"遷移輸出: {result.stdout}")
+        else:
+            logger.error(f"數據庫遷移失敗: {result.stderr}")
+            logger.error(f"遷移輸出: {result.stdout}")
+            # 不拋出異常，讓應用繼續啟動
+            
+    except Exception as e:
+        logger.error(f"執行數據庫遷移時發生錯誤: {str(e)}")
+        # 不拋出異常，讓應用繼續啟動
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """應用生命週期管理"""
+    # 啟動時執行
+    logger.info("應用啟動中...")
+    run_database_migrations()
+    logger.info("應用啟動完成")
+    
+    yield
+    
+    # 關閉時執行
+    logger.info("應用正在關閉...")
+
 app = FastAPI(
     title="Purple Star Astrology API",
     description="An API for calculating Purple Star Astrology charts.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # 添加CORS中間件
