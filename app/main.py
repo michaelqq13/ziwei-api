@@ -49,12 +49,24 @@ def run_database_migrations():
         logger.error(f"執行數據庫遷移時發生錯誤: {str(e)}")
         # 不拋出異常，讓應用繼續啟動
 
+def init_test_data():
+    """初始化測試數據"""
+    try:
+        from app.db.init_test_data import init_test_data as run_init_test_data
+        logger.info("開始初始化測試數據...")
+        run_init_test_data()
+        logger.info("測試數據初始化完成")
+    except Exception as e:
+        logger.error(f"初始化測試數據時發生錯誤: {str(e)}")
+        # 不拋出異常，讓應用繼續啟動
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用生命週期管理"""
     # 啟動時執行
     logger.info("應用啟動中...")
     run_database_migrations()
+    init_test_data()
     logger.info("應用啟動完成")
     
     yield
