@@ -4,6 +4,7 @@ LINE Bot Webhook 處理器
 """
 import json
 import logging
+import traceback
 from datetime import datetime
 from typing import Dict, Any, List
 from fastapi import APIRouter, Request, HTTPException, Depends
@@ -42,7 +43,6 @@ def send_line_message(user_id: str, message: str, quick_reply_items: List = None
         quick_reply_items: Quick Reply按鈕列表
     """
     import requests
-    import traceback
     
     url = "https://api.line.me/v2/bot/message/push"
     headers = {
