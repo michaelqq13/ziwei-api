@@ -42,6 +42,7 @@ def send_line_message(user_id: str, message: str, quick_reply_items: List = None
         quick_reply_items: Quick Reply按鈕列表
     """
     import requests
+    import traceback
     
     url = "https://api.line.me/v2/bot/message/push"
     headers = {
@@ -66,24 +67,32 @@ def send_line_message(user_id: str, message: str, quick_reply_items: List = None
     }
     
     try:
-        logger.info(f"正在發送訊息到 LINE，用戶ID: {user_id}")
+        logger.info("=== 開始發送 LINE 訊息 ===")
+        logger.info(f"目標用戶ID: {user_id}")
         logger.info(f"訊息內容: {message}")
+        logger.info(f"請求URL: {url}")
         logger.info(f"請求標頭: {headers}")
-        logger.info(f"請求數據: {data}")
+        logger.info(f"請求數據: {json.dumps(data, ensure_ascii=False, indent=2)}")
         
         response = requests.post(url, headers=headers, json=data)
-        logger.info(f"LINE API 回應狀態碼: {response.status_code}")
-        logger.info(f"LINE API 回應內容: {response.text}")
         
-        response.raise_for_status()
-        logger.info("訊息發送成功")
-        return True
+        logger.info("=== LINE API 回應 ===")
+        logger.info(f"回應狀態碼: {response.status_code}")
+        logger.info(f"回應內容: {response.text}")
         
+        if response.status_code == 200:
+            logger.info("✅ 訊息發送成功")
+            return True
+        else:
+            logger.error(f"❌ 訊息發送失敗 (HTTP {response.status_code})")
+            logger.error(f"錯誤詳情: {response.text}")
+            return False
+            
     except Exception as e:
-        logger.error(f"發送訊息失敗: {str(e)}")
-        if isinstance(e, requests.exceptions.RequestException) and e.response is not None:
-            logger.error(f"錯誤回應狀態碼: {e.response.status_code}")
-            logger.error(f"錯誤回應內容: {e.response.text}")
+        logger.error("=== 發送訊息時發生異常 ===")
+        logger.error(f"異常類型: {type(e).__name__}")
+        logger.error(f"異常訊息: {str(e)}")
+        logger.error(f"堆疊追蹤:\n{traceback.format_exc()}")
         return False
 
 def format_divination_result(result: Dict) -> str:
@@ -521,45 +530,56 @@ async def line_webhook(request: Request, db: Session = Depends(get_db)):
     try:
         # 驗證配置
         validate_config()
-        logger.info("配置驗證成功")
+        logger.info("=== 收到新的 Webhook 請求 ===")
         
         # 獲取請求內容
         body = await request.body()
         body_str = body.decode('utf-8')
-        logger.info(f"收到 webhook 請求: {body_str}")
         
         # 獲取請求標頭
         headers = dict(request.headers)
-        logger.info(f"請求標頭: {headers}")
+        logger.info("=== 請求詳情 ===")
+        logger.info(f"請求路徑: {request.url}")
+        logger.info(f"請求方法: {request.method}")
+        logger.info(f"請求標頭:\n{json.dumps(headers, indent=2)}")
+        logger.info(f"請求內容:\n{json.dumps(json.loads(body_str), ensure_ascii=False, indent=2)}")
         
         events = json.loads(body_str)
-        logger.info(f"解析的事件: {events}")
         
         # 處理每個事件
         for event in events.get("events", []):
             event_type = event.get("type")
-            logger.info(f"處理事件類型: {event_type}")
-            logger.info(f"事件詳情: {json.dumps(event, ensure_ascii=False, indent=2)}")
+            logger.info(f"\n=== 處理事件 ===")
+            logger.info(f"事件類型: {event_type}")
+            logger.info(f"事件詳情:\n{json.dumps(event, ensure_ascii=False, indent=2)}")
             
             if event_type == "message":
-                logger.info(f"處理訊息事件: {event}")
+                logger.info("開始處理訊息事件")
                 await handle_message_event(db, event)
+                logger.info("訊息事件處理完成")
             elif event_type == "follow":
-                logger.info(f"處理關注事件: {event}")
+                logger.info("開始處理關注事件")
                 await handle_follow_event(db, event)
+                logger.info("關注事件處理完成")
             elif event_type == "unfollow":
-                logger.info(f"處理取消關注事件: {event}")
+                logger.info("開始處理取消關注事件")
                 await handle_unfollow_event(db, event)
+                logger.info("取消關注事件處理完成")
             elif event_type == "postback":
-                logger.info(f"處理 postback 事件: {event}")
+                logger.info("開始處理 postback 事件")
                 await handle_postback_event(db, event)
+                logger.info("postback 事件處理完成")
             else:
-                logger.warning(f"未處理的事件類型: {event_type}, 事件: {event}")
+                logger.warning(f"⚠️ 未處理的事件類型: {event_type}")
         
+        logger.info("=== Webhook 請求處理完成 ===")
         return {"status": "ok"}
         
     except Exception as e:
-        logger.error(f"Webhook 處理錯誤: {str(e)}")
+        logger.error("=== Webhook 處理發生錯誤 ===")
+        logger.error(f"錯誤類型: {type(e).__name__}")
+        logger.error(f"錯誤訊息: {str(e)}")
+        logger.error(f"堆疊追蹤:\n{traceback.format_exc()}")
         if hasattr(e, 'response'):
             logger.error(f"錯誤回應: {e.response.text if e.response else 'No response'}")
         raise HTTPException(status_code=500, detail=str(e))
