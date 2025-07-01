@@ -66,11 +66,24 @@ def send_line_message(user_id: str, message: str, quick_reply_items: List = None
     }
     
     try:
+        logger.info(f"正在發送訊息到 LINE，用戶ID: {user_id}")
+        logger.info(f"訊息內容: {message}")
+        logger.info(f"請求標頭: {headers}")
+        logger.info(f"請求數據: {data}")
+        
         response = requests.post(url, headers=headers, json=data)
+        logger.info(f"LINE API 回應狀態碼: {response.status_code}")
+        logger.info(f"LINE API 回應內容: {response.text}")
+        
         response.raise_for_status()
+        logger.info("訊息發送成功")
         return True
+        
     except Exception as e:
-        logger.error(f"發送訊息失敗: {e}")
+        logger.error(f"發送訊息失敗: {str(e)}")
+        if isinstance(e, requests.exceptions.RequestException) and e.response is not None:
+            logger.error(f"錯誤回應狀態碼: {e.response.status_code}")
+            logger.error(f"錯誤回應內容: {e.response.text}")
         return False
 
 def format_divination_result(result: Dict) -> str:
@@ -508,11 +521,16 @@ async def line_webhook(request: Request, db: Session = Depends(get_db)):
     try:
         # 驗證配置
         validate_config()
+        logger.info("配置驗證成功")
         
         # 獲取請求內容
         body = await request.body()
         body_str = body.decode('utf-8')
         logger.info(f"收到 webhook 請求: {body_str}")
+        
+        # 獲取請求標頭
+        headers = dict(request.headers)
+        logger.info(f"請求標頭: {headers}")
         
         events = json.loads(body_str)
         logger.info(f"解析的事件: {events}")
@@ -521,6 +539,7 @@ async def line_webhook(request: Request, db: Session = Depends(get_db)):
         for event in events.get("events", []):
             event_type = event.get("type")
             logger.info(f"處理事件類型: {event_type}")
+            logger.info(f"事件詳情: {json.dumps(event, ensure_ascii=False, indent=2)}")
             
             if event_type == "message":
                 logger.info(f"處理訊息事件: {event}")
@@ -540,8 +559,10 @@ async def line_webhook(request: Request, db: Session = Depends(get_db)):
         return {"status": "ok"}
         
     except Exception as e:
-        logger.error(f"Webhook 處理錯誤: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Webhook 處理錯誤: {str(e)}")
+        if hasattr(e, 'response'):
+            logger.error(f"錯誤回應: {e.response.text if e.response else 'No response'}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def handle_message_event(db: Session, event: Dict[str, Any]):
     """處理訊息事件"""
