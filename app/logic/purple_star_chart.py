@@ -1,0 +1,592 @@
+from datetime import datetime
+from typing import Dict, List, Optional
+from dataclasses import dataclass
+from app.models.calendar import CalendarData
+from app.models.birth_info import BirthInfo
+from app.utils.chinese_calendar import ChineseCalendar
+from app.db.repository import CalendarRepository
+from app.logic.star_calculator import StarCalculator
+from app.data.heavenly_stems.four_transformations import four_transformations_explanations
+from sqlalchemy.orm import Session
+import logging
+
+logger = logging.getLogger(__name__)
+
+@dataclass
+class Palace:
+    name: str  # 宮位名稱
+    stars: List[str]  # 宮內星曜
+    element: str  # 五行屬性
+    stem: str  # 天干
+    branch: str  # 地支
+    body_palace: bool = False  # 是否為身宮
+
+class PurpleStarChart:
+    def __init__(self, year: int = None, month: int = None, day: int = None, hour: int = None, minute: int = None, gender: str = None, birth_info: BirthInfo = None, db: Session = None):
+        """
+        初始化紫微斗數命盤
+        
+        Args:
+            year: 年份（可選，如果提供 birth_info 則不需要）
+            month: 月份（可選，如果提供 birth_info 則不需要）
+            day: 日期（可選，如果提供 birth_info 則不需要）
+            hour: 小時（可選，如果提供 birth_info 則不需要）
+            minute: 分鐘（可選，如果提供 birth_info 則不需要）
+            gender: 性別（可選，如果提供 birth_info 則不需要）
+            birth_info: BirthInfo 對象（可選，如果提供年月日時分和性別則不需要）
+            db: 數據庫會話（必需）
+        """
+        if birth_info:
+            self.birth_info = birth_info
+        else:
+            self.birth_info = BirthInfo(
+                year=year,
+                month=month,
+                day=day,
+                hour=hour,
+                minute=minute,
+                gender=gender,
+                longitude=121.5654,  # 預設台北經度
+                latitude=25.0330     # 預設台北緯度
+            )
+        
+        if not db:
+            raise ValueError("必須提供數據庫會話")
+            
+        self.calendar_repo = CalendarRepository(db)
+        self.star_calculator = StarCalculator()
+        self.palaces: Dict[str, Palace] = {}
+        self.calendar_data: Optional[CalendarData] = None
+        self.palace_order: List[str] = []
+        
+        # 初始化命盤
+        self.initialize()
+        
+        # 計算星曜位置
+        self.calculate_stars()
+        
+    def initialize(self):
+        """初始化命盤"""
+        logger.info("開始初始化命盤")
+        # 1. 獲取農曆資料
+        self.calendar_data = self.calendar_repo.get_calendar_data(self.birth_info)
+        if not self.calendar_data:
+            logger.error("無法獲取對應的農曆數據")
+            raise ValueError("無法獲取對應的農曆數據")
+            
+        logger.info(f"獲取到農曆數據: {self.calendar_data.__dict__}")
+            
+        # 在此計算並添加分鐘干支
+        # 使用日干和時辰來計算時干
+        day_stem = self.calendar_data.day_gan_zhi[0]  # 取日干
+        hour_stem = ChineseCalendar.get_hour_stem(self.birth_info.hour, day_stem)  # 基於日干計算時干
+        minute_branch = ChineseCalendar.get_minute_branch(self.birth_info.hour, self.birth_info.minute)
+        self.calendar_data.minute_gan_zhi = f"{hour_stem}{minute_branch}"
+        
+        logger.info(f"計算分鐘干支: {self.calendar_data.minute_gan_zhi}")
+        
+        # 設置宮位和星曜的初始空字典
+        self.palaces = {}
+        self.stars = {}
+        self.palace_order = []
+        
+        # 2. 計算命宮位置
+        self._calculate_ming_palace()
+        
+        # 3. 初始化十二宮位
+        self._initialize_palaces()
+        
+        logger.info("命盤初始化完成")
+        
+    def _calculate_ming_palace(self):
+        """計算命宮位置"""
+        # 1. 獲取時辰地支
+        hour_branch = ChineseCalendar.get_hour_branch(self.birth_info.hour)
+        
+        # 2. 獲取農曆月份
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        # 3. 計算命宮地支
+        # 口訣：寅起順行至生月，生月起子兩頭通，逆至生時為命宮
+        branches = ChineseCalendar.EARTHLY_BRANCHES
+        
+        # 從寅宮開始，順數到農曆生月
+        yin_index = branches.index("寅")
+        month_palace_index = (yin_index + lunar_month - 1) % 12
+        
+        # 從該宮的子位逆數到生時，得到命宮
+        hour_branch_index = branches.index(hour_branch)
+        zi_index = branches.index("子")
+        ming_branch_index = (month_palace_index + zi_index - hour_branch_index) % 12
+        ming_branch = branches[ming_branch_index]
+        
+        # 4. 計算命宮天干
+        # 獲取月干
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 取年干
+        month_stem = ChineseCalendar.get_month_stem(year_stem, lunar_month)
+        
+        # 命宮天干 = 月干 + 2
+        month_stem_index = ChineseCalendar.HEAVENLY_STEMS.index(month_stem)
+        ming_stem_index = (month_stem_index + 2) % 10
+        ming_stem = ChineseCalendar.HEAVENLY_STEMS[ming_stem_index]
+        
+        # 5. 設置宮位順序 - 從命宮地支開始的順序
+        # 找到命宮地支在固定地支順序中的位置
+        ming_index_in_fixed_order = branches.index(ming_branch)
+        # 創建從命宮開始的地支順序
+        self.palace_order = [branches[(ming_index_in_fixed_order + i) % 12] for i in range(12)]
+        
+        logger.info(f"命宮計算結果 - 天干：{ming_stem} 地支：{ming_branch}")
+        logger.info(f"宮位順序：{self.palace_order}")
+        
+        return ming_stem, ming_branch
+        
+    def _initialize_palaces(self):
+        """初始化十二宮位"""
+        # 修正宮位名稱順序：命宮後面應該是父母宮，不是兄弟宮
+        palace_names = [
+            "命宮", "父母", "福德", "田宅", "官祿", "交友",
+            "遷移", "疾厄", "財帛", "子女", "夫妻", "兄弟"
+        ]
+        
+        # 根據生年天干計算各宮位天干
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 取年干
+        palace_stems = ChineseCalendar.get_palace_stems(year_stem)
+        
+        # 地支位置是固定的，不變動
+        # 根據命宮地支位置來分配宮位名稱
+        ming_branch = self.palace_order[0]  # 命宮地支
+        ming_index = ChineseCalendar.EARTHLY_BRANCHES.index(ming_branch)
+        
+        for i, name in enumerate(palace_names):
+            # 計算該宮位對應的地支索引（順時針排列）
+            branch_index = (ming_index + i) % 12
+            branch = ChineseCalendar.EARTHLY_BRANCHES[branch_index]
+            
+            # 從宮干對照表獲取對應的天干
+            stem = palace_stems[branch]
+            
+            # 獲取宮位五行
+            element = ChineseCalendar.BRANCH_ELEMENTS[branch]
+            
+            self.palaces[name] = Palace(
+                name=name,
+                stars=[],
+                element=element,
+                stem=stem,
+                branch=branch
+            )
+            
+    def calculate_stars(self):
+        """計算星曜位置"""
+        logger.info("開始計算星曜位置")
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,  # 使用農曆月份
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour)
+        }
+        
+        logger.info(f"準備傳遞給StarCalculator的birth_info: {birth_info_for_calculator}")
+        
+        self.star_calculator.calculate_stars(birth_info_for_calculator, self.palaces)
+        
+        # 檢查計算結果
+        for palace_name, palace_info in self.palaces.items():
+            logger.info(f"宮位 {palace_name} 的星曜: {palace_info.stars}")
+        
+        logger.info("星曜位置計算完成")
+        
+    def calculate_transformations(self) -> Dict[str, Dict[str, str]]:
+        """計算四化"""
+        if not self.calendar_data:
+            return {}
+            
+        # 獲取年干
+        year_stem = self.calendar_data.year_gan_zhi[0]
+        
+        # 獲取四化星
+        transformations = self.star_calculator.FOUR_TRANSFORMATIONS.get(year_stem, {})
+        
+        # 準備結果字典
+        result = {}
+        
+        # 遍歷每個四化類型
+        for trans_type, star_name in transformations.items():
+            # 找到該星所在的宮位
+            palace_name = self.find_star_palace(star_name)
+            if palace_name:
+                # 獲取該四化的解釋
+                explanation = self.get_explanation_for_palace(
+                    star_name=star_name,
+                    transformation_type=trans_type,
+                    palace_name=palace_name,
+                    birth_info={
+                        'year_stem': year_stem,
+                        'gender': self.birth_info.gender
+                    }
+                )
+                
+                # 將結果添加到字典中
+                result[star_name] = {
+                    '四化': trans_type,
+                    '宮位': palace_name,
+                    **explanation
+                }
+        
+        return result
+        
+    def get_four_transformations_explanations(self):
+        """獲取四化解釋"""
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour),
+            'gender': self.birth_info.gender
+        }
+        
+        return self.star_calculator.get_four_transformations_explanations(
+            birth_info_for_calculator, 
+            self.palaces
+        )
+        
+    def get_four_transformations_explanations_by_stem(self, custom_stem: str):
+        """獲取自定義天干的四化解釋"""
+        return self.star_calculator.get_four_transformations_explanations_by_stem(
+            custom_stem, 
+            self.palaces
+        )
+
+    def apply_custom_stem_transformations(self, custom_stem: str):
+        """應用自定義天干的四化到命盤中，並回傳解釋"""
+        # 首先清除所有現有的四化標記
+        self._clear_all_transformations()
+        
+        # 準備birth_info給StarCalculator使用
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': custom_stem,  # 使用自定義天干替代原生年天干
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour)
+        }
+        
+        # 應用自定義天干的四化
+        self.star_calculator._apply_four_transformations(birth_info_for_calculator, self.palaces)
+
+        # 回傳計算後的四化解釋
+        return self.get_four_transformations_explanations_by_stem(custom_stem)
+
+    def _clear_all_transformations(self):
+        """清除所有宮位中星曜的四化標記"""
+        for palace_name, palace_info in self.palaces.items():
+            updated_stars = []
+            for star in palace_info.stars:
+                # 移除所有四化標記（化祿、化權、化科、化忌）
+                cleaned_star = star
+                for transformation in ['化祿', '化權', '化科', '化忌']:
+                    cleaned_star = cleaned_star.replace(transformation, '')
+                updated_stars.append(cleaned_star)
+            palace_info.stars = updated_stars
+
+    def calculate_major_limits(self, current_age: int = None):
+        """計算大限"""
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour),
+            'gender': self.birth_info.gender
+        }
+        
+        return self.star_calculator.calculate_major_limits(
+            birth_info_for_calculator, 
+            self.palaces, 
+            current_age
+        )
+    
+    def calculate_minor_limits(self, target_age: int = None):
+        """計算小限"""
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour),
+            'gender': self.birth_info.gender
+        }
+        
+        return self.star_calculator.calculate_minor_limits(
+            birth_info_for_calculator, 
+            self.palaces, 
+            target_age
+        )
+    
+    def calculate_annual_fortune(self, target_year: int = None):
+        """計算流年"""
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour),
+            'gender': self.birth_info.gender
+        }
+        
+        return self.star_calculator.calculate_annual_fortune(
+            birth_info_for_calculator, 
+            self.palaces, 
+            target_year
+        )
+    
+    def calculate_monthly_fortune(self, target_year: int = None, target_month: int = None):
+        """計算流月"""
+        # 首先計算流年
+        annual_fortune = self.calculate_annual_fortune(target_year)
+        
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour),
+            'gender': self.birth_info.gender
+        }
+        
+        return self.star_calculator.calculate_monthly_fortune(
+            birth_info_for_calculator, 
+            self.palaces, 
+            annual_fortune,
+            target_month
+        )
+    
+    def calculate_daily_fortune(self, target_year: int = None, target_month: int = None, target_day: int = None):
+        """計算流日"""
+        # 首先計算流年和流月
+        annual_fortune = self.calculate_annual_fortune(target_year)
+        monthly_fortune = self.calculate_monthly_fortune(target_year, target_month)
+        
+        # 準備傳遞給StarCalculator的birth_info
+        year_stem = self.calendar_data.year_gan_zhi[0]  # 生年天干
+        year_branch = self.calendar_data.year_gan_zhi[1]  # 生年地支
+        ming_branch = self.palace_order[0]  # 命宮地支（第一個宮位）
+        
+        # 從calendar_data中獲取農曆日期和月份
+        lunar_day = ChineseCalendar.parse_chinese_day(self.calendar_data.lunar_day_in_chinese)
+        lunar_month = ChineseCalendar.parse_chinese_month(self.calendar_data.lunar_month_in_chinese)
+        
+        birth_info_for_calculator = {
+            'year_stem': year_stem,
+            'year_branch': year_branch,
+            'ming_branch': ming_branch,
+            'lunar_day': lunar_day,
+            'lunar_month': lunar_month,
+            'lunar_hour_branch': ChineseCalendar.get_hour_branch(self.birth_info.hour),
+            'gender': self.birth_info.gender
+        }
+        
+        return self.star_calculator.calculate_daily_fortune(
+            birth_info_for_calculator, 
+            self.palaces, 
+            annual_fortune,
+            monthly_fortune,
+            target_day
+        )
+        
+    def get_chart(self, include_major_limits: bool = False, current_age: int = None, include_minor_limits: bool = False, target_age: int = None) -> Dict:
+        """
+        獲取完整命盤數據
+        
+        Args:
+            include_major_limits: 是否包含大限
+            current_age: 當前年齡（用於計算大限）
+            include_minor_limits: 是否包含小限
+            target_age: 目標年齡（用於計算小限）
+            
+        Returns:
+            命盤數據字典
+        """
+        try:
+            logger.info("開始獲取命盤數據")
+            
+            # 基本命盤資訊
+            chart_data = {
+                "birth_info": {
+                    "year": self.birth_info.year,
+                    "month": self.birth_info.month,
+                    "day": self.birth_info.day,
+                    "hour": self.birth_info.hour,
+                    "minute": self.birth_info.minute,
+                    "gender": self.birth_info.gender,
+                    "longitude": self.birth_info.longitude,
+                    "latitude": self.birth_info.latitude
+                },
+                "lunar_info": {
+                    "year": self.calendar_data.lunar_year_in_chinese,
+                    "month": self.calendar_data.lunar_month_in_chinese,
+                    "day": self.calendar_data.lunar_day_in_chinese,
+                    "year_gan_zhi": self.calendar_data.year_gan_zhi,
+                    "month_gan_zhi": self.calendar_data.month_gan_zhi,
+                    "day_gan_zhi": self.calendar_data.day_gan_zhi,
+                    "hour_gan_zhi": self.calendar_data.hour_gan_zhi,
+                    "minute_gan_zhi": self.calendar_data.minute_gan_zhi
+                },
+                "palaces": {}
+            }
+            
+            # 添加宮位資訊
+            for name, palace in self.palaces.items():
+                chart_data["palaces"][name] = {
+                    "name": palace.name,
+                    "stars": palace.stars,
+                    "element": palace.element,
+                    "tiangan": palace.stem,
+                    "dizhi": palace.branch,
+                    "is_body_palace": palace.body_palace
+                }
+            
+            # 添加大限資訊
+            if include_major_limits and current_age is not None:
+                major_limits = self.calculate_major_limits(current_age)
+                chart_data["major_limits"] = major_limits
+            
+            # 添加小限資訊
+            if include_minor_limits and target_age is not None:
+                minor_limits = self.calculate_minor_limits(target_age)
+                chart_data["minor_limits"] = minor_limits
+            
+            logger.info("命盤數據獲取完成")
+            return chart_data
+            
+        except Exception as e:
+            logger.error(f"獲取命盤數據時發生錯誤：{str(e)}")
+            raise
+
+    def find_star_palace(self, star_name: str) -> Optional[str]:
+        """找到星曜所在的宮位
+        
+        Args:
+            star_name: 要查找的星曜名稱
+            
+        Returns:
+            宮位名稱，如果找不到則返回 None
+        """
+        logger.info(f"開始查找星曜 {star_name} 所在宮位")
+        
+        # 清理星曜名稱，去除可能的狀態描述和四化標記
+        clean_target_name = star_name.split("（")[0] if "（" in star_name else star_name
+        clean_target_name = clean_target_name.replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "")
+        
+        logger.info(f"清理後的星曜名稱: {clean_target_name}")
+        
+        for palace_name, palace_info in self.palaces.items():
+            logger.info(f"檢查宮位 {palace_name} 的星曜: {palace_info.stars}")
+            for star in palace_info.stars:
+                # 清理當前星曜名稱
+                clean_star_name = star.split("（")[0] if "（" in star else star
+                clean_star_name = clean_star_name.replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "")
+                
+                logger.info(f"比對星曜: {clean_star_name} vs {clean_target_name}")
+                
+                if clean_star_name == clean_target_name:
+                    logger.info(f"找到星曜 {star_name} 在宮位 {palace_name}")
+                    return palace_name
+        
+        logger.warning(f"未找到星曜 {star_name} 所在宮位")
+        return None
+
+    def get_explanation_for_palace(self, star_name: str, transformation_type: str, palace_name: str, birth_info: Dict) -> Dict[str, str]:
+        """獲取宮位解釋"""
+        # 獲取四化解釋
+        explanation = four_transformations_explanations.get(transformation_type, {})
+        
+        # 獲取星曜解釋
+        star_explanation = explanation.get(star_name, {})
+        
+        # 獲取宮位解釋
+        palace_explanation = star_explanation.get(palace_name, {})
+        
+        # 根據性別獲取解釋
+        gender = birth_info.get('gender', 'M')
+        gender_explanation = palace_explanation.get(gender, {})
+        
+        return {
+            '現象': gender_explanation.get('現象', ''),
+            '心理傾向': gender_explanation.get('心理傾向', ''),
+            '可能事件': gender_explanation.get('可能事件', ''),
+            '提示': gender_explanation.get('提示', ''),
+            '來意不明建議': gender_explanation.get('來意不明建議', '')
+        } 
