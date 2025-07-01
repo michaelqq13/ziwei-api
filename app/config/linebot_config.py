@@ -33,14 +33,14 @@ class LineBotConfig:
     RICH_MENU_WIDTH = 2500
     RICH_MENU_HEIGHT = 1686
     
-    # 星球按鈕配置 (星空主題)
+    # 星球按鈕配置 (星空主題) - 優化位置以避免重疊
     RICH_MENU_BUTTONS = [
         {
             "name": "divination",
             "text": "本週占卜", 
             "action_text": "本週占卜",
-            "x": 1244,  # 中上方
-            "y": 350,
+            "x": 1250,  # 中上方（稍微調整）
+            "y": 380,   # 下移一些
             "size": 200,
             "color": "#FFD700",  # 金色 - 太陽
             "planet": "太陽"
@@ -49,8 +49,8 @@ class LineBotConfig:
             "name": "yearly_fortune", 
             "text": "流年運勢",
             "action_text": "流年運勢", 
-            "x": 656,   # 左中
-            "y": 650,
+            "x": 600,   # 左中（增加間距）
+            "y": 700,   # 下移
             "size": 180,
             "color": "#FF6B6B",  # 紅色 - 火星
             "planet": "火星"
@@ -59,8 +59,8 @@ class LineBotConfig:
             "name": "monthly_fortune",
             "text": "流月運勢", 
             "action_text": "流月運勢",
-            "x": 1583,  # 右中
-            "y": 750,
+            "x": 1650,  # 右中（增加間距）
+            "y": 800,   # 下移
             "size": 170,
             "color": "#4ECDC4",  # 藍綠色 - 水星
             "planet": "水星"
@@ -69,8 +69,8 @@ class LineBotConfig:
             "name": "daily_fortune",
             "text": "流日運勢",
             "action_text": "流日運勢", 
-            "x": 995,   # 中下
-            "y": 1200,
+            "x": 1050,  # 中下（稍微調整）
+            "y": 1250,  # 下移
             "size": 160,
             "color": "#A8E6CF",  # 綠色 - 金星
             "planet": "金星"
@@ -79,8 +79,8 @@ class LineBotConfig:
             "name": "chart_binding",
             "text": "命盤綁定",
             "action_text": "命盤綁定",
-            "x": 1800,  # 右下
-            "y": 1400, 
+            "x": 1850,  # 右下（增加間距）
+            "y": 1450,  # 下移
             "size": 150,
             "color": "#DDA0DD",  # 紫色 - 土星
             "planet": "土星"
@@ -89,8 +89,8 @@ class LineBotConfig:
             "name": "member_info",
             "text": "會員資訊", 
             "action_text": "會員資訊",
-            "x": 400,   # 左下
-            "y": 1400,
+            "x": 350,   # 左下（增加間距）
+            "y": 1450,  # 下移
             "size": 140,
             "color": "#87CEEB",  # 天藍色 - 木星
             "planet": "木星"
