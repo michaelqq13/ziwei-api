@@ -4,7 +4,7 @@
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple, Optional
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,13 @@ from app.utils.chinese_calendar import ChineseCalendar
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+def get_current_taipei_time() -> datetime:
+    """獲取當前台北時間"""
+    return datetime.now(TAIPEI_TZ)
 
 class DivinationLogic:
     """占卜邏輯核心類"""
@@ -287,7 +294,11 @@ class DivinationLogic:
         根據當前時間和性別計算太極點命宮和四化
         """
         if not current_time:
-            current_time = datetime.now()
+            current_time = get_current_taipei_time()
+        
+        # 確保時間有時區信息
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=TAIPEI_TZ)
         
         try:
             logger.info(f"開始執行占卜 - 時間：{current_time}, 性別：{gender}")

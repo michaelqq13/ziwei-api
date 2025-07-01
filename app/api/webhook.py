@@ -5,7 +5,7 @@ LINE Bot Webhook 處理器
 import json
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -26,6 +26,13 @@ router = APIRouter()
 
 # 記憶體中的用戶會話管理
 user_sessions: Dict[str, MemoryUserSession] = {}
+
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+def get_current_taipei_time() -> datetime:
+    """獲取當前台北時間"""
+    return datetime.now(TAIPEI_TZ)
 
 def get_or_create_session(user_id: str) -> MemoryUserSession:
     """獲取或創建用戶會話"""
@@ -102,11 +109,24 @@ def format_divination_result(result: Dict) -> str:
     
     # 基本資訊
     gender_text = "男性" if result["gender"] == "M" else "女性"
-    time_str = datetime.fromisoformat(result["divination_time"]).strftime("%Y-%m-%d %H:%M")
+    
+    # 解析時間字符串並轉換為台北時間
+    divination_time_str = result["divination_time"]
+    if divination_time_str.endswith('+08:00'):
+        # 如果已經包含時區信息，直接解析
+        divination_time = datetime.fromisoformat(divination_time_str)
+    else:
+        # 如果沒有時區信息，當作UTC時間處理，然後轉換為台北時間
+        divination_time = datetime.fromisoformat(divination_time_str.replace('Z', '+00:00'))
+        if divination_time.tzinfo is None:
+            divination_time = divination_time.replace(tzinfo=timezone.utc)
+        divination_time = divination_time.astimezone(TAIPEI_TZ)
+    
+    time_str = divination_time.strftime("%Y-%m-%d %H:%M")
     
     message = f"""🔮 **紫微斗數占卜結果** ✨
 
-📅 占卜時間：{time_str}
+📅 占卜時間：{time_str} (台北時間)
 👤 性別：{gender_text}
 🏰 太極點命宮：{result["taichi_palace"]}
 🕰️ 分鐘地支：{result["minute_dizhi"]}
@@ -270,7 +290,7 @@ def handle_gender_input(db: Session, user: LineBotUser, session: MemoryUserSessi
     
     # 執行占卜
     try:
-        current_time = datetime.now()
+        current_time = get_current_taipei_time()
         result = divination_logic.perform_divination(gender, current_time, db)
         
         if result["success"]:
@@ -337,7 +357,7 @@ def handle_chart_binding_process(db: Session, user: LineBotUser, session: Memory
     if session.state == "chart_binding_year":
         try:
             year = int(text)
-            if year < 1900 or year > datetime.now().year:
+            if year < 1900 or year > get_current_taipei_time().year:
                 return "請輸入有效的年份（1900年之後）"
             
             session.set_data("birth_year", year)
