@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple, Optional
 from sqlalchemy.orm import Session
+import traceback
 
 from app.logic.purple_star_chart import PurpleStarChart
 from app.config.linebot_config import LineBotConfig
@@ -449,30 +450,72 @@ class DivinationLogic:
         """
         try:
             palaces = chart_data.get("palaces", {})
+            logger.info(f"開始查找星曜 {star_name} 的地支")
+            logger.info(f"命盤宮位數量：{len(palaces)}")
+            
+            # 清理目標星曜名稱，去除可能的四化標記
+            clean_target_star = star_name.replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "")
+            if "（" in clean_target_star:
+                clean_target_star = clean_target_star.split("（")[0]
+            clean_target_star = clean_target_star.strip()
+            
+            logger.info(f"清理後的目標星曜名稱：{clean_target_star}")
             
             # 遍歷所有宮位查找星曜
             for palace_name, palace_info in palaces.items():
                 if isinstance(palace_info, dict):
                     # 獲取宮位的地支
                     palace_branch = palace_info.get("dizhi", palace_info.get("branch", ""))
+                    logger.info(f"檢查宮位 {palace_name}，地支：{palace_branch}")
                     
                     # 獲取宮位內的星曜
                     stars = palace_info.get("stars", [])
+                    logger.info(f"宮位 {palace_name} 內的星曜：{stars}")
                     
                     for star in stars:
+                        # 清理星曜名稱，去除狀態描述和四化標記
+                        clean_star = str(star)
                         if isinstance(star, dict):
-                            if star.get("name") == star_name:
-                                logger.info(f"找到星曜 {star_name} 在地支 {palace_branch}")
-                                return palace_branch
-                        elif str(star) == star_name:
-                            logger.info(f"找到星曜 {star_name} 在地支 {palace_branch}")
+                            clean_star = star.get("name", str(star))
+                        
+                        # 移除四化標記
+                        clean_star = clean_star.replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "")
+                        # 移除狀態描述（如入廟、旺等）
+                        if "（" in clean_star:
+                            clean_star = clean_star.split("（")[0]
+                        clean_star = clean_star.strip()
+                        
+                        logger.info(f"比對星曜：{clean_star} vs {clean_target_star}")
+                        
+                        if clean_star == clean_target_star:
+                            logger.info(f"✅ 找到星曜 {star_name} 在地支 {palace_branch}（宮位：{palace_name}）")
                             return palace_branch
+                else:
+                    logger.warning(f"宮位 {palace_name} 的資料格式不正確：{type(palace_info)}")
             
-            logger.warning(f"未找到星曜 {star_name} 的地支，使用默認值")
+            logger.warning(f"❌ 未找到星曜 {star_name} 的地支，可能的原因：")
+            logger.warning("1. 星曜名稱不匹配")
+            logger.warning("2. 星曜不在基本十四主星中")
+            logger.warning("3. 資料結構問題")
+            
+            # 打印所有宮位的星曜以供調試
+            logger.info("=== 所有宮位星曜列表 ===")
+            for palace_name, palace_info in palaces.items():
+                if isinstance(palace_info, dict):
+                    stars = palace_info.get("stars", [])
+                    branch = palace_info.get("dizhi", palace_info.get("branch", ""))
+                    logger.info(f"{palace_name}（{branch}）：{stars}")
+            
+            # 如果是基本十四主星，應該能找到，如果找不到說明有問題
+            main_stars = ["紫微", "天機", "太陽", "武曲", "天同", "廉貞", "天府", "太陰", "貪狼", "巨門", "天相", "天梁", "七殺", "破軍"]
+            if clean_target_star in main_stars:
+                logger.error(f"⚠️ 主星 {clean_target_star} 未找到，這可能是系統錯誤")
+            
             return "子"  # 默認值
             
         except Exception as e:
             logger.error(f"獲取星曜地支錯誤: {e}")
+            logger.error(f"錯誤詳情: {traceback.format_exc()}")
             return "子"  # 默認值
 
 # 全局實例
