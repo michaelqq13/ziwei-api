@@ -106,9 +106,3 @@ async def test_divination(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"測試過程發生錯誤：{str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    print(f"Starting server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
