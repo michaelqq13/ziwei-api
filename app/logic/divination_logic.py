@@ -288,6 +288,41 @@ class DivinationLogic:
         
         return results
     
+    def get_taichi_palace_mapping(self, taichi_branch: str) -> Dict[str, str]:
+        """
+        根據太極點命宮地支重新分佈十二宮位
+        
+        Args:
+            taichi_branch: 太極點命宮的地支
+            
+        Returns:
+            Dict[str, str]: 地支到新宮位名稱的映射
+        """
+        # 十二地支順序
+        branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+        
+        # 十二宮位順序（以命宮為起點）
+        palace_names = ["命宮", "父母宮", "福德宮", "田宅宮", "官祿宮", "交友宮", 
+                       "遷移宮", "疾厄宮", "財帛宮", "子女宮", "夫妻宮", "兄弟宮"]
+        
+        # 找到太極點命宮地支的索引
+        try:
+            taichi_index = branches.index(taichi_branch)
+        except ValueError:
+            logger.error(f"無效的太極點地支: {taichi_branch}")
+            taichi_index = 0  # 默認從子開始
+        
+        # 建立新的地支到宮位映射
+        branch_to_palace = {}
+        for i in range(12):
+            branch_index = (taichi_index + i) % 12
+            branch = branches[branch_index]
+            palace = palace_names[i]
+            branch_to_palace[branch] = palace
+            
+        logger.info(f"太極點命宮 {taichi_branch} 的宮位重新分佈: {branch_to_palace}")
+        return branch_to_palace
+
     def perform_divination(self, gender: str, current_time: datetime = None, db: Optional[Session] = None) -> Dict:
         """
         執行占卜
@@ -335,9 +370,20 @@ class DivinationLogic:
             chart_data = chart.get_chart()
             logger.info(f"重新獲取命盤數據（應用宮干四化後）")
             
-            # 格式化四化結果
+            # 獲取太極點宮位重新分佈
+            taichi_palace_mapping = self.get_taichi_palace_mapping(minute_dizhi)
+            
+            # 格式化四化結果，使用太極點宮位分佈
             sihua_results = []
             for star_name, info in sihua_stars.items():
+                # 獲取星曜所在的原始地支
+                star_branch = self.get_star_branch_from_chart(chart_data, star_name)
+                
+                # 根據太極點重新分佈獲取新的宮位名稱
+                new_palace_name = taichi_palace_mapping.get(star_branch, info.get("宮位", "未知宮"))
+                
+                logger.info(f"星曜 {star_name} 原地支: {star_branch}, 新宮位: {new_palace_name}")
+                
                 # 整合完整的解釋資料，優化排版
                 explanation_parts = []
                 
@@ -367,7 +413,7 @@ class DivinationLogic:
                 sihua_results.append({
                     "type": info["四化"],
                     "star": star_name,
-                    "palace": info["宮位"],
+                    "palace": new_palace_name,  # 使用重新分佈後的宮位名稱
                     "explanation": full_explanation
                 })
             
@@ -379,7 +425,8 @@ class DivinationLogic:
                 "minute_dizhi": minute_dizhi,
                 "palace_tiangan": palace_tiangan,
                 "sihua_results": sihua_results,
-                "basic_chart": chart_data.get("palaces", {})
+                "basic_chart": chart_data.get("palaces", {}),
+                "taichi_palace_mapping": taichi_palace_mapping  # 加入宮位重新分佈資訊
             }
             
         except Exception as e:
@@ -389,67 +436,44 @@ class DivinationLogic:
                 "error": str(e)
             }
 
-    def get_sihua_explanation(self, sihua_type: str, star: str, palace: str) -> str:
+    def get_star_branch_from_chart(self, chart_data: Dict, star_name: str) -> str:
         """
-        獲取四化解釋
+        從命盤數據中獲取指定星曜所在的地支
+        
+        Args:
+            chart_data: 命盤數據
+            star_name: 星曜名稱
+            
+        Returns:
+            str: 星曜所在的地支
         """
-        # 四化解釋表（這裡應該從您的資料中讀取）
-        explanations = {
-            "祿": {
-                "廉貞": "在事業上有突破性發展，但要注意壓力調節。",
-                "天機": "智慧敏銳，善於規劃，易有意外收穫。",
-                "天同": "人際關係良好，貴人相助，財運亨通。",
-                "太陰": "適合從事藝術創作，易得女性貴人幫助。",
-                "貪狼": "事業發展順利，但要注意財務管理。",
-                "武曲": "財運亨通，善於理財，易有投資機會。",
-                "太陽": "領導能力強，易得上司賞識。",
-                "巨門": "口才出眾，善於談判，易得利益。",
-                "天梁": "正直守信，得人信任，易有意外之財。",
-                "破軍": "行動力強，創業有利，但要注意風險。"
-            },
-            "權": {
-                "破軍": "決策果斷，行動力強，易有突破。",
-                "天梁": "正直威嚴，易得人尊重。",
-                "天機": "思維敏捷，善於謀劃。",
-                "天同": "人緣極佳，易得支持。",
-                "太陰": "直覺敏銳，易有好機會。",
-                "貪狼": "魄力十足，易有成就。",
-                "武曲": "管理能力強，善於統籌。",
-                "太陽": "威望高，易得重用。",
-                "紫微": "領導才能出眾，有大作為。",
-                "巨門": "口才出眾，善於協調。"
-            },
-            "科": {
-                "武曲": "理財有道，易得正財。",
-                "紫微": "學習能力強，易有成就。",
-                "文昌": "學術表現優異，利於考試。",
-                "天機": "創新能力強，易有發明。",
-                "右弼": "人際關係好，貴人相助。",
-                "天梁": "正直守信，得人信賴。",
-                "太陰": "藝術天賦高，易有成就。",
-                "文曲": "才藝出眾，易得賞識。",
-                "左輔": "助力很大，易有機遇。",
-                "太陰": "感知敏銳，易有靈感。"
-            },
-            "忌": {
-                "太陽": "易有小人阻礙，需謹慎行事。",
-                "太陰": "情緒易波動，需注意調節。",
-                "廉貞": "易有阻礙，需堅持不懈。",
-                "巨門": "易遭誤解，需注意溝通。",
-                "天機": "易有變故，需謹慎決策。",
-                "文曲": "易有小人暗算，需提防。",
-                "天同": "易有感情困擾，需理性對待。",
-                "文昌": "易有學業壓力，需努力。",
-                "武曲": "易有財務糾紛，需謹慎。",
-                "貪狼": "易有衝突，需避免過激。"
-            }
-        }
-        
-        # 獲取對應的解釋
-        type_explanations = explanations.get(sihua_type, {})
-        explanation = type_explanations.get(star, f"{star}落在{palace}，具體影響需要綜合判斷。")
-        
-        return explanation
+        try:
+            palaces = chart_data.get("palaces", {})
+            
+            # 遍歷所有宮位查找星曜
+            for palace_name, palace_info in palaces.items():
+                if isinstance(palace_info, dict):
+                    # 獲取宮位的地支
+                    palace_branch = palace_info.get("dizhi", palace_info.get("branch", ""))
+                    
+                    # 獲取宮位內的星曜
+                    stars = palace_info.get("stars", [])
+                    
+                    for star in stars:
+                        if isinstance(star, dict):
+                            if star.get("name") == star_name:
+                                logger.info(f"找到星曜 {star_name} 在地支 {palace_branch}")
+                                return palace_branch
+                        elif str(star) == star_name:
+                            logger.info(f"找到星曜 {star_name} 在地支 {palace_branch}")
+                            return palace_branch
+            
+            logger.warning(f"未找到星曜 {star_name} 的地支，使用默認值")
+            return "子"  # 默認值
+            
+        except Exception as e:
+            logger.error(f"獲取星曜地支錯誤: {e}")
+            return "子"  # 默認值
 
 # 全局實例
 divination_logic = DivinationLogic()

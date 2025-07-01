@@ -806,6 +806,28 @@ async def setup_rich_menu_endpoint():
         logger.error(f"設定 Rich Menu 錯誤: {e}")
         return {"success": False, "error": str(e)}
 
+@router.post("/admin/force-recreate-rich-menu")
+async def force_recreate_rich_menu_endpoint():
+    """強制重新創建 Rich Menu（管理員端點）"""
+    try:
+        # 先清理舊的 Rich Menu
+        deleted_count = rich_menu_manager.cleanup_old_rich_menus()
+        logger.info(f"清理了 {deleted_count} 個舊的 Rich Menu")
+        
+        # 強制重新創建
+        menu_id = rich_menu_manager.setup_complete_rich_menu(force_recreate=True)
+        if menu_id:
+            return {
+                "success": True, 
+                "rich_menu_id": menu_id,
+                "message": f"已強制重新創建 Rich Menu，清理了 {deleted_count} 個舊菜單"
+            }
+        else:
+            return {"success": False, "error": "Rich Menu 重新創建失敗"}
+    except Exception as e:
+        logger.error(f"強制重新創建 Rich Menu 錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
 # 測試特定時間的占卜結果端點
 @router.get("/test-divination")
 async def test_divination(db: Session = Depends(get_db)):
