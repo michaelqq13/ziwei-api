@@ -1,30 +1,31 @@
+"""
+數據庫連接配置
+"""
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-import os
-from dotenv import load_dotenv
+from sqlalchemy.orm import sessionmaker
 
-# 載入環境變數
-load_dotenv()
+from app.config.database_config import DatabaseConfig
 
-# 獲取數據庫 URL，如果環境變數不存在則使用 SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./calendar.db")
+# 創建數據庫引擎
+engine = create_engine(
+    DatabaseConfig.DATABASE_URL,
+    pool_size=DatabaseConfig.POOL_SIZE,
+    max_overflow=DatabaseConfig.MAX_OVERFLOW,
+    pool_timeout=DatabaseConfig.POOL_TIMEOUT,
+    pool_recycle=DatabaseConfig.POOL_RECYCLE,
+    echo=DatabaseConfig.ECHO_SQL
+)
 
-# 如果是 PostgreSQL URL，需要替換 postgres:// 為 postgresql://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-# 根據數據庫類型設置連接參數
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-else:
-    connect_args = {}
-
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# 創建會話工廠
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 創建基礎模型類
 Base = declarative_base()
 
+# 依賴注入函數
 def get_db():
+    """獲取數據庫會話"""
     db = SessionLocal()
     try:
         yield db
