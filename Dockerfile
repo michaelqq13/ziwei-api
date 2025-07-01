@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 複製應用程序代碼
 COPY . .
 
-# 設置環境變量
+# 設置環境變數
 ENV PYTHONPATH=/app
 ENV PORT=8000
 
@@ -27,4 +27,4 @@ ENV PORT=8000
 EXPOSE 8000
 
 # 運行遷移並啟動應用
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"] 
+CMD sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT" 
