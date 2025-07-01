@@ -48,7 +48,24 @@ def init_test_data():
                         hour_gan_zhi="辛亥",
                         minute_gan_zhi="辛亥"
                     ),
-                    # 2024年12月20日 - 今天的日期
+                    # 2025年7月1日 - 當前日期附近
+                    CalendarData(
+                        gregorian_datetime=datetime(2025, 7, 1, 20, 30, 0),
+                        gregorian_year=2025,
+                        gregorian_month=7,
+                        gregorian_day=1,
+                        gregorian_hour=20,
+                        lunar_year_in_chinese="乙巳",
+                        lunar_month_in_chinese="五月",
+                        lunar_day_in_chinese="廿五",
+                        is_leap_month_in_chinese=False,
+                        year_gan_zhi="乙巳",
+                        month_gan_zhi="癸未",
+                        day_gan_zhi="戊申",
+                        hour_gan_zhi="壬戌",
+                        minute_gan_zhi="壬戌"
+                    ),
+                    # 2024年12月20日 - 系統部署日期
                     CalendarData(
                         gregorian_datetime=datetime(2024, 12, 20, 12, 0, 0),
                         gregorian_year=2024,
@@ -81,6 +98,40 @@ def init_test_data():
                         day_gan_zhi="甲午",
                         hour_gan_zhi="甲子",
                         minute_gan_zhi="甲子"
+                    ),
+                    # 2025年7月2日 - 明天
+                    CalendarData(
+                        gregorian_datetime=datetime(2025, 7, 2, 15, 0, 0),
+                        gregorian_year=2025,
+                        gregorian_month=7,
+                        gregorian_day=2,
+                        gregorian_hour=15,
+                        lunar_year_in_chinese="乙巳",
+                        lunar_month_in_chinese="五月",
+                        lunar_day_in_chinese="廿六",
+                        is_leap_month_in_chinese=False,
+                        year_gan_zhi="乙巳",
+                        month_gan_zhi="癸未",
+                        day_gan_zhi="己酉",
+                        hour_gan_zhi="壬申",
+                        minute_gan_zhi="壬申"
+                    ),
+                    # 2025年6月29日 - 昨天
+                    CalendarData(
+                        gregorian_datetime=datetime(2025, 6, 29, 10, 0, 0),
+                        gregorian_year=2025,
+                        gregorian_month=6,
+                        gregorian_day=29,
+                        gregorian_hour=10,
+                        lunar_year_in_chinese="乙巳",
+                        lunar_month_in_chinese="五月",
+                        lunar_day_in_chinese="廿三",
+                        is_leap_month_in_chinese=False,
+                        year_gan_zhi="乙巳",
+                        month_gan_zhi="壬午",
+                        day_gan_zhi="丙午",
+                        hour_gan_zhi="癸巳",
+                        minute_gan_zhi="癸巳"
                     )
                 ]
                 
