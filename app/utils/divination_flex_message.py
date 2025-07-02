@@ -245,8 +245,8 @@ class DivinationFlexMessageGenerator:
             color = self.PALACE_COLORS.get(palace_name, "#95A5A6")
             
             # 獲取宮位資訊
-            tiangan = palace_data.get("tiangan", "")
-            dizhi = palace_data.get("dizhi", "")
+            tiangan = str(palace_data.get("tiangan", ""))
+            dizhi = str(palace_data.get("dizhi", ""))
             stars = palace_data.get("stars", [])
             
             # 主星和輔星分離
@@ -254,10 +254,11 @@ class DivinationFlexMessageGenerator:
             minor_stars = []
             
             for star in stars[:6]:  # 最多顯示6顆星
-                if any(main in str(star) for main in ["紫微", "天機", "太陽", "武曲", "天同", "廉貞", "天府", "太陰", "貪狼", "巨門", "天相", "天梁", "七殺", "破軍"]):
-                    main_stars.append(str(star))
+                star_str = str(star)
+                if any(main in star_str for main in ["紫微", "天機", "太陽", "武曲", "天同", "廉貞", "天府", "太陰", "貪狼", "巨門", "天相", "天梁", "七殺", "破軍"]):
+                    main_stars.append(star_str)
                 else:
-                    minor_stars.append(str(star))
+                    minor_stars.append(star_str)
             
             # 構建bubble內容
             body_contents = []
@@ -268,7 +269,7 @@ class DivinationFlexMessageGenerator:
                     layout="vertical",
                     contents=[
                         FlexText(
-                            text=palace_name,
+                            text=str(palace_name),
                             weight="bold",
                             size="md",
                             color=color,
@@ -396,12 +397,12 @@ class DivinationFlexMessageGenerator:
                     layout="horizontal",
                     contents=[
                         FlexText(
-                            text=emoji,
+                            text=str(emoji),
                             size="lg",
                             flex=0
                         ),
                         FlexText(
-                            text=f"{sihua_type}星",
+                            text=f"{str(sihua_type)}星",
                             weight="bold",
                             size="lg",
                             color=color,
@@ -419,9 +420,9 @@ class DivinationFlexMessageGenerator:
             
             # 四化星曜列表
             for sihua_info in sihua_list:
-                star = sihua_info.get("star", "")
-                palace = sihua_info.get("palace", "")
-                explanation = sihua_info.get("explanation", "")
+                star = str(sihua_info.get("star", ""))
+                palace = str(sihua_info.get("palace", ""))
+                explanation = str(sihua_info.get("explanation", ""))
                 
                 # 星曜和宮位
                 body_contents.append(

@@ -71,7 +71,7 @@ def send_line_message(user_id: str, message: str) -> bool:
         
         # 構建訊息數據
         headers = {
-            'Authorization': f'Bearer {LineBotConfig.LINE_CHANNEL_ACCESS_TOKEN}',
+            'Authorization': f'Bearer {LineBotConfig.CHANNEL_ACCESS_TOKEN}',
             'Content-Type': 'application/json'
         }
         

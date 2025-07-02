@@ -1,14 +1,17 @@
+import logging
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
-from typing import Dict, List, Optional
 from dataclasses import dataclass
-from app.models.calendar import CalendarData
-from app.models.birth_info import BirthInfo
+import traceback
+from sqlalchemy.orm import Session
+
+# 項目模組導入
 from app.utils.chinese_calendar import ChineseCalendar
-from app.db.repository import CalendarRepository
+from app.models.birth_info import BirthInfo
+from app.models.calendar_data import CalendarData
 from app.logic.star_calculator import StarCalculator
 from app.data.heavenly_stems.four_transformations import four_transformations_explanations
-from sqlalchemy.orm import Session
-import logging
+from app.db.repository import CalendarRepository
 
 logger = logging.getLogger(__name__)
 
@@ -707,4 +710,211 @@ class PurpleStarChart:
             '可能事件': gender_explanation.get('可能事件', ''),
             '提示': gender_explanation.get('提示', ''),
             '來意不明建議': gender_explanation.get('來意不明建議', '')
-        } 
+        }
+
+    def apply_taichi(self, taichi_branch: str):
+        """
+        將原盤轉換為太極盤：根據太極點地支重新旋轉十二宮位
+        
+        這個方法會：
+        1. 將原本的 self.palaces 按太極點地支重新排序
+        2. 更新每個宮位的名稱、地支、天干、星曜位置
+        3. 替換 self.palaces 為太極盤
+        4. 後續所有計算都基於這個太極盤
+        
+        Args:
+            taichi_branch: 太極點地支（作為新命宮的地支）
+        """
+        try:
+            logger.info(f"開始應用太極點旋轉，太極點地支：{taichi_branch}")
+            
+            # 十二地支順序
+            branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+            
+            # 十二宮位順序（以命宮為起點）
+            palace_names = ["命宮", "父母宮", "福德宮", "田宅宮", "官祿宮", "交友宮", 
+                           "遷移宮", "疾厄宮", "財帛宮", "子女宮", "夫妻宮", "兄弟宮"]
+            
+            # 找到太極點地支的索引
+            try:
+                taichi_index = branches.index(taichi_branch)
+            except ValueError:
+                logger.error(f"無效的太極點地支: {taichi_branch}")
+                return  # 不執行旋轉
+            
+            # 建立原盤地支到宮位對象的映射
+            original_branch_to_palace = {}
+            for palace_name, palace in self.palaces.items():
+                original_branch_to_palace[palace.branch] = palace
+            
+            logger.info(f"原盤地支對應：{list(original_branch_to_palace.keys())}")
+            
+            # 建立新的太極盤
+            new_palaces = {}
+            new_palace_order = []
+            
+            for i in range(12):
+                # 計算新宮位對應的原始地支
+                original_branch_index = (taichi_index + i) % 12
+                original_branch = branches[original_branch_index]
+                
+                # 獲取原宮位對象
+                original_palace = original_branch_to_palace.get(original_branch)
+                if not original_palace:
+                    logger.warning(f"未找到地支 {original_branch} 對應的原宮位")
+                    continue
+                
+                # 建立新宮位名稱
+                new_palace_name = palace_names[i]
+                
+                # 創建新的宮位對象，保留原宮位的星曜、天干、地支等屬性
+                new_palace = Palace(
+                    name=new_palace_name,
+                    stars=original_palace.stars.copy(),  # 星曜保持不變
+                    element=original_palace.element,     # 五行屬性保持不變
+                    stem=original_palace.stem,           # 天干保持不變
+                    branch=original_branch,              # 地支保持不變
+                    body_palace=original_palace.body_palace  # 身宮標記保持不變
+                )
+                
+                new_palaces[new_palace_name] = new_palace
+                new_palace_order.append(new_palace_name)
+                
+                logger.info(f"太極盤映射：{new_palace_name} ← 原{original_palace.name}（{original_branch}）")
+            
+            # 替換原盤為太極盤
+            self.palaces = new_palaces
+            self.palace_order = new_palace_order
+            
+            logger.info(f"太極盤轉換完成，新宮位順序：{new_palace_order}")
+            logger.info(f"太極點命宮地支：{taichi_branch}，現在對應「命宮」")
+            
+        except Exception as e:
+            logger.error(f"太極點旋轉失敗：{e}")
+            raise 
+
+    def get_taichi_sihua_explanations(self, taichi_stem: str) -> List[Dict]:
+        """
+        基於太極盤獲取四化解釋
+        
+        這個方法會：
+        1. 根據太極點天干計算四化星
+        2. 在太極盤中找到四化星的宮位
+        3. 直接用太極盤的宮位名稱從靜態資料表獲取解釋
+        
+        Args:
+            taichi_stem: 太極點天干
+            
+        Returns:
+            List[Dict]: 四化解釋列表
+        """
+        try:
+            logger.info(f"開始基於太極盤獲取四化解釋，太極點天干：{taichi_stem}")
+            
+            # 1. 使用 StarCalculator 中的四化星表（包含輔星）
+            sihua_stars = self.star_calculator.FOUR_TRANSFORMATIONS.get(taichi_stem, {})
+            if not sihua_stars:
+                logger.warning(f"未找到天干 {taichi_stem} 的四化星")
+                return []
+            
+            logger.info(f"四化星：{sihua_stars}")
+            
+            # 2. 在太極盤中找到四化星的宮位並獲取解釋
+            results = []
+            
+            for trans_type, star_name in sihua_stars.items():
+                # 清理星曜名稱
+                clean_star_name = star_name.replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "").strip()
+                
+                # 在太極盤中找到星曜所在的宮位
+                star_palace = None
+                for palace_name, palace in self.palaces.items():
+                    for star in palace.stars:
+                        clean_palace_star = str(star).replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "")
+                        if "（" in clean_palace_star:
+                            clean_palace_star = clean_palace_star.split("（")[0]
+                        clean_palace_star = clean_palace_star.strip()
+                        
+                        if clean_palace_star == clean_star_name:
+                            star_palace = palace_name
+                            break
+                    if star_palace:
+                        break
+                
+                if not star_palace:
+                    logger.warning(f"未在太極盤中找到星曜 {star_name}")
+                    continue
+                
+                logger.info(f"四化星 {star_name} 在太極盤中位於：{star_palace}")
+                
+                # 3. 從靜態資料表獲取解釋
+                explanation = self._get_explanation_from_data(taichi_stem, trans_type, star_palace)
+                
+                result = {
+                    "type": trans_type,
+                    "transformation_type": trans_type,
+                    "star": star_name,
+                    "star_name": star_name,
+                    "palace": star_palace,
+                    "taichi_palace": star_palace,
+                    "explanation": explanation
+                }
+                
+                results.append(result)
+                logger.info(f"✅ {star_name}化{trans_type}在{star_palace}：{explanation.get('現象', '')[:50]}...")
+            
+            logger.info(f"太極盤四化解釋獲取完成，共 {len(results)} 個")
+            return results
+            
+        except Exception as e:
+            logger.error(f"獲取太極盤四化解釋失敗：{e}")
+            return []
+
+    def _get_explanation_from_data(self, stem: str, trans_type: str, palace_name: str) -> Dict[str, str]:
+        """
+        從靜態資料表獲取特定天干、四化類型、宮位的解釋
+        
+        Args:
+            stem: 天干
+            trans_type: 四化類型（祿/權/科/忌）
+            palace_name: 宮位名稱
+            
+        Returns:
+            Dict[str, str]: 解釋內容
+        """
+        try:
+            # 從四化解釋資料中獲取
+            stem_data = four_transformations_explanations.get(stem, {})
+            trans_data = stem_data.get(trans_type, {})
+            explanations_list = trans_data.get("解釋", [])
+            
+            # 查找對應宮位的解釋
+            for explanation in explanations_list:
+                if explanation.get("宮位") == palace_name:
+                    return {
+                        "現象": explanation.get("現象", ""),
+                        "心理傾向": explanation.get("心理傾向", ""),
+                        "可能事件": explanation.get("可能事件", ""),
+                        "提示": explanation.get("提示", ""),
+                        "來意不明建議": explanation.get("來意不明建議", "")
+                    }
+            
+            # 如果沒找到特定宮位的解釋，使用預設內容
+            logger.warning(f"未找到天干{stem}、{trans_type}、{palace_name}的特定解釋，使用預設解釋")
+            return {
+                "現象": f"{trans_type}星在{palace_name}，帶來相關的能量與變化。",
+                "心理傾向": "需要特別關注這個領域的發展。",
+                "可能事件": "此宮位可能有相關的機會或挑戰。",
+                "提示": f"多留意{palace_name}相關的事務。",
+                "來意不明建議": f"善用{trans_type}的能量在{palace_name}上。"
+            }
+            
+        except Exception as e:
+            logger.error(f"從資料表獲取解釋失敗：{e}")
+            return {
+                "現象": "今日運勢需要特別留意。",
+                "心理傾向": "保持開放心態。", 
+                "可能事件": "可能有意外的變化。",
+                "提示": "順應時勢，隨機應變。",
+                "來意不明建議": "把握當下，隨緣而安。"
+            } 
