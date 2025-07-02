@@ -9,7 +9,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from app.db.database import get_db
 from app.config.linebot_config import LineBotConfig, validate_config
@@ -37,21 +37,16 @@ user_sessions: Dict[str, MemoryUserSession] = {}
 # 台北時區
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
-def get_optional_db() -> Optional[Session]:
-    """獲取可選的數據庫會話"""
-    try:
-        # 嘗試創建數據庫會話
-        database_url = DatabaseConfig.get_database_url()
-        engine = create_engine(database_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        db = SessionLocal()
-        
-        # 測試數據庫連接
-        db.execute("SELECT 1")
-        return db
-    except Exception as e:
-        logger.warning(f"數據庫連接失敗，使用簡化模式：{e}")
-        return None
+def get_optional_db() -> Session:
+    """獲取數據庫會話"""
+    # 嘗試創建數據庫會話
+    database_url = DatabaseConfig.get_database_url()
+    engine = create_engine(database_url)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
+    # 測試數據庫連接
+    db.execute(text("SELECT 1"))
+    return db
 
 def get_current_taipei_time() -> datetime:
     """獲取當前台北時間"""
@@ -820,34 +815,73 @@ def handle_message_event(event: dict, db: Optional[Session]):
         if message_type == "text":
             text = message.get("text", "").strip()
             
-            # 處理占卜請求
-            if any(keyword in text for keyword in ["占卜", "算命", "紫微", "運勢"]):
-                # 創建臨時用戶對象（如果沒有數據庫）
-                if db is None:
-                    logger.info("簡化模式：創建臨時用戶對象")
-                    gender = "男"  # 默認性別，占卜時不重要
-                else:
-                    # 嘗試從數據庫獲取用戶信息
-                    try:
-                        user = get_or_create_user(db, user_id)
-                        gender = user.gender if user and user.gender else "男"
-                    except Exception as e:
-                        logger.warning(f"獲取用戶信息失敗，使用默認性別：{e}")
-                        gender = "男"
+            # 完整模式：使用數據庫和會話管理
+            try:
+                user = get_or_create_user(db, user_id)
+                session = get_or_create_session(user_id)
                 
-                # 執行占卜
-                divination_result = get_divination_result(db, gender)
-                
-                if divination_result.get("success"):
-                    # 發送占卜結果
-                    send_divination_result(user_id, divination_result)
+                # 處理不同的指令
+                if text in ["會員資訊", "個人資訊", "我的資訊"]:
+                    from app.logic.user_logic import get_user_info
+                    user_stats = get_user_info(user.id, db)
+                    response = format_user_info(user_stats)
+                    send_line_message(user_id, response)
+                    
+                elif text in ["占卜", "算命", "紫微斗數", "開始占卜"]:
+                    response = handle_divination_request(db, user, session)
+                    send_line_message(user_id, response)
+                    
+                elif text.startswith("設定暱稱"):
+                    response = handle_nickname_setting(db, user, session, text)
+                    send_line_message(user_id, response)
+                    
+                elif text == "管理員":
+                    response = handle_admin_authentication(db, user, session, text)
+                    send_line_message(user_id, response)
+                    
+                elif text == "命盤綁定":
+                    response = handle_chart_binding(db, user, session)
+                    send_line_message(user_id, response)
+                    
+                elif text in ["流年運勢", "流月運勢", "流日運勢"]:
+                    fortune_type = text.replace("運勢", "").lower()
+                    response = handle_fortune_request(db, user, fortune_type)
+                    send_line_message(user_id, response)
+                    
+                elif session.state == "awaiting_gender":
+                    response = handle_gender_input(db, user, session, text)
+                    send_line_message(user_id, response)
+                    
+                elif session.state.startswith("chart_binding"):
+                    response = handle_chart_binding_process(db, user, session, text)
+                    send_line_message(user_id, response)
+                    
+                elif session.state == "admin_auth":
+                    response = handle_admin_authentication(db, user, session, text)
+                    send_line_message(user_id, response)
+                    
+                elif session.state == "setting_nickname":
+                    response = handle_nickname_setting(db, user, session, text)
+                    send_line_message(user_id, response)
+                    
                 else:
-                    # 發送錯誤訊息
-                    error_message = divination_result.get("message", "占卜服務暫時不可用")
-                    send_line_message(user_id, error_message)
-            else:
-                # 其他文字訊息處理
-                send_line_message(user_id, "歡迎使用紫微斗數占卜系統！\n請輸入「占卜」開始您的占卜之旅。")
+                    # 默認回覆
+                    send_line_message(user_id, """歡迎使用紫微斗數占卜系統！ 🌟
+
+📋 **可用指令：**
+• 占卜 - 開始占卜
+• 會員資訊 - 查看個人資訊
+• 設定暱稱 [新暱稱] - 修改顯示名稱
+• 命盤綁定 - 綁定個人命盤
+• 流年運勢 - 查看年運
+• 流月運勢 - 查看月運
+• 流日運勢 - 查看日運
+
+✨ 輸入任一指令開始使用！""")
+                    
+            except Exception as e:
+                logger.error(f"處理用戶請求失敗：{e}")
+                send_line_message(user_id, "系統暫時忙碌，請稍後再試。")
                 
     except Exception as e:
         logger.error(f"處理訊息事件錯誤：{e}")
@@ -991,25 +1025,43 @@ async def set_user_rich_menu_endpoint(request: Request):
 
 # 測試特定時間的占卜結果端點
 @router.get("/test-divination")
-async def test_divination(db: Session = Depends(get_db)):
+async def test_divination():
     """測試特定時間的占卜結果"""
-    test_time = datetime(2025, 6, 30, 22, 51)
-    gender = "M"
-    
-    result = divination_logic.perform_divination(gender, test_time, db)
-    
-    if result["success"]:
-        return {
-            "success": True,
-            "message": "測試成功",
-            "result": result
-        }
-    else:
+    try:
+        # 獲取可選的數據庫會話
+        db = get_optional_db()
+        
+        test_time = datetime(2025, 6, 30, 22, 51)
+        gender = "M"
+        
+        result = divination_logic.perform_divination(gender, test_time, db)
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": "測試成功",
+                "result": result,
+                "database_mode": "normal" if db else "simplified"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "測試失敗",
+                "error": result.get("error"),
+                "database_mode": "normal" if db else "simplified"
+            }
+            
+    except Exception as e:
+        logger.error(f"測試占卜錯誤: {e}")
         return {
             "success": False,
             "message": "測試失敗",
-            "error": result.get("error")
+            "error": str(e)
         }
+    finally:
+        # 清理數據庫會話
+        if db:
+            db.close()
 
 # 測試 Flex Message 發送端點
 @router.post("/test-flex-message")
