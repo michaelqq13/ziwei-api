@@ -727,21 +727,52 @@ async def handle_follow_event(db: Session, event: Dict[str, Any]):
     
     # 為用戶設置 Rich Menu（重新加入時需要重新設置）
     try:
-        menu_id = rich_menu_manager.ensure_default_rich_menu()
+        logger.info(f"開始為用戶 {user_id} 設置 Rich Menu...")
+        
+        # 1. 首先確保有預設Rich Menu
+        menu_id = rich_menu_manager.get_default_rich_menu_id()
+        if not menu_id:
+            logger.info("沒有預設Rich Menu，正在創建...")
+            menu_id = rich_menu_manager.setup_complete_rich_menu(force_recreate=True)
+        
         if menu_id:
-            # 為這個用戶設置 Rich Menu
-            rich_menu_manager.set_user_rich_menu(user_id, menu_id)
-            logger.info(f"為用戶 {user_id} 設置 Rich Menu: {menu_id}")
+            # 2. 先取消用戶現有的Rich Menu連結（如果有）
+            try:
+                rich_menu_manager.unlink_user_rich_menu(user_id)
+                logger.info(f"已取消用戶 {user_id} 的舊Rich Menu連結")
+            except Exception as unlink_error:
+                logger.warning(f"取消舊Rich Menu連結時發生錯誤（可能沒有舊連結）: {unlink_error}")
+            
+            # 3. 為這個用戶設置新的Rich Menu
+            success = rich_menu_manager.set_user_rich_menu(user_id, menu_id)
+            if success:
+                logger.info(f"✅ 成功為用戶 {user_id} 設置 Rich Menu: {menu_id}")
+            else:
+                logger.error(f"❌ 為用戶 {user_id} 設置 Rich Menu 失敗")
+                
+            # 4. 驗證設置是否成功
+            try:
+                user_menu_id = rich_menu_manager.get_user_rich_menu_id(user_id)
+                if user_menu_id:
+                    logger.info(f"✅ 驗證成功：用戶 {user_id} 的Rich Menu ID: {user_menu_id}")
+                else:
+                    logger.warning(f"⚠️ 驗證失敗：用戶 {user_id} 沒有Rich Menu")
+            except Exception as verify_error:
+                logger.warning(f"驗證Rich Menu設置時發生錯誤: {verify_error}")
+                
         else:
-            logger.warning(f"無法為用戶 {user_id} 設置 Rich Menu")
+            logger.error(f"無法為用戶 {user_id} 設置 Rich Menu：無法獲取或創建預設選單")
+            
     except Exception as e:
         logger.error(f"設置用戶 Rich Menu 失敗: {e}")
+        import traceback
+        logger.error(f"詳細錯誤: {traceback.format_exc()}")
     
     # 發送歡迎訊息
     welcome_message = LineBotConfig.Messages.WELCOME
     send_line_message(user_id, welcome_message)
     
-    logger.info(f"新用戶加入: {user_id}")
+    logger.info(f"新用戶加入處理完成: {user_id}")
 
 async def handle_unfollow_event(db: Session, event: Dict[str, Any]):
     """處理用戶離開事件"""
@@ -838,6 +869,51 @@ async def force_recreate_rich_menu_endpoint():
             return {"success": False, "error": "Rich Menu 重新創建失敗"}
     except Exception as e:
         logger.error(f"強制重新創建 Rich Menu 錯誤: {e}")
+        return {"success": False, "error": str(e)}
+
+@router.post("/admin/set-user-rich-menu")
+async def set_user_rich_menu_endpoint(request: Request):
+    """為特定用戶設置 Rich Menu（管理員端點）"""
+    try:
+        body = await request.json()
+        user_id = body.get("user_id")
+        
+        if not user_id:
+            return {"success": False, "error": "缺少 user_id 參數"}
+        
+        # 1. 確保有預設Rich Menu
+        menu_id = rich_menu_manager.get_default_rich_menu_id()
+        if not menu_id:
+            logger.info("沒有預設Rich Menu，正在創建...")
+            menu_id = rich_menu_manager.setup_complete_rich_menu(force_recreate=True)
+        
+        if not menu_id:
+            return {"success": False, "error": "無法獲取或創建預設Rich Menu"}
+        
+        # 2. 先取消用戶現有的Rich Menu連結
+        try:
+            rich_menu_manager.unlink_user_rich_menu(user_id)
+            logger.info(f"已取消用戶 {user_id} 的舊Rich Menu連結")
+        except Exception as unlink_error:
+            logger.warning(f"取消舊Rich Menu連結時發生錯誤: {unlink_error}")
+        
+        # 3. 為用戶設置新的Rich Menu
+        success = rich_menu_manager.set_user_rich_menu(user_id, menu_id)
+        
+        if success:
+            # 4. 驗證設置
+            user_menu_id = rich_menu_manager.get_user_rich_menu_id(user_id)
+            return {
+                "success": True,
+                "message": f"成功為用戶 {user_id} 設置 Rich Menu",
+                "rich_menu_id": menu_id,
+                "user_menu_id": user_menu_id
+            }
+        else:
+            return {"success": False, "error": f"為用戶 {user_id} 設置 Rich Menu 失敗"}
+            
+    except Exception as e:
+        logger.error(f"設置用戶 Rich Menu 錯誤: {e}")
         return {"success": False, "error": str(e)}
 
 # 測試特定時間的占卜結果端點
