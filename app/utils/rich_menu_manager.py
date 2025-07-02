@@ -324,6 +324,81 @@ class RichMenuManager:
         except Exception as e:
             logger.error(f"清理舊 Rich Menu 過程中發生錯誤: {e}")
             return 0
+    
+    def set_user_rich_menu(self, user_id: str, rich_menu_id: str) -> bool:
+        """
+        為特定用戶設置 Rich Menu
+        
+        Args:
+            user_id: LINE 用戶 ID
+            rich_menu_id: Rich Menu ID
+            
+        Returns:
+            bool: 是否成功設置
+        """
+        url = f"{self.base_url}/user/{user_id}/richmenu/{rich_menu_id}"
+        
+        try:
+            response = requests.post(url, headers=self.headers)
+            response.raise_for_status()
+            
+            logger.info(f"成功為用戶 {user_id} 設置 Rich Menu: {rich_menu_id}")
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"為用戶 {user_id} 設置 Rich Menu 失敗: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"回應內容: {e.response.text}")
+            return False
+    
+    def get_user_rich_menu_id(self, user_id: str) -> Optional[str]:
+        """
+        獲取特定用戶的 Rich Menu ID
+        
+        Args:
+            user_id: LINE 用戶 ID
+            
+        Returns:
+            str: 用戶的 Rich Menu ID（如果有）
+        """
+        url = f"{self.base_url}/user/{user_id}/richmenu"
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            
+            result = response.json()
+            rich_menu_id = result.get("richMenuId")
+            
+            logger.info(f"用戶 {user_id} 的 Rich Menu ID: {rich_menu_id}")
+            return rich_menu_id
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"獲取用戶 {user_id} Rich Menu 失敗: {e}")
+            return None
+    
+    def unlink_user_rich_menu(self, user_id: str) -> bool:
+        """
+        取消用戶的 Rich Menu 連結
+        
+        Args:
+            user_id: LINE 用戶 ID
+            
+        Returns:
+            bool: 是否成功取消連結
+        """
+        url = f"{self.base_url}/user/{user_id}/richmenu"
+        
+        try:
+            response = requests.delete(url, headers=self.headers)
+            response.raise_for_status()
+            
+            logger.info(f"成功取消用戶 {user_id} 的 Rich Menu 連結")
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"取消用戶 {user_id} Rich Menu 連結失敗: {e}")
+            return False
 
 # 全局實例
 rich_menu_manager = RichMenuManager()

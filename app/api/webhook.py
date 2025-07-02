@@ -725,6 +725,18 @@ async def handle_follow_event(db: Session, event: Dict[str, Any]):
     # 創建用戶記錄
     user, _ = get_user_with_permissions(db, user_id)
     
+    # 為用戶設置 Rich Menu（重新加入時需要重新設置）
+    try:
+        menu_id = rich_menu_manager.ensure_default_rich_menu()
+        if menu_id:
+            # 為這個用戶設置 Rich Menu
+            rich_menu_manager.set_user_rich_menu(user_id, menu_id)
+            logger.info(f"為用戶 {user_id} 設置 Rich Menu: {menu_id}")
+        else:
+            logger.warning(f"無法為用戶 {user_id} 設置 Rich Menu")
+    except Exception as e:
+        logger.error(f"設置用戶 Rich Menu 失敗: {e}")
+    
     # 發送歡迎訊息
     welcome_message = LineBotConfig.Messages.WELCOME
     send_line_message(user_id, welcome_message)

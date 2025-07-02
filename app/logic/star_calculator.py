@@ -715,6 +715,10 @@ class StarCalculator:
         transformations = self.FOUR_TRANSFORMATIONS[year_stem]
         logger.info(f"該年干的四化: {transformations}")
         
+        # 記錄處理結果
+        processed_transformations = []
+        missing_stars = []
+        
         # 遍歷四化（祿、權、科、忌）
         for transformation_type, star_name in transformations.items():
             logger.info(f"處理四化 {transformation_type} -> {star_name}")
@@ -741,6 +745,7 @@ class StarCalculator:
                         logger.info(f"找到星曜 {star}，添加四化標記: {base_star}")
                         updated_stars.append(base_star)
                         star_found = True
+                        processed_transformations.append(f"{star_name}化{transformation_type} -> {palace_info.name}")
                     else:
                         # 保持原星曜不變
                         updated_stars.append(star)
@@ -749,10 +754,18 @@ class StarCalculator:
                 if star_found:
                     logger.info(f"更新宮位 {palace_name} 的星曜列表: {updated_stars}")
                     palace_info.stars = updated_stars
-                    break
+                    break  # 找到後跳出宮位循環，繼續處理下一個四化
             
             if not star_found:
                 logger.warning(f"未找到星曜 {star_name} 進行四化 {transformation_type}")
+                missing_stars.append(f"{star_name}化{transformation_type}")
+        
+        # 輸出處理結果摘要
+        logger.info(f"四化處理完成 - 成功處理: {len(processed_transformations)}, 缺失: {len(missing_stars)}")
+        if processed_transformations:
+            logger.info(f"成功處理的四化: {processed_transformations}")
+        if missing_stars:
+            logger.warning(f"缺失的四化星曜: {missing_stars}")
         
         logger.info("四化應用完成")
 
