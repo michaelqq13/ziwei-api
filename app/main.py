@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 def run_database_migrations():
     """在應用啟動時運行數據庫遷移"""
     try:
+        # 先測試數據庫連接
+        from app.db.database import engine
+        with engine.connect() as connection:
+            logger.info("數據庫連接成功，開始執行遷移...")
+        
         logger.info("開始執行數據庫遷移...")
         result = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
@@ -43,22 +48,25 @@ def run_database_migrations():
         else:
             logger.error(f"數據庫遷移失敗: {result.stderr}")
             logger.error(f"遷移輸出: {result.stdout}")
-            # 不拋出異常，讓應用繼續啟動
             
     except Exception as e:
-        logger.error(f"執行數據庫遷移時發生錯誤: {str(e)}")
-        # 不拋出異常，讓應用繼續啟動
+        logger.warning(f"數據庫不可用，跳過遷移: {str(e)}")
+        logger.info("應用將在無數據庫模式下運行")
 
 def init_test_data():
     """初始化測試數據"""
     try:
+        # 先檢查數據庫連接
+        from app.db.database import engine
+        with engine.connect() as connection:
+            logger.info("數據庫連接成功，開始初始化測試數據...")
+        
         from app.db.init_test_data import init_test_data as run_init_test_data
-        logger.info("開始初始化測試數據...")
         run_init_test_data()
         logger.info("測試數據初始化完成")
     except Exception as e:
-        logger.error(f"初始化測試數據時發生錯誤: {str(e)}")
-        # 不拋出異常，讓應用繼續啟動
+        logger.warning(f"數據庫不可用或測試數據初始化失敗，跳過: {str(e)}")
+        logger.info("應用將在無數據庫模式下運行")
 
 def setup_rich_menu():
     """設定 Rich Menu"""

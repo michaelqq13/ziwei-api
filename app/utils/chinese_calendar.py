@@ -274,3 +274,117 @@ class ChineseCalendar:
             # 如果沒有提供日干，則使用簡化計算（不推薦）
             stem_index = (hour // 2) % 10
             return cls.HEAVENLY_STEMS[stem_index]
+    
+    @classmethod
+    def get_year_ganzhi(cls, year: int) -> str:
+        """計算年干支
+        
+        Args:
+            year: 西元年份
+            
+        Returns:
+            年干支字符串
+        """
+        # 甲子年為公元4年，每60年一循環
+        base_year = 4
+        cycle = (year - base_year) % 60
+        stem_index = cycle % 10
+        branch_index = cycle % 12
+        return cls.HEAVENLY_STEMS[stem_index] + cls.EARTHLY_BRANCHES[branch_index]
+    
+    @classmethod
+    def get_month_ganzhi(cls, year: int, month: int) -> str:
+        """計算月干支
+        
+        Args:
+            year: 西元年份
+            month: 月份（1-12）
+            
+        Returns:
+            月干支字符串
+        """
+        # 獲取年干
+        year_ganzhi = cls.get_year_ganzhi(year)
+        year_stem = year_ganzhi[0]
+        
+        # 計算月干
+        month_stem = cls.get_month_stem(year_stem, month)
+        
+        # 月支：正月為寅，按順序遞增
+        month_branch_index = (month + 1) % 12
+        month_branch = cls.EARTHLY_BRANCHES[month_branch_index]
+        
+        return month_stem + month_branch
+    
+    @classmethod
+    def get_day_ganzhi(cls, year: int, month: int, day: int) -> str:
+        """計算日干支（簡化版本）
+        
+        Args:
+            year: 西元年份
+            month: 月份（1-12）
+            day: 日期（1-31）
+            
+        Returns:
+            日干支字符串
+        """
+        # 這是一個簡化的實現，實際的日干支計算需要考慮歷史變遷
+        # 使用公元1年1月1日為基準點（假設為甲子日）
+        
+        from datetime import date
+        try:
+            target_date = date(year, month, day)
+            base_date = date(1, 1, 1)  # 基準日期
+            
+            # 計算天數差
+            days_diff = (target_date - base_date).days
+            
+            # 日干支循環（60天一循環）
+            cycle_index = days_diff % 60
+            stem_index = cycle_index % 10
+            branch_index = cycle_index % 12
+            
+            return cls.HEAVENLY_STEMS[stem_index] + cls.EARTHLY_BRANCHES[branch_index]
+        except ValueError:
+            # 如果日期無效，返回默認值
+            return "甲子"
+    
+    @classmethod
+    def get_hour_ganzhi(cls, hour: int, day_stem: str) -> str:
+        """計算時干支
+        
+        Args:
+            hour: 小時（0-23）
+            day_stem: 日干
+            
+        Returns:
+            時干支字符串
+        """
+        # 獲取時干
+        hour_stem = cls.get_hour_stem(hour, day_stem)
+        
+        # 獲取時支
+        hour_branch = cls.get_hour_branch(hour)
+        
+        return hour_stem + hour_branch
+    
+    @classmethod
+    def parse_chinese_month(cls, lunar_month: str) -> int:
+        """解析農曆月份為數字
+        
+        Args:
+            lunar_month: 農曆月份，如"正月"、"二月"等
+            
+        Returns:
+            對應的數字月份（1-12）
+        """
+        month_mapping = {
+            "正月": 1, "一月": 1,
+            "二月": 2, "三月": 3, "四月": 4, "五月": 5, "六月": 6,
+            "七月": 7, "八月": 8, "九月": 9, "十月": 10, "十一月": 11, "十二月": 12
+        }
+        
+        # 去除"月"字
+        month_str = lunar_month.replace('月', '')
+        
+        return month_mapping.get(lunar_month, month_mapping.get(month_str, 1))

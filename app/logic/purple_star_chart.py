@@ -34,7 +34,7 @@ class PurpleStarChart:
             minute: 分鐘（可選，如果提供 birth_info 則不需要）
             gender: 性別（可選，如果提供 birth_info 則不需要）
             birth_info: BirthInfo 對象（可選，如果提供年月日時分和性別則不需要）
-            db: 數據庫會話（必需）
+            db: 數據庫會話（可選，如果沒有提供則使用簡化模式）
         """
         if birth_info:
             self.birth_info = birth_info
@@ -50,14 +50,17 @@ class PurpleStarChart:
                 latitude=25.0330     # 預設台北緯度
             )
         
-        if not db:
-            raise ValueError("必須提供數據庫會話")
-            
-        self.calendar_repo = CalendarRepository(db)
+        # 數據庫會話現在是可選的
+        self.db = db
+        self.calendar_repo = CalendarRepository(db) if db else None
         self.star_calculator = StarCalculator()
         self.palaces: Dict[str, Palace] = {}
         self.calendar_data: Optional[CalendarData] = None
         self.palace_order: List[str] = []
+        self.simplified_mode = db is None  # 標記是否為簡化模式
+        
+        if self.simplified_mode:
+            logger.warning("PurpleStarChart 以簡化模式初始化（無數據庫）")
         
         # 初始化命盤
         self.initialize()
@@ -68,6 +71,31 @@ class PurpleStarChart:
     def initialize(self):
         """初始化命盤"""
         logger.info("開始初始化命盤")
+        
+        if self.simplified_mode:
+            # 簡化模式：使用內置農曆轉換（專門用於占卜功能）
+            logger.info("使用簡化模式初始化（無數據庫）")
+            self._initialize_simplified_mode()
+        else:
+            # 正常模式：使用數據庫中的準確農曆資料
+            logger.info("使用正常模式初始化（有數據庫）")
+            self._initialize_normal_mode()
+        
+        # 設置宮位和星曜的初始空字典
+        self.palaces = {}
+        self.stars = {}
+        self.palace_order = []
+        
+        # 2. 計算命宮位置
+        self._calculate_ming_palace()
+        
+        # 3. 初始化十二宮位
+        self._initialize_palaces()
+        
+        logger.info("命盤初始化完成")
+    
+    def _initialize_normal_mode(self):
+        """正常模式初始化：使用數據庫中的準確農曆資料"""
         # 1. 獲取農曆資料
         self.calendar_data = self.calendar_repo.get_calendar_data(self.birth_info)
         if not self.calendar_data:
@@ -84,19 +112,109 @@ class PurpleStarChart:
         self.calendar_data.minute_gan_zhi = f"{hour_stem}{minute_branch}"
         
         logger.info(f"計算分鐘干支: {self.calendar_data.minute_gan_zhi}")
+    
+    def _initialize_simplified_mode(self):
+        """簡化模式初始化：使用內置農曆轉換（僅用於占卜）"""
+        logger.warning("使用簡化模式，農曆轉換可能不如數據庫版本準確")
         
-        # 設置宮位和星曜的初始空字典
-        self.palaces = {}
-        self.stars = {}
-        self.palace_order = []
+        # 創建一個模擬的 calendar_data 對象
+        from app.models.calendar import CalendarData
         
-        # 2. 計算命宮位置
-        self._calculate_ming_palace()
+        # 使用內置的簡化農曆轉換
+        try:
+            # 這裡使用簡化的農曆計算（可以根據需要實現更準確的演算法）
+            # 注意：這只是用於無數據庫時的緊急措施
+            
+            # 使用農曆轉換算法（簡化版）
+            lunar_data = self._calculate_lunar_data_simplified(
+                self.birth_info.year, 
+                self.birth_info.month, 
+                self.birth_info.day
+            )
+            
+            # 計算干支
+            year_ganzhi = ChineseCalendar.get_year_ganzhi(self.birth_info.year)
+            month_ganzhi = ChineseCalendar.get_month_ganzhi(self.birth_info.year, self.birth_info.month)
+            day_ganzhi = ChineseCalendar.get_day_ganzhi(self.birth_info.year, self.birth_info.month, self.birth_info.day)
+            hour_ganzhi = ChineseCalendar.get_hour_ganzhi(self.birth_info.hour, day_ganzhi[0])
+            
+            # 創建模擬的 calendar_data
+            self.calendar_data = CalendarData()
+            self.calendar_data.gregorian_year = self.birth_info.year
+            self.calendar_data.gregorian_month = self.birth_info.month
+            self.calendar_data.gregorian_day = self.birth_info.day
+            self.calendar_data.gregorian_hour = self.birth_info.hour
+            
+            self.calendar_data.lunar_year_in_chinese = lunar_data['lunar_year']
+            self.calendar_data.lunar_month_in_chinese = lunar_data['lunar_month']
+            self.calendar_data.lunar_day_in_chinese = lunar_data['lunar_day']
+            self.calendar_data.is_leap_month_in_chinese = lunar_data['is_leap']
+            
+            self.calendar_data.year_gan_zhi = year_ganzhi
+            self.calendar_data.month_gan_zhi = month_ganzhi
+            self.calendar_data.day_gan_zhi = day_ganzhi
+            self.calendar_data.hour_gan_zhi = hour_ganzhi
+            
+            # 計算分鐘干支
+            day_stem = self.calendar_data.day_gan_zhi[0]
+            hour_stem = ChineseCalendar.get_hour_stem(self.birth_info.hour, day_stem)
+            minute_branch = ChineseCalendar.get_minute_branch(self.birth_info.hour, self.birth_info.minute)
+            self.calendar_data.minute_gan_zhi = f"{hour_stem}{minute_branch}"
+            
+            logger.info(f"簡化模式計算結果：農曆 {lunar_data['lunar_year']}年{lunar_data['lunar_month']}月{lunar_data['lunar_day']}日")
+            logger.info(f"年干支：{year_ganzhi}, 月干支：{month_ganzhi}, 日干支：{day_ganzhi}, 時干支：{hour_ganzhi}")
+            logger.info(f"分鐘干支：{self.calendar_data.minute_gan_zhi}")
+            
+        except Exception as e:
+            logger.error(f"簡化模式初始化失敗：{e}")
+            raise ValueError(f"簡化模式初始化失敗：{e}")
+    
+    def _calculate_lunar_data_simplified(self, year: int, month: int, day: int) -> Dict[str, str]:
+        """
+        簡化的農曆計算（僅用於無數據庫時的緊急措施）
+        注意：這個實現可能不夠準確，主要用於系統緊急運行
+        """
+        # 這是一個極其簡化的實現，實際上農曆轉換非常複雜
+        # 理想情況下，你應該啟動數據庫來獲取準確的農曆資料
         
-        # 3. 初始化十二宮位
-        self._initialize_palaces()
+        # 暫時使用一個非常基礎的近似值
+        # 注意：這不是準確的農曆轉換，只是讓系統能運行
         
-        logger.info("命盤初始化完成")
+        # 農曆年份（簡化）
+        lunar_year_cycle = ["甲子", "乙丑", "丙寅", "丁卯", "戊辰", "己巳", "庚午", "辛未", "壬申", "癸酉",
+                           "甲戌", "乙亥", "丙子", "丁丑", "戊寅", "己卯", "庚辰", "辛巳", "壬午", "癸未",
+                           "甲申", "乙酉", "丙戌", "丁亥", "戊子", "己丑", "庚寅", "辛卯", "壬辰", "癸巳",
+                           "甲午", "乙未", "丙申", "丁酉", "戊戌", "己亥", "庚子", "辛丑", "壬寅", "癸卯",
+                           "甲辰", "乙巳", "丙午", "丁未", "戊申", "己酉", "庚戌", "辛亥", "壬子", "癸丑",
+                           "甲寅", "乙卯", "丙辰", "丁巳", "戊午", "己未", "庚申", "辛酉", "壬戌", "癸亥"]
+        
+        lunar_year = lunar_year_cycle[(year - 1984) % 60]  # 1984年為甲子年
+        
+        # 農曆月份（極其簡化的近似）
+        lunar_months = ["正月", "二月", "三月", "四月", "五月", "六月", 
+                       "七月", "八月", "九月", "十月", "十一月", "十二月"]
+        
+        # 大致的農曆月份對應（這只是近似值！）
+        approx_lunar_month = ((month - 2) % 12)  # 大致偏移
+        if approx_lunar_month < 0:
+            approx_lunar_month += 12
+        lunar_month = lunar_months[approx_lunar_month]
+        
+        # 農曆日期（簡化）
+        chinese_numbers = ["初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
+                          "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+                          "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"]
+        
+        # 大致對應農曆日（這只是近似值！）
+        approx_lunar_day = (day - 1 + 3) % 30  # 大致偏移
+        lunar_day = chinese_numbers[approx_lunar_day]
+        
+        return {
+            'lunar_year': lunar_year,
+            'lunar_month': lunar_month,
+            'lunar_day': lunar_day,
+            'is_leap': False  # 簡化版本不處理閏月
+        }
         
     def _calculate_ming_palace(self):
         """計算命宮位置"""

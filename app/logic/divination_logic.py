@@ -5,13 +5,18 @@
 import json
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 from sqlalchemy.orm import Session
 import traceback
 
 from app.logic.purple_star_chart import PurpleStarChart
 from app.config.linebot_config import LineBotConfig
 from app.utils.chinese_calendar import ChineseCalendar
+from app.models.birth_info import BirthInfo
+from app.models.divination import DivinationRecord
+from app.models.user_preferences import UserPreferences
+from app.db.repository import CalendarRepository
+from app.data.heavenly_stems.four_transformations import four_transformations_explanations
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
@@ -226,9 +231,15 @@ class DivinationLogic:
                 palace_name = palace_names[i] if i < len(palace_names) else f"宮位{i+1}"
                 stars = palace_info.get("stars", [])
                 for star in stars:
-                    star_name = star.get("name", "") if isinstance(star, dict) else str(star)
-                    if star_name:
-                        star_palace_map[star_name] = palace_name
+                    raw_name = star.get("name", "") if isinstance(star, dict) else str(star)
+                    if not raw_name:
+                        continue
+                    # 移除四化標記及括號描述
+                    clean_name = raw_name.replace("化祿", "").replace("化權", "").replace("化科", "").replace("化忌", "")
+                    if "（" in clean_name:
+                        clean_name = clean_name.split("（")[0]
+                    clean_name = clean_name.strip()
+                    star_palace_map[clean_name] = palace_name
             
             return star_palace_map
         except:
@@ -270,21 +281,54 @@ class DivinationLogic:
             }
         }
         
+        def _get_detailed_explanation(star_name: str, trans_type: str, palace: str) -> Optional[dict]:
+            """嘗試從完整資料庫 four_transformations_explanations 取得對應解釋"""
+            fallback_entry = None
+            for stem_data in four_transformations_explanations.values():
+                if trans_type not in stem_data:
+                    continue
+                trans_info = stem_data[trans_type]
+                # 1) 精準：主星 + 宮位
+                if trans_info.get("主星") == star_name:
+                    for entry in trans_info.get("解釋", []):
+                        if entry.get("宮位") == palace:
+                            return entry
+                # 2) 次精準：僅宮位 (先記下，若沒主星版本才用)
+                for entry in trans_info.get("解釋", []):
+                    if entry.get("宮位") == palace and fallback_entry is None:
+                        fallback_entry = entry
+            return fallback_entry
+        
         results = []
         for sihua_info in sihua_results:
             sihua_type = sihua_info["type"]
             palace = sihua_info["palace"]
             star = sihua_info["star"]
             
-            # 獲取解釋
-            type_explanations = explanations.get(sihua_type, {})
-            explanation = type_explanations.get(palace, type_explanations.get("default", "運勢平穩。"))
+            # 獲取解釋，先嘗試詳細資料庫
+            detailed = _get_detailed_explanation(star, sihua_type, palace)
+            if detailed:
+                explanation_text = detailed.get("現象", "")
+                psych = detailed.get("心理傾向", "")
+                event = detailed.get("可能事件", "")
+                tip = detailed.get("提示", "")
+                advice = detailed.get("來意不明建議", "")
+                combined = "\n".join([t for t in [explanation_text, psych, event, tip, advice] if t])
+            else:
+                # 回退到僅宮位匹配（或簡化版）
+                type_explanations = explanations.get(sihua_type, {})
+                combined = type_explanations.get(palace, type_explanations.get("default", "運勢平穩。"))
             
             results.append({
                 "type": sihua_type,
+                "transformation_type": sihua_type,
                 "star": star,
+                "star_name": star,
                 "palace": palace,
-                "explanation": explanation
+                "original_palace": sihua_info["original_palace"],
+                "taichi_palace": sihua_info["taichi_palace"],
+                "star_branch": sihua_info["star_branch"],
+                "explanation": combined
             })
         
         return results
@@ -326,20 +370,35 @@ class DivinationLogic:
 
     def perform_divination(self, gender: str, current_time: datetime = None, db: Optional[Session] = None) -> Dict:
         """
-        執行占卜
-        根據當前時間和性別計算太極點命宮和四化
-        """
-        if not current_time:
-            current_time = get_current_taipei_time()
+        執行占卜邏輯
         
-        # 確保時間有時區信息
-        if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=TAIPEI_TZ)
-        
-        try:
-            logger.info(f"開始執行占卜 - 時間：{current_time}, 性別：{gender}")
+        Args:
+            gender: 性別
+            current_time: 指定時間（可選，默認使用當前時間）
+            db: 數據庫會話（可選）
             
-            # 創建命盤計算器
+        Returns:
+            Dict: 占卜結果
+        """
+        try:
+            # 1. 獲取當前時間（台北時間）
+            if current_time is None:
+                current_time = get_current_taipei_time()
+            
+            logger.info(f"開始占卜 - 時間：{current_time}，性別：{gender}，數據庫：{'有' if db else '無'}")
+            
+            # 2. 計算太極點命宮
+            taichi_palace_name, taichi_info = self.calculate_taichi_palace(gender, current_time, db)
+            minute_dizhi = taichi_info["minute_dizhi"]
+            palace_tiangan = taichi_info["palace_tiangan"]
+            
+            logger.info(f"太極點計算完成 - 命宮：{taichi_palace_name}，地支：{minute_dizhi}，天干：{palace_tiangan}")
+            
+            # 3. 計算四化星
+            sihua_stars = self.calculate_sihua(palace_tiangan)
+            logger.info(f"四化星：{sihua_stars}")
+            
+            # 4. 創建命盤獲取星曜位置
             chart = PurpleStarChart(
                 year=current_time.year,
                 month=current_time.month,
@@ -350,91 +409,97 @@ class DivinationLogic:
                 db=db
             )
             
-            # 獲取分鐘地支
-            minute_dizhi = self.get_minute_dizhi(current_time)
-            logger.info(f"計算分鐘地支：{minute_dizhi}")
-            
-            # 計算太極點命宮
-            taichi_palace, chart_info = self.calculate_taichi_palace(gender, current_time, db)
-            logger.info(f"計算太極點命宮：{taichi_palace}")
-            
-            # 獲取太極點命宮的宮干
-            palace_tiangan = chart_info.get("palace_tiangan", "")
-            logger.info(f"獲取宮干：{palace_tiangan}")
-            
-            # 使用宮干計算四化（而不是年干）
-            logger.info(f"使用宮干 {palace_tiangan} 計算四化")
-            sihua_stars = chart.apply_custom_stem_transformations(palace_tiangan)
-            logger.info(f"計算四化：{sihua_stars}")
-            
-            # 在應用宮干四化之後重新獲取完整命盤
             chart_data = chart.get_chart()
-            logger.info(f"重新獲取命盤數據（應用宮干四化後）")
             
-            # 獲取太極點宮位重新分佈
-            taichi_palace_mapping = self.get_taichi_palace_mapping(minute_dizhi)
+            # 5. 獲取星曜宮位對應
+            star_palace_map = self.get_star_palace_mapping(chart_data)
             
-            # 格式化四化結果，使用太極點宮位分佈
+            # 6. 計算太極點宮位映射
+            taichi_mapping = self.get_taichi_palace_mapping(minute_dizhi)
+            
+            # 7. 產生四化結果
             sihua_results = []
-            for star_name, info in sihua_stars.items():
-                # 獲取星曜所在的原始地支
+            for trans_type, star_name in sihua_stars.items():
+                # 獲取該星在命盤的地支位置
                 star_branch = self.get_star_branch_from_chart(chart_data, star_name)
+                # 原本落宮
+                original_palace = star_palace_map.get(star_name, "命宮")
+                if star_name not in star_palace_map:
+                    logger.warning(f"未找到星曜 {star_name} 的宮位，使用預設宮位")
+                # 根據太極點重新對應宮位：使用星曜地支映射
+                taichi_palace = taichi_mapping.get(star_branch, original_palace)
                 
-                # 根據太極點重新分佈獲取新的宮位名稱
-                new_palace_name = taichi_palace_mapping.get(star_branch, info.get("宮位", "未知宮"))
+                sihua_result = {
+                    "type": trans_type,  # 四化類型（祿、權、科、忌）
+                    "transformation_type": trans_type,  # 與舊版字段兼容
+                    "star": star_name,   # 星曜名稱
+                    "star_name": star_name,  # 與舊版字段兼容
+                    "palace": taichi_palace,  # 依太極點轉換後的宮位
+                    "original_palace": original_palace,  # 原本落宮
+                    "taichi_palace": taichi_palace,  # 太極點後落宮（語義相同，向後兼容）
+                    "star_branch": star_branch
+                }
                 
-                logger.info(f"星曜 {star_name} 原地支: {star_branch}, 新宮位: {new_palace_name}")
-                
-                # 整合完整的解釋資料，優化排版
-                explanation_parts = []
-                
-                # 添加現象 🔮
-                if info.get("現象"):
-                    explanation_parts.append(f"🔮 **現象**\n   {info['現象']}")
-                
-                # 添加心理傾向 💭
-                if info.get("心理傾向"):
-                    explanation_parts.append(f"💭 **心理傾向**\n   {info['心理傾向']}")
-                
-                # 添加可能事件 🎯
-                if info.get("可能事件"):
-                    explanation_parts.append(f"🎯 **可能事件**\n   {info['可能事件']}")
-                
-                # 添加提示 💡
-                if info.get("提示"):
-                    explanation_parts.append(f"💡 **提示**\n   {info['提示']}")
-                
-                # 添加建議 🌟
-                if info.get("來意不明建議"):
-                    explanation_parts.append(f"🌟 **建議**\n   {info['來意不明建議']}")
-                
-                # 合併所有解釋，內部用雙換行分隔
-                full_explanation = "\n\n".join(explanation_parts) if explanation_parts else ""
-                
-                sihua_results.append({
-                    "type": info["四化"],
-                    "star": star_name,
-                    "palace": new_palace_name,  # 使用重新分佈後的宮位名稱
-                    "explanation": full_explanation
-                })
+                sihua_results.append(sihua_result)
             
-            return {
+            # 8. 獲取四化解釋
+            explanations = self.get_sihua_explanations(sihua_results)
+            for i, explanation in enumerate(explanations):
+                sihua_results[i]["explanation"] = explanation["explanation"]
+            
+            # 9. 保存占卜記錄（僅在有數據庫時）
+            divination_id = None
+            if db is not None:
+                try:
+                    from app.models.divination import DivinationRecord
+                    
+                    divination_record = DivinationRecord(
+                        trigger_time=current_time,
+                        trigger_stem=palace_tiangan,
+                        trigger_branch=minute_dizhi,
+                        taichi_palace=taichi_palace_name,
+                        sihua_explanations=str(sihua_results)
+                    )
+                    
+                    db.add(divination_record)
+                    db.commit()
+                    divination_id = divination_record.id
+                    logger.info(f"占卜記錄已保存，ID：{divination_id}")
+                except Exception as e:
+                    logger.warning(f"保存占卜記錄失敗（將繼續占卜功能）：{e}")
+                    if db:
+                        db.rollback()
+            else:
+                logger.info("簡化模式：跳過占卜記錄保存")
+            
+            # 10. 返回結果
+            result = {
                 "success": True,
+                "divination_id": divination_id,
+                "divination_time": current_time.isoformat(),  # 與其他模組保持一致
+                "trigger_time": current_time.isoformat(),      # 向後兼容
                 "gender": gender,
-                "divination_time": current_time.isoformat(),
-                "taichi_palace": taichi_palace,
+                "taichi_palace": taichi_palace_name,
                 "minute_dizhi": minute_dizhi,
                 "palace_tiangan": palace_tiangan,
-                "sihua_results": sihua_results,
+                "sihua_stars": sihua_stars,
                 "basic_chart": chart_data.get("palaces", {}),
-                "taichi_palace_mapping": taichi_palace_mapping  # 加入宮位重新分佈資訊
+                "taichi_palace_mapping": taichi_mapping,
+                "taichi_mapping": taichi_mapping,  # 向後兼容
+                "sihua_results": sihua_results,
+                "simplified_mode": getattr(chart, 'simplified_mode', False)
             }
             
+            logger.info(f"占卜完成，模式：{'簡化' if result.get('simplified_mode', False) else '正常'}")
+            return result
+            
         except Exception as e:
-            logger.error(f"占卜計算錯誤: {str(e)}")
+            logger.error(f"占卜過程發生錯誤：{e}")
+            logger.error(traceback.format_exc())
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "message": "占卜過程發生錯誤，請稍後重試"
             }
 
     def get_star_branch_from_chart(self, chart_data: Dict, star_name: str) -> str:
@@ -521,11 +586,32 @@ class DivinationLogic:
 # 全局實例
 divination_logic = DivinationLogic()
 
-def get_divination_result(db: Session, gender: str, current_time: datetime = None) -> Dict:
+def get_divination_result(db: Optional[Session], gender: str, current_time: datetime = None) -> Dict:
     """
-    獲取占卜結果的便捷函數
+    執行占卜並返回結果（支持可選數據庫）
+    
+    Args:
+        db: 數據庫會話（可選）
+        gender: 性別
+        current_time: 指定時間（可選）
+        
+    Returns:
+        Dict: 占卜結果
     """
-    return divination_logic.perform_divination(gender, current_time, db)
+    try:
+        divination_logic = DivinationLogic()
+        result = divination_logic.perform_divination(gender, current_time, db)
+        
+        logger.info(f"占卜結果獲取完成，成功：{result.get('success', False)}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"獲取占卜結果錯誤：{e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "占卜服務暫時不可用，請稍後重試"
+        }
 
 # 導出
 __all__ = ["DivinationLogic", "divination_logic", "get_divination_result"] 
