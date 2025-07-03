@@ -9,7 +9,7 @@
 from typing import Dict, List, Any, Optional
 from linebot.v3.messaging import (
     FlexMessage, FlexContainer, FlexCarousel, FlexBubble,
-    FlexBox, FlexText, FlexSeparator, FlexFiller
+    FlexBox, FlexText, FlexSeparator, FlexFiller, MessageAction
 )
 import logging
 
@@ -743,10 +743,9 @@ class DivinationFlexMessageGenerator:
                             cornerRadius="md",
                             paddingAll="md",
                             margin="md",
-                            action={
-                                "type": "message", 
-                                "text": f"查看{sihua_type}星完整解釋"
-                            }
+                            action=MessageAction(
+                                text=f"查看{sihua_type}星完整解釋"
+                            )
                         )
                     ]
                 )
