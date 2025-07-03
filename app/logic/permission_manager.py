@@ -2,12 +2,15 @@
 權限管理系統
 處理用戶角色、會員等級和功能存取控制
 """
+import logging
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from app.models.linebot_models import LineBotUser, DivinationHistory
 from app.config.linebot_config import LineBotConfig
+
+logger = logging.getLogger(__name__)
 
 class PermissionManager:
     """權限管理核心類"""
@@ -180,6 +183,19 @@ class PermissionManager:
             "reason": "basic_feature",
             "membership_level": user.membership_level
         }
+    
+    def check_admin_access(self, line_user_id: str, db: Session) -> bool:
+        """
+        檢查用戶是否為管理員
+        """
+        try:
+            user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+            if user:
+                return user.is_admin()
+            return False
+        except Exception as e:
+            logger.error(f"檢查管理員權限失敗: {e}")
+            return False
     
     def get_user_stats(self, db: Session, user: LineBotUser) -> Dict[str, Any]:
         """

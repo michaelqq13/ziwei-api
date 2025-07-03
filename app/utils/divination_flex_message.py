@@ -76,7 +76,14 @@ class DivinationFlexMessageGenerator:
         try:
             logger.info(f"開始生成占卜Flex消息 - 管理員: {is_admin}")
             
-            # 1. 基本命盤資訊 (僅管理員可見)
+            # 1. 基本資訊摘要 (所有用戶可見)
+            logger.info("生成基本資訊摘要...")
+            summary_message = self._create_summary_message(result, is_admin)
+            if summary_message:
+                messages.append(summary_message)
+                logger.info("✅ 基本資訊摘要生成成功")
+            
+            # 2. 基本命盤資訊 (僅管理員可見)
             if is_admin:
                 logger.info("生成基本命盤資訊Carousel...")
                 basic_chart_message = self._create_basic_chart_carousel(result)
@@ -86,7 +93,7 @@ class DivinationFlexMessageGenerator:
                 else:
                     logger.warning("⚠️ 基本命盤資訊Carousel生成失敗")
             
-            # 2. 太極點命宮資訊 (僅管理員可見)
+            # 3. 太極點命宮資訊 (僅管理員可見)
             if is_admin:
                 logger.info("生成太極點命宮資訊Carousel...")
                 taichi_message = self._create_taichi_palace_carousel(result)
@@ -96,7 +103,7 @@ class DivinationFlexMessageGenerator:
                 else:
                     logger.warning("⚠️ 太極點命宮資訊Carousel生成失敗")
             
-            # 3. 四化解析 (所有用戶可見)
+            # 4. 四化解析 (所有用戶可見)
             logger.info("生成四化解析Carousel...")
             sihua_message = self._create_sihua_carousel(result)
             if sihua_message:
@@ -112,6 +119,145 @@ class DivinationFlexMessageGenerator:
             logger.error(f"錯誤詳情: {str(e)}")
             
         return messages
+    
+    def _create_summary_message(self, result: Dict[str, Any], is_admin: bool) -> Optional[FlexMessage]:
+        """創建基本資訊摘要"""
+        try:
+            # 基本資訊
+            gender_text = "男性" if result.get("gender") == "M" else "女性"
+            divination_time = result.get("divination_time", "")
+            taichi_palace = result.get("taichi_palace", "")
+            minute_dizhi = result.get("minute_dizhi", "")
+            palace_tiangan = result.get("palace_tiangan", "")
+            
+            # 解析時間
+            from datetime import datetime
+            if divination_time:
+                try:
+                    if '+' in divination_time:
+                        dt = datetime.fromisoformat(divination_time)
+                    else:
+                        dt = datetime.fromisoformat(divination_time.replace('Z', '+00:00'))
+                    time_str = dt.strftime("%m/%d %H:%M")
+                except:
+                    time_str = "現在"
+            else:
+                time_str = "現在"
+            
+            # 管理員標識
+            admin_badge = "👑 管理員" if is_admin else ""
+            
+            bubble = FlexBubble(
+                size="kilo",  # 使用更大的尺寸
+                body=FlexBox(
+                    layout="vertical",
+                    contents=[
+                        # 標題
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text="🔮 紫微斗數占卜",
+                                    weight="bold",
+                                    size="xl",
+                                    color="#FF6B6B",
+                                    flex=1
+                                ),
+                                FlexText(
+                                    text=admin_badge,
+                                    size="sm",
+                                    color="#FFD700",
+                                    align="end",
+                                    flex=0
+                                ) if is_admin else FlexFiller()
+                            ]
+                        ),
+                        
+                        FlexSeparator(margin="md"),
+                        
+                        # 占卜基本資訊
+                        FlexBox(
+                            layout="vertical",
+                            contents=[
+                                FlexBox(
+                                    layout="horizontal",
+                                    contents=[
+                                        FlexText(text="📅 時間", size="sm", color="#666666", flex=1),
+                                        FlexText(text=time_str, size="sm", weight="bold", flex=2, align="end")
+                                    ],
+                                    margin="md"
+                                ),
+                                FlexBox(
+                                    layout="horizontal",
+                                    contents=[
+                                        FlexText(text="👤 性別", size="sm", color="#666666", flex=1),
+                                        FlexText(text=gender_text, size="sm", weight="bold", flex=2, align="end")
+                                    ],
+                                    margin="sm"
+                                ),
+                                FlexBox(
+                                    layout="horizontal",
+                                    contents=[
+                                        FlexText(text="🏰 太極宮", size="sm", color="#666666", flex=1),
+                                        FlexText(text=taichi_palace, size="sm", weight="bold", flex=2, align="end")
+                                    ],
+                                    margin="sm"
+                                ),
+                                FlexBox(
+                                    layout="horizontal",
+                                    contents=[
+                                        FlexText(text="🕰️ 分鐘支", size="sm", color="#666666", flex=1),
+                                        FlexText(text=minute_dizhi, size="sm", weight="bold", flex=2, align="end")
+                                    ],
+                                    margin="sm"
+                                ),
+                                FlexBox(
+                                    layout="horizontal",
+                                    contents=[
+                                        FlexText(text="⭐ 宮干", size="sm", color="#666666", flex=1),
+                                        FlexText(text=palace_tiangan, size="sm", weight="bold", flex=2, align="end")
+                                    ],
+                                    margin="sm"
+                                )
+                            ]
+                        ),
+                        
+                        FlexSeparator(margin="md"),
+                        
+                        # 四化說明
+                        FlexBox(
+                            layout="vertical",
+                            contents=[
+                                FlexText(
+                                    text="🔮 四化解析",
+                                    weight="bold",
+                                    size="lg",
+                                    color="#4ECDC4",
+                                    margin="md"
+                                ),
+                                FlexText(
+                                    text="💰祿：好運機會 👑權：主導掌控 🌟科：名聲地位 ⚡忌：需要留意",
+                                    size="xs",
+                                    color="#888888",
+                                    wrap=True,
+                                    margin="sm"
+                                )
+                            ]
+                        )
+                    ],
+                    spacing="none",
+                    paddingAll="lg"
+                )
+            )
+            
+            return FlexMessage(
+                alt_text="🔮 紫微斗數占卜結果",
+                contents=bubble
+            )
+            
+        except Exception as e:
+            logger.error(f"創建摘要消息失敗: {e}")
+            return None
     
     def _create_basic_chart_carousel(self, result: Dict[str, Any]) -> Optional[FlexMessage]:
         """創建基本命盤資訊 Carousel"""
@@ -253,7 +399,7 @@ class DivinationFlexMessageGenerator:
             main_stars = []
             minor_stars = []
             
-            for star in stars[:6]:  # 最多顯示6顆星
+            for star in stars[:8]:  # 增加到8顆星
                 star_str = str(star)
                 if any(main in star_str for main in ["紫微", "天機", "太陽", "武曲", "天同", "廉貞", "天府", "太陰", "貪狼", "巨門", "天相", "天梁", "七殺", "破軍"]):
                     main_stars.append(star_str)
@@ -271,7 +417,7 @@ class DivinationFlexMessageGenerator:
                         FlexText(
                             text=str(palace_name),
                             weight="bold",
-                            size="md",
+                            size="lg",  # 增大字體
                             color=color,
                             align="center"
                         )
@@ -282,93 +428,143 @@ class DivinationFlexMessageGenerator:
                 )
             )
             
-            body_contents.append(FlexFiller())
-            
             # 天干地支 (左右排列)
             body_contents.append(
                 FlexBox(
                     layout="horizontal",
                     contents=[
                         FlexText(
-                            text=f"干: {tiangan}",
-                            size="xs",
-                            color="#666666",
+                            text=f"{tiangan}",
+                            size="sm",
+                            color="#333333",
+                            weight="bold",
                             flex=1
                         ),
                         FlexText(
-                            text=f"支: {dizhi}",
-                            size="xs", 
-                            color="#666666",
+                            text=f"{dizhi}",
+                            size="sm", 
+                            color="#333333",
+                            weight="bold",
                             flex=1,
                             align="end"
                         )
-                    ]
+                    ],
+                    margin="sm"
                 )
             )
-            
-            body_contents.append(FlexFiller())
             
             # 主星
             if main_stars:
                 body_contents.append(
                     FlexText(
-                        text="主星:",
-                        size="xs",
-                        color="#333333",
-                        weight="bold"
-                    )
-                )
-                for star in main_stars[:3]:  # 最多3顆主星
-                    body_contents.append(
-                        FlexText(
-                            text=f"• {star}",
-                            size="xs",
-                            color="#444444",
-                            margin="xs"
-                        )
-                    )
-            
-            # 輔星
-            if minor_stars:
-                body_contents.append(FlexFiller())
-                body_contents.append(
-                    FlexText(
-                        text="輔星:",
-                        size="xs",
-                        color="#666666",
-                        weight="bold"
-                    )
-                )
-                for star in minor_stars[:3]:  # 最多3顆輔星
-                    body_contents.append(
-                        FlexText(
-                            text=f"• {star}",
-                            size="xs",
-                            color="#888888",
-                            margin="xs"
-                        )
-                    )
-            
-            # 太極點標記
-            if is_taichi:
-                body_contents.append(FlexFiller())
-                body_contents.append(
-                    FlexText(
-                        text="🎯 太極點重分",
+                        text="【主星】",
                         size="xs",
                         color="#FF6B6B",
                         weight="bold",
-                        align="center"
+                        margin="sm"
+                    )
+                )
+                # 將主星分行顯示，每行最多2顆
+                for i in range(0, len(main_stars), 2):
+                    star_line = main_stars[i:i+2]
+                    if len(star_line) == 2:
+                        body_contents.append(
+                            FlexBox(
+                                layout="horizontal",
+                                contents=[
+                                    FlexText(
+                                        text=star_line[0],
+                                        size="xs",
+                                        color="#444444",
+                                        flex=1
+                                    ),
+                                    FlexText(
+                                        text=star_line[1],
+                                        size="xs",
+                                        color="#444444",
+                                        flex=1,
+                                        align="end"
+                                    )
+                                ],
+                                margin="xs"
+                            )
+                        )
+                    else:
+                        body_contents.append(
+                            FlexText(
+                                text=star_line[0],
+                                size="xs",
+                                color="#444444",
+                                margin="xs"
+                            )
+                        )
+            
+            # 輔星
+            if minor_stars:
+                body_contents.append(
+                    FlexText(
+                        text="【輔星】",
+                        size="xs",
+                        color="#4ECDC4",
+                        weight="bold",
+                        margin="sm"
+                    )
+                )
+                # 將輔星分行顯示，每行最多2顆
+                for i in range(0, min(len(minor_stars), 4), 2):  # 最多顯示4顆輔星
+                    star_line = minor_stars[i:i+2]
+                    if len(star_line) == 2:
+                        body_contents.append(
+                            FlexBox(
+                                layout="horizontal",
+                                contents=[
+                                    FlexText(
+                                        text=star_line[0],
+                                        size="xs",
+                                        color="#666666",
+                                        flex=1
+                                    ),
+                                    FlexText(
+                                        text=star_line[1],
+                                        size="xs",
+                                        color="#666666",
+                                        flex=1,
+                                        align="end"
+                                    )
+                                ],
+                                margin="xs"
+                            )
+                        )
+                    else:
+                        body_contents.append(
+                            FlexText(
+                                text=star_line[0],
+                                size="xs",
+                                color="#666666",
+                                margin="xs"
+                            )
+                        )
+            
+            # 太極點標記
+            if is_taichi:
+                body_contents.append(
+                    FlexText(
+                        text="🎯 太極重分",
+                        size="xs",
+                        color="#FF6B6B",
+                        weight="bold",
+                        align="center",
+                        margin="sm"
                     )
                 )
             
             bubble = FlexBubble(
-                size="micro",
+                size="nano",  # 使用更小的尺寸讓更多內容可見
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
                     spacing="none",
-                    paddingAll="md"
+                    paddingAll="sm"  # 減少內邊距
                 ),
                 styles={
                     "body": {
@@ -398,13 +594,13 @@ class DivinationFlexMessageGenerator:
                     contents=[
                         FlexText(
                             text=str(emoji),
-                            size="lg",
+                            size="xl",  # 增大 emoji 尺寸
                             flex=0
                         ),
                         FlexText(
                             text=f"{str(sihua_type)}星",
                             weight="bold",
-                            size="lg",
+                            size="xl",  # 增大標題字體
                             color=color,
                             flex=1,
                             margin="sm"
@@ -412,11 +608,9 @@ class DivinationFlexMessageGenerator:
                     ],
                     backgroundColor="#F8F9FA",
                     cornerRadius="md",
-                    paddingAll="sm"
+                    paddingAll="md"  # 增加內邊距
                 )
             )
-            
-            body_contents.append(FlexFiller())
             
             # 四化星曜列表
             for sihua_info in sihua_list:
@@ -424,52 +618,69 @@ class DivinationFlexMessageGenerator:
                 palace = str(sihua_info.get("palace", ""))
                 explanation = str(sihua_info.get("explanation", ""))
                 
+                # 添加分隔線
+                body_contents.append(FlexSeparator(margin="md"))
+                
                 # 星曜和宮位
                 body_contents.append(
                     FlexBox(
                         layout="horizontal",
                         contents=[
                             FlexText(
-                                text=star,
+                                text=f"⭐ {star}",
                                 weight="bold",
-                                size="sm",
+                                size="md",  # 增大字體
                                 color="#333333",
                                 flex=2
                             ),
                             FlexText(
-                                text=palace,
-                                size="sm",
+                                text=f"📍 {palace}",
+                                size="md",  # 增大字體
                                 color="#666666",
-                                flex=1,
+                                weight="bold",
+                                flex=2,
                                 align="end"
                             )
-                        ]
+                        ],
+                        margin="md"
                     )
                 )
                 
-                # 解釋內容 (簡化版)
+                # 解釋內容 (完整版)
                 if explanation:
-                    # 只取前100字
-                    short_explanation = explanation[:100] + "..." if len(explanation) > 100 else explanation
-                    body_contents.append(
-                        FlexText(
-                            text=short_explanation,
-                            size="xs",
-                            color="#888888",
-                            wrap=True,
-                            margin="xs"
+                    # 分段顯示解釋內容
+                    explanation_parts = explanation.split('。')
+                    for i, part in enumerate(explanation_parts[:3]):  # 最多顯示3段
+                        if part.strip():
+                            body_contents.append(
+                                FlexText(
+                                    text=f"• {part.strip()}。",
+                                    size="sm",  # 增大字體
+                                    color="#444444",
+                                    wrap=True,
+                                    margin="sm"
+                                )
+                            )
+                    
+                    # 如果內容太長，添加省略號
+                    if len(explanation_parts) > 3:
+                        body_contents.append(
+                            FlexText(
+                                text="...",
+                                size="sm",
+                                color="#888888",
+                                align="center",
+                                margin="xs"
+                            )
                         )
-                    )
-                
-                body_contents.append(FlexFiller())
             
             bubble = FlexBubble(
-                size="micro",
+                size="mega",  # 使用最大尺寸以容納更多內容
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
                     spacing="none",
-                    paddingAll="md"
+                    paddingAll="lg"  # 增加內邊距
                 ),
                 styles={
                     "body": {
