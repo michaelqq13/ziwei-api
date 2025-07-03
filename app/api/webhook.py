@@ -339,7 +339,7 @@ def handle_divination_request(db: Optional[Session], user: LineBotUser, session:
     
     # 發送帶有Quick Reply按鈕的訊息
     send_line_message(user.line_user_id, message, quick_reply_items)
-    return ""  # 返回空字符串而不是None，表示訊息已經發送
+    return None  # 返回 None 表示訊息已經發送，不需要再次發送
 
 def handle_gender_input(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
     """處理性別輸入"""
@@ -401,7 +401,7 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
                 # 發送Flex Messages
                 success = send_line_flex_messages(user.line_user_id, flex_messages)
                 if success:
-                    return ""  # 已經發送Flex訊息，不需要返回文字
+                    return None  # 已經發送Flex訊息，不需要返回文字
                 else:
                     # Flex訊息發送失敗，使用備用文字格式
                     return format_divination_result_text(result, is_admin)
@@ -826,44 +826,54 @@ def handle_message_event(event: dict, db: Optional[Session]):
                     from app.logic.user_logic import get_user_info
                     user_stats = get_user_info(user.id, db)
                     response = format_user_info(user_stats)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif text in ["占卜", "算命", "紫微斗數", "開始占卜"]:
                     response = handle_divination_request(db, user, session)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif text.startswith("設定暱稱"):
                     response = handle_nickname_setting(db, user, session, text)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif text == "管理員":
                     response = handle_admin_authentication(db, user, session, text)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif text == "命盤綁定":
                     response = handle_chart_binding(db, user, session)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif text in ["流年運勢", "流月運勢", "流日運勢"]:
                     fortune_type = text.replace("運勢", "").lower()
                     response = handle_fortune_request(db, user, fortune_type)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif session.state == "waiting_for_gender":
                     response = handle_gender_input(db, user, session, text)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif session.state.startswith("chart_binding"):
                     response = handle_chart_binding_process(db, user, session, text)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif session.state == "admin_auth":
                     response = handle_admin_authentication(db, user, session, text)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 elif session.state == "setting_nickname":
                     response = handle_nickname_setting(db, user, session, text)
-                    send_line_message(user_id, response)
+                    if response:
+                        send_line_message(user_id, response)
                     
                 else:
                     # 默認回覆
