@@ -385,8 +385,8 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
             # 清除會話狀態
             session.clear()
             
-            # 將占卜結果保存到用戶對象中，供後續查看詳細解釋使用
-            user.last_divination_result = result
+            # 將占卜結果保存到session中，供後續查看詳細解釋使用
+            session.set_data("last_divination_result", result)
             
             # 檢查用戶是否為管理員（如果數據庫不可用，默認為非管理員）
             is_admin = False
@@ -694,6 +694,34 @@ def handle_fortune_request(db: Optional[Session], user: LineBotUser, fortune_typ
 
 期待為您提供更精準的運勢分析。"""
 
+def clean_sihua_explanation(text: str) -> str:
+    """清理四化解釋文字，保留基本標點，清理裝飾性標點"""
+    if not text:
+        return text
+    
+    # 定義需要清理的裝飾性標點符號
+    unwanted_punctuation = {
+        '★', '☆', '※', '○', '●', '□', '■', '◆', '◇', '△', '▲', '▽', '▼',
+        '「', '」', '『', '』', '"', '"', ''', ''', '"', "'", '〈', '〉', '《', '》',
+        '（', '）', '(', ')', '【', '】', '[', ']', '〔', '〕', '{', '}',
+        '～', '~', '…', '－', '—', '·', '_', '*', '#', '@', '&', '%', 
+        '$', '^', '+', '=', '|', '\\', '/', '`'
+    }
+    
+    # 清理文字，保留基本標點符號（逗號、句號、冒號、分號、問號、驚嘆號）
+    cleaned_text = ''
+    for char in text:
+        if char in unwanted_punctuation:
+            # 跳過裝飾性標點符號
+            continue
+        else:
+            cleaned_text += char
+    
+    # 清理多餘的空格
+    cleaned_text = ' '.join(cleaned_text.split())
+    
+    return cleaned_text
+
 def handle_sihua_detail_request(db: Optional[Session], user: LineBotUser, text: str) -> str:
     """處理四化詳細解釋請求"""
     try:
@@ -711,15 +739,17 @@ def handle_sihua_detail_request(db: Optional[Session], user: LineBotUser, text: 
         if not sihua_type:
             return "❓ 無法識別您要查看的四化類型，請重新操作。"
         
-        # 檢查用戶是否有最近的占卜記錄
-        if not hasattr(user, 'last_divination_result') or not user.last_divination_result:
+        # 從session中獲取占卜結果
+        session = get_or_create_session(user.line_user_id)
+        divination_result = session.get_data("last_divination_result")
+        
+        if not divination_result:
             return f"""🔮 查看{sihua_type}星詳細解釋需要先進行占卜
 
 💫 請先執行「本週占卜」功能
 ⭐ 完成占卜後即可查看完整的四化解釋"""
         
         # 從占卜結果中獲取對應的四化數據
-        divination_result = user.last_divination_result
         sihua_results = divination_result.get("sihua_results", [])
         
         # 篩選出對應類型的四化
@@ -730,6 +760,11 @@ def handle_sihua_detail_request(db: Optional[Session], user: LineBotUser, text: 
         
         if not target_sihua_list:
             return f"❓ 未找到{sihua_type}星的相關資料，請重新進行占卜。"
+        
+        # 清理四化解釋文字中的標點符號
+        for sihua_info in target_sihua_list:
+            if "explanation" in sihua_info:
+                sihua_info["explanation"] = clean_sihua_explanation(sihua_info["explanation"])
         
         # 生成詳細解釋消息
         from app.utils.divination_flex_message import DivinationFlexMessageGenerator
@@ -782,6 +817,9 @@ def generate_text_sihua_detail(sihua_type: str, sihua_list: List[Dict]) -> str:
             star = sihua_info.get("star", "")
             palace = sihua_info.get("palace", "")
             explanation = sihua_info.get("explanation", "")
+            
+            # 清理解釋文字
+            explanation = clean_sihua_explanation(explanation)
             
             result += f"""
 

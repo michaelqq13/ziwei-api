@@ -56,6 +56,35 @@ class DivinationFlexMessageGenerator:
             "遷移宮", "奴僕宮", "官祿宮", "田宅宮", "福德宮", "父母宮"
         ]
     
+    @staticmethod
+    def clean_sihua_explanation(text: str) -> str:
+        """清理四化解釋文字，保留基本標點，清理裝飾性標點"""
+        if not text:
+            return text
+        
+        # 定義需要清理的裝飾性標點符號
+        unwanted_punctuation = {
+            '★', '☆', '※', '○', '●', '□', '■', '◆', '◇', '△', '▲', '▽', '▼',
+            '「', '」', '『', '』', '"', '"', ''', ''', '"', "'", '〈', '〉', '《', '》',
+            '（', '）', '(', ')', '【', '】', '[', ']', '〔', '〕', '{', '}',
+            '～', '~', '…', '－', '—', '·', '_', '*', '#', '@', '&', '%', 
+            '$', '^', '+', '=', '|', '\\', '/', '`'
+        }
+        
+        # 清理文字，保留基本標點符號（逗號、句號、冒號、分號、問號、驚嘆號）
+        cleaned_text = ''
+        for char in text:
+            if char in unwanted_punctuation:
+                # 跳過裝飾性標點符號
+                continue
+            else:
+                cleaned_text += char
+        
+        # 清理多餘的空格
+        cleaned_text = ' '.join(cleaned_text.split())
+        
+        return cleaned_text
+
     def generate_divination_messages(
         self, 
         result: Dict[str, Any], 
@@ -789,7 +818,10 @@ class DivinationFlexMessageGenerator:
         try:
             if not explanation:
                 return ""
-                
+            
+            # 清理標點符號
+            explanation = self.clean_sihua_explanation(explanation)
+            
             # 分割句子
             sentences = explanation.split('。')
             
@@ -825,7 +857,8 @@ class DivinationFlexMessageGenerator:
             
         except Exception as e:
             logger.error(f"提取關鍵信息失敗: {e}")
-            return explanation[:50] + "..." if len(explanation) > 50 else explanation
+            cleaned = self.clean_sihua_explanation(explanation[:50])
+            return cleaned + "..." if len(cleaned) > 50 else cleaned
     
     def _get_sihua_description(self, sihua_type: str) -> str:
         """獲取四化類型的簡要說明"""
@@ -911,6 +944,9 @@ class DivinationFlexMessageGenerator:
                 star = str(sihua_info.get("star", ""))
                 palace = str(sihua_info.get("palace", ""))
                 explanation = str(sihua_info.get("explanation", ""))
+                
+                # 清理解釋文字
+                explanation = self.clean_sihua_explanation(explanation)
                 
                 # 添加分隔線
                 body_contents.append(FlexSeparator(margin="lg"))
