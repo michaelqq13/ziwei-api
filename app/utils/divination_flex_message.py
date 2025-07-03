@@ -386,7 +386,7 @@ class DivinationFlexMessageGenerator:
         palace_data: Dict[str, Any], 
         is_taichi: bool = False
     ) -> Optional[FlexBubble]:
-        """創建宮位 bubble (模擬命盤格子)"""
+        """創建宮位 bubble (模擬命盤格子) - 優化尺寸和顯示"""
         try:
             color = self.PALACE_COLORS.get(palace_name, "#95A5A6")
             
@@ -399,7 +399,7 @@ class DivinationFlexMessageGenerator:
             main_stars = []
             minor_stars = []
             
-            for star in stars[:8]:  # 增加到8顆星
+            for star in stars:  # 顯示所有星曜
                 star_str = str(star)
                 if any(main in star_str for main in ["紫微", "天機", "太陽", "武曲", "天同", "廉貞", "天府", "太陰", "貪狼", "巨門", "天相", "天梁", "七殺", "破軍"]):
                     main_stars.append(star_str)
@@ -417,14 +417,14 @@ class DivinationFlexMessageGenerator:
                         FlexText(
                             text=str(palace_name),
                             weight="bold",
-                            size="lg",  # 增大字體
+                            size="xxl",  # 加大宮位名稱字體
                             color=color,
                             align="center"
                         )
                     ],
                     backgroundColor="#F8F9FA",
                     cornerRadius="md",
-                    paddingAll="sm"
+                    paddingAll="md"  # 增加內邊距
                 )
             )
             
@@ -435,36 +435,36 @@ class DivinationFlexMessageGenerator:
                     contents=[
                         FlexText(
                             text=f"{tiangan}",
-                            size="sm",
+                            size="md",  # 加大天干地支字體
                             color="#333333",
                             weight="bold",
                             flex=1
                         ),
                         FlexText(
                             text=f"{dizhi}",
-                            size="sm", 
+                            size="md", 
                             color="#333333",
                             weight="bold",
                             flex=1,
                             align="end"
                         )
                     ],
-                    margin="sm"
+                    margin="md"
                 )
             )
             
-            # 主星
+            # 主星 - 優化顯示，確保不被遮擋
             if main_stars:
                 body_contents.append(
                     FlexText(
                         text="【主星】",
-                        size="xs",
+                        size="sm",  # 稍微加大標籤字體
                         color="#FF6B6B",
                         weight="bold",
-                        margin="sm"
+                        margin="md"
                     )
                 )
-                # 將主星分行顯示，每行最多2顆
+                # 主星單行顯示，每行最多2顆，確保完整顯示
                 for i in range(0, len(main_stars), 2):
                     star_line = main_stars[i:i+2]
                     if len(star_line) == 2:
@@ -473,45 +473,48 @@ class DivinationFlexMessageGenerator:
                                 layout="horizontal",
                                 contents=[
                                     FlexText(
-                                        text=star_line[0],
-                                        size="xs",
+                                        text=star_line[0][:10],  # 適當字數限制
+                                        size="sm",  # 加大主星字體
                                         color="#444444",
+                                        weight="bold",
                                         flex=1
                                     ),
                                     FlexText(
-                                        text=star_line[1],
-                                        size="xs",
+                                        text=star_line[1][:10],
+                                        size="sm",
                                         color="#444444",
+                                        weight="bold",
                                         flex=1,
                                         align="end"
                                     )
                                 ],
-                                margin="xs"
+                                margin="sm"
                             )
                         )
                     else:
                         body_contents.append(
                             FlexText(
-                                text=star_line[0],
-                                size="xs",
+                                text=star_line[0][:15],
+                                size="sm",
                                 color="#444444",
-                                margin="xs"
+                                weight="bold",
+                                margin="sm"
                             )
                         )
             
-            # 輔星
+            # 輔星 - 增加顯示空間
             if minor_stars:
                 body_contents.append(
                     FlexText(
                         text="【輔星】",
-                        size="xs",
+                        size="sm",
                         color="#4ECDC4",
                         weight="bold",
-                        margin="sm"
+                        margin="md"
                     )
                 )
-                # 將輔星分行顯示，每行最多2顆
-                for i in range(0, min(len(minor_stars), 4), 2):  # 最多顯示4顆輔星
+                # 輔星分行顯示，每行最多2顆（確保可讀性）
+                for i in range(0, min(len(minor_stars), 8), 2):  # 最多顯示8顆輔星
                     star_line = minor_stars[i:i+2]
                     if len(star_line) == 2:
                         body_contents.append(
@@ -519,52 +522,64 @@ class DivinationFlexMessageGenerator:
                                 layout="horizontal",
                                 contents=[
                                     FlexText(
-                                        text=star_line[0],
+                                        text=star_line[0][:8],
                                         size="xs",
                                         color="#666666",
                                         flex=1
                                     ),
                                     FlexText(
-                                        text=star_line[1],
+                                        text=star_line[1][:8],
                                         size="xs",
                                         color="#666666",
                                         flex=1,
                                         align="end"
                                     )
                                 ],
-                                margin="xs"
+                                margin="sm"
                             )
                         )
                     else:
                         body_contents.append(
                             FlexText(
-                                text=star_line[0],
+                                text=star_line[0][:12],
                                 size="xs",
                                 color="#666666",
-                                margin="xs"
+                                margin="sm"
                             )
                         )
+                
+                # 如果輔星太多，顯示省略提示
+                if len(minor_stars) > 8:
+                    body_contents.append(
+                        FlexText(
+                            text=f"...及其他{len(minor_stars)-8}顆星",
+                            size="xxs",
+                            color="#999999",
+                            align="center",
+                            margin="sm"
+                        )
+                    )
             
             # 太極點標記
             if is_taichi:
                 body_contents.append(
                     FlexText(
                         text="🎯 太極重分",
-                        size="xs",
+                        size="sm",
                         color="#FF6B6B",
                         weight="bold",
                         align="center",
-                        margin="sm"
+                        margin="md"
                     )
                 )
             
             bubble = FlexBubble(
-                size="nano",  # 使用更小的尺寸讓更多內容可見
+                size="giga",  # 使用超大尺寸，確保內容不被遮擋
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
                     spacing="none",
-                    paddingAll="sm"  # 減少內邊距
+                    paddingAll="lg"  # 增加內邊距，給內容更多空間
                 ),
                 styles={
                     "body": {
@@ -580,7 +595,7 @@ class DivinationFlexMessageGenerator:
             return None
     
     def _create_sihua_bubble(self, sihua_type: str, sihua_list: List[Dict[str, Any]]) -> Optional[FlexBubble]:
-        """創建四化 bubble"""
+        """創建四化 bubble - 分層顯示設計"""
         try:
             color = self.SIHUA_COLORS.get(sihua_type, "#95A5A6")
             emoji = self.SIHUA_EMOJIS.get(sihua_type, "⭐")
@@ -594,34 +609,49 @@ class DivinationFlexMessageGenerator:
                     contents=[
                         FlexText(
                             text=str(emoji),
-                            size="xl",  # 增大 emoji 尺寸
+                            size="xxl",  # 加大 emoji
                             flex=0
                         ),
                         FlexText(
-                            text=f"{str(sihua_type)}星",
+                            text=f"{str(sihua_type)}星解析",
                             weight="bold",
-                            size="xl",  # 增大標題字體
+                            size="xxl",  # 加大標題
                             color=color,
                             flex=1,
-                            margin="sm"
+                            margin="md"
                         )
                     ],
                     backgroundColor="#F8F9FA",
                     cornerRadius="md",
-                    paddingAll="md"  # 增加內邊距
+                    paddingAll="lg"  # 增加內邊距
                 )
             )
             
-            # 四化星曜列表
-            for sihua_info in sihua_list:
+            # 第一層：核心信息顯示
+            body_contents.append(
+                FlexText(
+                    text="✨ 核心信息",
+                    size="lg",
+                    weight="bold",
+                    color="#333333",
+                    margin="lg"
+                )
+            )
+            
+            # 星曜概要列表
+            for i, sihua_info in enumerate(sihua_list):
+                if i >= 2:  # 第一層最多顯示2個，保持簡潔
+                    break
+                    
                 star = str(sihua_info.get("star", ""))
                 palace = str(sihua_info.get("palace", ""))
                 explanation = str(sihua_info.get("explanation", ""))
                 
                 # 添加分隔線
-                body_contents.append(FlexSeparator(margin="md"))
+                if i > 0:
+                    body_contents.append(FlexSeparator(margin="md"))
                 
-                # 星曜和宮位
+                # 星曜和宮位 - 核心信息
                 body_contents.append(
                     FlexBox(
                         layout="horizontal",
@@ -629,13 +659,13 @@ class DivinationFlexMessageGenerator:
                             FlexText(
                                 text=f"⭐ {star}",
                                 weight="bold",
-                                size="md",  # 增大字體
+                                size="lg",  # 加大字體
                                 color="#333333",
                                 flex=2
                             ),
                             FlexText(
                                 text=f"📍 {palace}",
-                                size="md",  # 增大字體
+                                size="lg",  # 加大字體
                                 color="#666666",
                                 weight="bold",
                                 flex=2,
@@ -646,41 +676,101 @@ class DivinationFlexMessageGenerator:
                     )
                 )
                 
-                # 解釋內容 (完整版)
+                # 核心現象 - 只顯示最重要的信息
                 if explanation:
-                    # 分段顯示解釋內容
-                    explanation_parts = explanation.split('。')
-                    for i, part in enumerate(explanation_parts[:3]):  # 最多顯示3段
-                        if part.strip():
-                            body_contents.append(
-                                FlexText(
-                                    text=f"• {part.strip()}。",
-                                    size="sm",  # 增大字體
-                                    color="#444444",
-                                    wrap=True,
-                                    margin="sm"
-                                )
-                            )
-                    
-                    # 如果內容太長，添加省略號
-                    if len(explanation_parts) > 3:
+                    # 提取關鍵信息（通常在開頭）
+                    key_info = self._extract_key_info(explanation, sihua_type)
+                    if key_info:
                         body_contents.append(
-                            FlexText(
-                                text="...",
-                                size="sm",
-                                color="#888888",
-                                align="center",
-                                margin="xs"
+                            FlexBox(
+                                layout="vertical",
+                                contents=[
+                                    FlexText(
+                                        text="🎯 核心現象",
+                                        size="sm",
+                                        color="#888888",
+                                        weight="bold",
+                                        margin="sm"
+                                    ),
+                                    FlexText(
+                                        text=key_info,
+                                        size="md",
+                                        color="#444444",
+                                        wrap=True,
+                                        margin="xs"
+                                    )
+                                ]
                             )
                         )
             
+            # 如果有更多星曜，顯示數量提示
+            if len(sihua_list) > 2:
+                body_contents.append(
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexSeparator(margin="lg"),
+                            FlexText(
+                                text=f"+ 另有 {len(sihua_list) - 2} 顆{sihua_type}星",
+                                size="md",
+                                color="#888888",
+                                align="center",
+                                margin="md"
+                            )
+                        ]
+                    )
+                )
+            
+            # 第二層：展開按鈕
+            body_contents.append(
+                FlexBox(
+                    layout="vertical",
+                    contents=[
+                        FlexSeparator(margin="lg"),
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text="📖 查看完整解釋",
+                                    size="md",
+                                    color="#FFFFFF",
+                                    weight="bold",
+                                    align="center",
+                                    flex=1
+                                )
+                            ],
+                            backgroundColor=color,
+                            cornerRadius="md",
+                            paddingAll="md",
+                            margin="md",
+                            action={
+                                "type": "message", 
+                                "text": f"查看{sihua_type}星完整解釋"
+                            }
+                        )
+                    ]
+                )
+            )
+            
+            # 底部說明
+            body_contents.append(
+                FlexText(
+                    text=self._get_sihua_description(sihua_type),
+                    size="sm",
+                    color="#999999",
+                    wrap=True,
+                    align="center",
+                    margin="lg"
+                )
+            )
+            
             bubble = FlexBubble(
-                size="mega",  # 使用最大尺寸以容納更多內容
+                size="giga",  # 使用超大尺寸
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
                     spacing="none",
-                    paddingAll="lg"  # 增加內邊距
+                    paddingAll="xl"  # 增加內邊距
                 ),
                 styles={
                     "body": {
@@ -693,4 +783,257 @@ class DivinationFlexMessageGenerator:
             
         except Exception as e:
             logger.error(f"創建四化bubble失敗: {e}")
-            return None 
+            return None
+    
+    def _extract_key_info(self, explanation: str, sihua_type: str) -> str:
+        """提取四化的關鍵信息"""
+        try:
+            if not explanation:
+                return ""
+                
+            # 分割句子
+            sentences = explanation.split('。')
+            
+            # 根據四化類型提取關鍵詞句
+            key_words = {
+                "祿": ["財運", "收入", "機會", "好運", "順利", "賺錢", "利益"],
+                "權": ["權力", "主導", "領導", "掌控", "管理", "決策", "影響力"],
+                "科": ["名聲", "地位", "聲望", "學習", "考試", "文化", "名氣"],
+                "忌": ["阻礙", "困難", "小心", "注意", "不利", "問題", "挑戰"]
+            }
+            
+            target_words = key_words.get(sihua_type, [])
+            
+            # 找出包含關鍵詞的重要句子
+            key_sentences = []
+            for sentence in sentences[:3]:  # 只查看前3句
+                if sentence.strip():
+                    for word in target_words:
+                        if word in sentence:
+                            key_sentences.append(sentence.strip())
+                            break
+            
+            # 如果沒有找到關鍵句，就用前兩句
+            if not key_sentences:
+                key_sentences = [s.strip() for s in sentences[:2] if s.strip()]
+            
+            # 組合關鍵信息，限制長度
+            result = "。".join(key_sentences[:2])
+            if len(result) > 80:
+                result = result[:80] + "..."
+            
+            return result + "。" if result and not result.endswith("。") else result
+            
+        except Exception as e:
+            logger.error(f"提取關鍵信息失敗: {e}")
+            return explanation[:50] + "..." if len(explanation) > 50 else explanation
+    
+    def _get_sihua_description(self, sihua_type: str) -> str:
+        """獲取四化類型的簡要說明"""
+        descriptions = {
+            "祿": "💰 祿星代表好運與財富，是吉利的象徵",
+            "權": "👑 權星代表權力與主導，具有領導特質", 
+            "科": "🌟 科星代表名聲與地位，利於學習考試",
+            "忌": "⚡ 忌星代表阻礙與挑戰，需要特別留意"
+        }
+        return descriptions.get(sihua_type, "✨ 四化影響運勢走向")
+    
+    def generate_sihua_detail_message(
+        self, 
+        sihua_type: str, 
+        sihua_list: List[Dict[str, Any]]
+    ) -> Optional[FlexMessage]:
+        """
+        生成四化詳細解釋消息
+        
+        Args:
+            sihua_type: 四化類型 (祿/權/科/忌)
+            sihua_list: 該四化的星曜列表
+            
+        Returns:
+            包含完整解釋的 FlexMessage
+        """
+        try:
+            color = self.SIHUA_COLORS.get(sihua_type, "#95A5A6")
+            emoji = self.SIHUA_EMOJIS.get(sihua_type, "⭐")
+            
+            body_contents = []
+            
+            # 詳細解釋標題
+            body_contents.append(
+                FlexBox(
+                    layout="horizontal",
+                    contents=[
+                        FlexText(
+                            text=str(emoji),
+                            size="xxl",
+                            flex=0
+                        ),
+                        FlexText(
+                            text=f"{str(sihua_type)}星完整解釋",
+                            weight="bold",
+                            size="xl",
+                            color=color,
+                            flex=1,
+                            margin="md"
+                        )
+                    ],
+                    backgroundColor="#F8F9FA",
+                    cornerRadius="md",
+                    paddingAll="lg"
+                )
+            )
+            
+            # 四化總體說明
+            body_contents.append(
+                FlexBox(
+                    layout="vertical",
+                    contents=[
+                        FlexText(
+                            text="📋 總體說明",
+                            size="lg",
+                            weight="bold",
+                            color="#333333",
+                            margin="lg"
+                        ),
+                        FlexText(
+                            text=self._get_detailed_sihua_description(sihua_type),
+                            size="md",
+                            color="#444444",
+                            wrap=True,
+                            margin="sm"
+                        )
+                    ]
+                )
+            )
+            
+            # 詳細星曜解釋
+            for i, sihua_info in enumerate(sihua_list):
+                star = str(sihua_info.get("star", ""))
+                palace = str(sihua_info.get("palace", ""))
+                explanation = str(sihua_info.get("explanation", ""))
+                
+                # 添加分隔線
+                body_contents.append(FlexSeparator(margin="lg"))
+                
+                # 星曜標題
+                body_contents.append(
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexText(
+                                text=f"⭐ {star}",
+                                weight="bold",
+                                size="lg",
+                                color="#333333",
+                                flex=2
+                            ),
+                            FlexText(
+                                text=f"📍 {palace}",
+                                size="md",
+                                color="#666666",
+                                weight="bold",
+                                flex=2,
+                                align="end"
+                            )
+                        ],
+                        margin="md"
+                    )
+                )
+                
+                # 完整解釋內容
+                if explanation:
+                    # 將解釋分段顯示
+                    explanation_parts = explanation.split('。')
+                    
+                    for j, part in enumerate(explanation_parts):
+                        if part.strip():
+                            # 區分不同類型的內容
+                            if any(keyword in part for keyword in ["心理", "個性", "性格"]):
+                                label = "🧠 心理特質"
+                                label_color = "#9B59B6"
+                            elif any(keyword in part for keyword in ["現象", "表現", "行為"]):
+                                label = "🎭 外在表現"
+                                label_color = "#3498DB"
+                            elif any(keyword in part for keyword in ["事件", "發生", "情況"]):
+                                label = "📅 可能事件"
+                                label_color = "#E67E22"
+                            elif any(keyword in part for keyword in ["提示", "建議", "注意"]):
+                                label = "💡 建議提示"
+                                label_color = "#27AE60"
+                            else:
+                                label = "📝 詳細說明"
+                                label_color = "#7F8C8D"
+                            
+                            # 只在第一段或內容類型改變時顯示標籤
+                            if j == 0 or (j > 0 and len(part.strip()) > 20):
+                                body_contents.append(
+                                    FlexText(
+                                        text=label,
+                                        size="sm",
+                                        color=label_color,
+                                        weight="bold",
+                                        margin="md" if j == 0 else "lg"
+                                    )
+                                )
+                            
+                            body_contents.append(
+                                FlexText(
+                                    text=part.strip() + "。",
+                                    size="sm",
+                                    color="#444444",
+                                    wrap=True,
+                                    margin="sm"
+                                )
+                            )
+            
+            # 底部總結
+            body_contents.append(
+                FlexBox(
+                    layout="vertical",
+                    contents=[
+                        FlexSeparator(margin="lg"),
+                        FlexText(
+                            text="📖 以上為完整的四化解釋內容",
+                            size="sm",
+                            color="#999999",
+                            align="center",
+                            margin="lg"
+                        )
+                    ]
+                )
+            )
+            
+            bubble = FlexBubble(
+                size="giga",
+                body=FlexBox(
+                    layout="vertical",
+                    contents=body_contents,
+                    spacing="none",
+                    paddingAll="xl"
+                ),
+                styles={
+                    "body": {
+                        "backgroundColor": "#FFFFFF"
+                    }
+                }
+            )
+            
+            return FlexMessage(
+                alt_text=f"🔮 {sihua_type}星完整解釋",
+                contents=bubble
+            )
+            
+        except Exception as e:
+            logger.error(f"生成四化詳細解釋失敗: {e}")
+            return None
+    
+    def _get_detailed_sihua_description(self, sihua_type: str) -> str:
+        """獲取四化類型的詳細說明"""
+        descriptions = {
+            "祿": "祿星為四化之首，代表財富、福祿、好運與機會。當星曜化祿時，通常表示在該領域能得到好的發展，有賺錢的機會，做事順利，容易得到貴人幫助。祿星也代表緣分與人際關係的和諧。",
+            "權": "權星代表權力、領導力、主導權與掌控能力。化權的星曜會增強其主導性，使人在該領域具有領導才能，但也可能變得強勢或固執。權星有助於事業發展和地位提升，但需注意不要過於專斷。",
+            "科": "科星代表名聲、聲望、文化、學習與考試運。化科的星曜能提升個人的名氣和社會地位，有利於學習進修、考試升學，也代表文化修養和專業能力的提升。科星也象徵貴人相助和良好的社會形象。",
+            "忌": "忌星代表阻礙、困難、執著與不順利。化忌並非完全凶惡，而是提醒需要特別留意的地方。忌星會帶來挑戰和考驗，但也能促使人成長和學習。關鍵在於如何化解和轉化這些困難。"
+        }
+        return descriptions.get(sihua_type, "四化星對運勢產生重要影響，需要仔細分析其作用力。") 

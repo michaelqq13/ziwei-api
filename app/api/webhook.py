@@ -385,6 +385,9 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
             # 清除會話狀態
             session.clear()
             
+            # 將占卜結果保存到用戶對象中，供後續查看詳細解釋使用
+            user.last_divination_result = result
+            
             # 檢查用戶是否為管理員（如果數據庫不可用，默認為非管理員）
             is_admin = False
             try:
@@ -678,29 +681,123 @@ def handle_chart_binding_process(db: Optional[Session], user: LineBotUser, sessi
 
 def handle_fortune_request(db: Optional[Session], user: LineBotUser, fortune_type: str) -> str:
     """處理運勢查詢請求"""
-    # 檢查權限
-    permission = permission_manager.check_fortune_permission(db, user, fortune_type)
-    if not permission["allowed"]:
-        return permission_manager.format_permission_message(permission, f"{fortune_type}運勢")
-    
-    # 檢查是否已綁定命盤
-    chart_binding = db.query(ChartBinding).filter(ChartBinding.user_id == user.id).first()
-    if not chart_binding:
-        return LineBotConfig.Messages.CHART_BINDING_REQUIRED
-    
-    # 暫時返回佔位符訊息（實際運勢計算邏輯可後續完善）
-    fortune_names = {
-        "yearly": "流年運勢",
-        "monthly": "流月運勢",
-        "daily": "流日運勢"
-    }
-    
-    return f"""📊 **{fortune_names[fortune_type]}** ✨
+    # 檢查是否有綁定命盤
+    if not user.birth_year or not user.birth_month or not user.birth_day:
+        return """📊 查看運勢需要先綁定個人命盤
 
-🏷️ 此功能正在開發中...
+💫 請先執行「命盤綁定」功能
+🏠 輸入您的出生日期和時間
+⭐ 完成後即可查看詳細運勢分析"""
+    
+    return f"""🏷️ 此功能正在開發中...
 📅 您的命盤已綁定，運勢計算功能即將上線！
 
 期待為您提供更精準的運勢分析。"""
+
+def handle_sihua_detail_request(db: Optional[Session], user: LineBotUser, text: str) -> str:
+    """處理四化詳細解釋請求"""
+    try:
+        # 解析四化類型
+        sihua_type = None
+        if "祿星完整解釋" in text:
+            sihua_type = "祿"
+        elif "權星完整解釋" in text:
+            sihua_type = "權"
+        elif "科星完整解釋" in text:
+            sihua_type = "科"
+        elif "忌星完整解釋" in text:
+            sihua_type = "忌"
+        
+        if not sihua_type:
+            return "❓ 無法識別您要查看的四化類型，請重新操作。"
+        
+        # 檢查用戶是否有最近的占卜記錄
+        if not hasattr(user, 'last_divination_result') or not user.last_divination_result:
+            return f"""🔮 查看{sihua_type}星詳細解釋需要先進行占卜
+
+💫 請先執行「本週占卜」功能
+⭐ 完成占卜後即可查看完整的四化解釋"""
+        
+        # 從占卜結果中獲取對應的四化數據
+        divination_result = user.last_divination_result
+        sihua_results = divination_result.get("sihua_results", [])
+        
+        # 篩選出對應類型的四化
+        target_sihua_list = [
+            sihua for sihua in sihua_results 
+            if sihua.get("type") == sihua_type
+        ]
+        
+        if not target_sihua_list:
+            return f"❓ 未找到{sihua_type}星的相關資料，請重新進行占卜。"
+        
+        # 生成詳細解釋消息
+        from app.utils.divination_flex_message import DivinationFlexMessageGenerator
+        
+        flex_generator = DivinationFlexMessageGenerator()
+        detail_message = flex_generator.generate_sihua_detail_message(sihua_type, target_sihua_list)
+        
+        if detail_message:
+            # 發送 Flex Message
+            if send_line_flex_messages(user.line_user_id, [detail_message]):
+                return None  # 已發送 Flex Message，不需要文字回覆
+            else:
+                # Flex Message 發送失敗，返回文字版本
+                return generate_text_sihua_detail(sihua_type, target_sihua_list)
+        else:
+            return generate_text_sihua_detail(sihua_type, target_sihua_list)
+        
+    except Exception as e:
+        logger.error(f"處理四化詳細解釋請求失敗: {e}")
+        return "❌ 系統處理請求時發生錯誤，請稍後再試。"
+
+def generate_text_sihua_detail(sihua_type: str, sihua_list: List[Dict]) -> str:
+    """生成四化詳細解釋的文字版本"""
+    try:
+        emoji_map = {
+            "祿": "💰",
+            "權": "👑", 
+            "科": "🌟",
+            "忌": "⚡"
+        }
+        
+        desc_map = {
+            "祿": "祿星代表財富、福祿、好運與機會。化祿的星曜通常能帶來好的發展，有賺錢的機會，做事順利，容易得到貴人幫助。",
+            "權": "權星代表權力、領導力、主導權與掌控能力。化權的星曜會增強其主導性，使人具有領導才能，有助於事業發展和地位提升。",
+            "科": "科星代表名聲、聲望、文化、學習與考試運。化科的星曜能提升個人的名氣和社會地位，有利於學習進修、考試升學。",
+            "忌": "忌星代表阻礙、困難、執著與不順利。化忌提醒需要特別留意的地方，關鍵在於如何化解和轉化這些困難。"
+        }
+        
+        emoji = emoji_map.get(sihua_type, "⭐")
+        description = desc_map.get(sihua_type, "四化星對運勢產生重要影響")
+        
+        result = f"""{emoji} {sihua_type}星完整解釋
+
+📋 總體說明：
+{description}
+
+✨ 詳細分析："""
+        
+        for i, sihua_info in enumerate(sihua_list, 1):
+            star = sihua_info.get("star", "")
+            palace = sihua_info.get("palace", "")
+            explanation = sihua_info.get("explanation", "")
+            
+            result += f"""
+
+{i}. ⭐ {star} 📍 {palace}
+{explanation}"""
+        
+        result += f"""
+
+📖 以上為{sihua_type}星的完整解釋內容
+🔮 更多功能持續開發中..."""
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"生成文字版四化解釋失敗: {e}")
+        return f"❌ 生成{sihua_type}星解釋時發生錯誤。"
 
 def handle_admin_authentication(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
     """處理管理員認證"""
@@ -840,6 +937,12 @@ def handle_message_event(event: dict, db: Optional[Session]):
                     
                 elif text == "管理員":
                     response = handle_admin_authentication(db, user, session, text)
+                    if response:
+                        send_line_message(user_id, response)
+                    
+                elif text.startswith("查看") and "星完整解釋" in text:
+                    # 處理四化完整解釋請求
+                    response = handle_sihua_detail_request(db, user, text)
                     if response:
                         send_line_message(user_id, response)
                     
