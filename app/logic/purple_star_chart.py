@@ -91,9 +91,36 @@ class PurpleStarChart:
     def _initialize_normal_mode(self):
         """正常模式初始化：使用數據庫中的準確農曆資料"""
         # 1. 獲取農曆資料
+        logger.info(f"嘗試獲取農曆數據，查詢條件：{self.birth_info.year}-{self.birth_info.month}-{self.birth_info.day}")
+        
         self.calendar_data = self.calendar_repo.get_calendar_data(self.birth_info)
         if not self.calendar_data:
             logger.error("無法獲取對應的農曆數據")
+            logger.error(f"查詢條件詳情：年={self.birth_info.year}, 月={self.birth_info.month}, 日={self.birth_info.day}")
+            
+            # 嘗試查詢前後幾天的數據來診斷問題
+            try:
+                from app.models.calendar_data import CalendarData
+                nearby_records = self.calendar_repo.db_session.query(CalendarData).filter(
+                    CalendarData.gregorian_year == self.birth_info.year,
+                    CalendarData.gregorian_month == self.birth_info.month,
+                    CalendarData.gregorian_day.between(self.birth_info.day - 2, self.birth_info.day + 2)
+                ).all()
+                
+                logger.error(f"附近日期的記錄數量：{len(nearby_records)}")
+                if nearby_records:
+                    for record in nearby_records[:3]:  # 只顯示前3筆
+                        logger.error(f"  可用記錄：{record.gregorian_year}-{record.gregorian_month}-{record.gregorian_day} {record.gregorian_hour}:00")
+                else:
+                    logger.error("附近日期也沒有任何記錄")
+                    
+                # 查詢整個數據庫的記錄數量
+                total_records = self.calendar_repo.db_session.query(CalendarData).count()
+                logger.error(f"數據庫總記錄數：{total_records}")
+                
+            except Exception as debug_error:
+                logger.error(f"調試查詢失敗：{debug_error}")
+            
             raise ValueError("無法獲取對應的農曆數據")
             
         logger.info(f"獲取到農曆數據: {self.calendar_data.__dict__}")

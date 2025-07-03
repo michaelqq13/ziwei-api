@@ -823,8 +823,7 @@ def handle_message_event(event: dict, db: Optional[Session]):
                 
                 # 處理不同的指令
                 if text in ["會員資訊", "個人資訊", "我的資訊"]:
-                    from app.logic.user_logic import get_user_info
-                    user_stats = get_user_info(user.id, db)
+                    user_stats = permission_manager.get_user_stats(db, user)
                     response = format_user_info(user_stats)
                     if response:
                         send_line_message(user_id, response)
@@ -916,7 +915,7 @@ def handle_follow_event(event: dict, db: Optional[Session]):
             logger.info(f"簡化模式：用戶加入 {user_id}")
         
         # 發送歡迎訊息
-        welcome_message = """�� 歡迎使用星空紫微斗數系統！ ✨
+        welcome_message = """🌟 歡迎使用星空紫微斗數系統！ ✨
 
 請點擊下方星球按鈕「本週占卜」開始您的占卜之旅。
 
