@@ -1,156 +1,182 @@
 #!/usr/bin/env python3
 """
-Railway 部署農曆數據初始化腳本
-專門用於在 Railway 上初始化農曆數據
+Railway 農曆數據初始化腳本
+為 Railway 數據庫添加測試用的農曆數據
 """
-
 import os
 import sys
-import logging
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-# 設置日誌
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# 添加項目根目錄到 Python 路徑
+sys.path.append('/app')
+
+from app.models.calendar_data import CalendarData
+from app.config.database_config import DatabaseConfig
 
 def get_database_url():
-    """獲取數據庫連接 URL"""
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        logger.error("未找到 DATABASE_URL 環境變數")
-        return None
+    """獲取數據庫連接URL"""
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        raise ValueError("DATABASE_URL 環境變量未設置")
     
-    # 如果是 Railway 提供的 DATABASE_URL，需要替換掉 "postgres://" 為 "postgresql://"
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
-        logger.info("已將 postgres:// 替換為 postgresql://")
+    # 修正 postgres:// 為 postgresql://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
     
-    return url
+    return database_url
 
 def init_railway_calendar_data():
-    """初始化 Railway 上的農曆數據"""
+    """初始化 Railway 農曆數據"""
     try:
-        # 獲取數據庫連接
+        # 連接數據庫
         database_url = get_database_url()
-        if not database_url:
-            logger.error("無法獲取數據庫連接")
-            return False
-            
-        logger.info(f"連接到數據庫: {database_url[:50]}...")
-        
-        # 創建數據庫引擎
         engine = create_engine(database_url)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        # 導入必要的模型
-        from app.models.calendar_data import CalendarData, Base
-        
-        # 創建表格（如果不存在）
-        Base.metadata.create_all(engine)
-        logger.info("數據庫表格創建完成")
-        
-        # 創建會話
         db = SessionLocal()
         
-        try:
-            # 檢查現有數據
-            existing_count = db.query(CalendarData).count()
-            logger.info(f"數據庫中現有 {existing_count} 條農曆數據")
+        print("開始初始化 Railway 農曆數據...")
+        
+        # 檢查現有記錄數量
+        existing_count = db.query(CalendarData).count()
+        print(f"現有記錄數量: {existing_count}")
+        
+        # 定義要添加的日期範圍（2025年7月1日到7月31日）
+        start_date = datetime(2025, 7, 1)
+        end_date = datetime(2025, 7, 31)
+        
+        # 天干地支循環
+        heavenly_stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
+        earthly_branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+        
+        # 2025年乙巳年的基礎設定
+        year_gan_zhi = "乙巳"
+        
+        # 計算從年初到7月1日的天數，用於計算日干支
+        year_start = datetime(2025, 1, 1)
+        days_from_year_start = (start_date - year_start).days
+        
+        # 2025年1月1日的日干支假設為甲子（可以根據實際情況調整）
+        base_day_gan_index = 0  # 甲
+        base_day_zhi_index = 0  # 子
+        
+        current_date = start_date
+        added_count = 0
+        
+        while current_date <= end_date:
+            # 計算當前日期的農曆信息
+            lunar_month = 5  # 假設7月對應農曆5月
+            lunar_day = current_date.day
             
-            # 檢查是否有當前日期的數據
-            today = datetime.now()
-            current_date_records = db.query(CalendarData).filter(
-                CalendarData.gregorian_year == today.year,
-                CalendarData.gregorian_month == today.month,
-                CalendarData.gregorian_day == today.day
-            ).count()
+            # 計算日干支
+            day_offset = (current_date - start_date).days + days_from_year_start
+            day_gan_index = (base_day_gan_index + day_offset) % 10
+            day_zhi_index = (base_day_zhi_index + day_offset) % 12
+            day_gan_zhi = heavenly_stems[day_gan_index] + earthly_branches[day_zhi_index]
             
-            logger.info(f"今日 ({today.year}-{today.month}-{today.day}) 的記錄數: {current_date_records}")
+            # 計算月干支（簡化版本）
+            month_gan_index = (day_gan_index + current_date.month - 1) % 10
+            month_zhi_index = (current_date.month - 1) % 12
+            month_gan_zhi = heavenly_stems[month_gan_index] + earthly_branches[month_zhi_index]
             
-            # 如果沒有足夠的數據，添加基本測試數據
-            if existing_count < 1000:  # 如果數據不足1000條
-                logger.info("數據不足，開始添加基本農曆數據...")
+            # 為每一天的每個小時創建記錄
+            for hour in range(24):
+                # 檢查是否已存在該記錄
+                existing = db.query(CalendarData).filter(
+                    CalendarData.gregorian_year == current_date.year,
+                    CalendarData.gregorian_month == current_date.month,
+                    CalendarData.gregorian_day == current_date.day,
+                    CalendarData.gregorian_hour == hour
+                ).first()
                 
-                # 添加當前日期前後7天的數據
-                base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                if existing:
+                    continue
                 
-                calendar_data_list = []
+                # 計算時干支
+                hour_zhi_index = (hour // 2) % 12
+                hour_gan_index = (day_gan_index * 2 + hour_zhi_index) % 10
+                hour_gan_zhi = heavenly_stems[hour_gan_index] + earthly_branches[hour_zhi_index]
                 
-                for day_offset in range(-7, 8):  # 前後7天
-                    target_date = base_date + timedelta(days=day_offset)
-                    
-                    # 每天添加幾個關鍵時辰的數據
-                    for hour in [0, 6, 12, 18]:  # 子時、卯時、午時、酉時
-                        calendar_data = CalendarData(
-                            gregorian_datetime=target_date.replace(hour=hour),
-                            gregorian_year=target_date.year,
-                            gregorian_month=target_date.month,
-                            gregorian_day=target_date.day,
-                            gregorian_hour=hour,
-                            lunar_year_in_chinese="二〇二五",
-                            lunar_month_in_chinese="六月",
-                            lunar_day_in_chinese=f"初{abs(day_offset) + 1}",
-                            is_leap_month_in_chinese=False,
-                            year_gan_zhi="乙巳",
-                            month_gan_zhi="壬午",
-                            day_gan_zhi="癸酉",
-                            hour_gan_zhi="甲子",
-                            solar_term_today=None,
-                            solar_term_in_hour="夏至"
-                        )
-                        calendar_data_list.append(calendar_data)
+                # 創建新的農曆數據記錄
+                calendar_data = CalendarData(
+                    gregorian_year=current_date.year,
+                    gregorian_month=current_date.month,
+                    gregorian_day=current_date.day,
+                    gregorian_hour=hour,
+                    gregorian_minute=0,
+                    lunar_year_in_chinese=f"乙巳年",
+                    lunar_month_in_chinese=f"五月",
+                    lunar_day_in_chinese=f"{lunar_day}日" if lunar_day <= 30 else f"{lunar_day-30}日",
+                    year_gan_zhi=year_gan_zhi,
+                    month_gan_zhi=month_gan_zhi,
+                    day_gan_zhi=day_gan_zhi,
+                    hour_gan_zhi=hour_gan_zhi,
+                    solar_term="",
+                    is_leap_month=False,
+                    julian_day=0,
+                    week_day=current_date.weekday(),
+                    constellation="",
+                    lunar_year_animal="蛇",
+                    lunar_month_animal="",
+                    lunar_day_animal="",
+                    lunar_hour_animal="",
+                    gan_zhi_60_day=0,
+                    gan_zhi_60_year=0,
+                    lunar_season="夏",
+                    lunar_season_name="",
+                    solar_term_name="",
+                    solar_term_date="",
+                    lunar_calendar_name="",
+                    lunar_calendar_year=2025,
+                    lunar_calendar_month=5,
+                    lunar_calendar_day=lunar_day if lunar_day <= 30 else lunar_day-30,
+                    lunar_calendar_hour=hour,
+                    lunar_calendar_minute=0,
+                    lunar_calendar_second=0,
+                    lunar_calendar_millisecond=0
+                )
                 
-                # 批量添加數據
-                db.add_all(calendar_data_list)
-                db.commit()
+                db.add(calendar_data)
+                added_count += 1
                 
-                final_count = db.query(CalendarData).count()
-                logger.info(f"農曆數據添加完成，總共 {final_count} 條記錄")
-                
-            else:
-                logger.info("農曆數據充足，無需添加")
+                # 每100筆記錄提交一次
+                if added_count % 100 == 0:
+                    db.commit()
+                    print(f"已添加 {added_count} 筆記錄...")
             
-            # 驗證關鍵日期的數據
-            test_dates = [
-                datetime(2025, 7, 1),
-                datetime(2025, 7, 2),
-                datetime(2025, 7, 3),
-                datetime(2025, 7, 4),
-                datetime(2025, 7, 5)
-            ]
-            
-            for test_date in test_dates:
-                count = db.query(CalendarData).filter(
-                    CalendarData.gregorian_year == test_date.year,
-                    CalendarData.gregorian_month == test_date.month,
-                    CalendarData.gregorian_day == test_date.day
-                ).count()
-                logger.info(f"日期 {test_date.year}-{test_date.month}-{test_date.day} 的記錄數: {count}")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"數據庫操作失敗: {e}")
-            db.rollback()
-            return False
-            
-        finally:
-            db.close()
-            
+            current_date += timedelta(days=1)
+        
+        # 最終提交
+        db.commit()
+        
+        # 檢查最終記錄數量
+        final_count = db.query(CalendarData).count()
+        print(f"初始化完成！")
+        print(f"添加了 {added_count} 筆新記錄")
+        print(f"數據庫總記錄數: {final_count}")
+        
+        # 驗證特定日期的記錄
+        test_record = db.query(CalendarData).filter(
+            CalendarData.gregorian_year == 2025,
+            CalendarData.gregorian_month == 7,
+            CalendarData.gregorian_day == 3,
+            CalendarData.gregorian_hour == 13
+        ).first()
+        
+        if test_record:
+            print(f"✅ 驗證成功: 2025-7-3 13:00 的記錄存在")
+            print(f"   日干支: {test_record.day_gan_zhi}")
+            print(f"   時干支: {test_record.hour_gan_zhi}")
+        else:
+            print("❌ 驗證失敗: 找不到 2025-7-3 13:00 的記錄")
+        
+        db.close()
+        
     except Exception as e:
-        logger.error(f"初始化農曆數據失敗: {e}")
-        return False
+        print(f"初始化失敗: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    logger.info("開始初始化 Railway 農曆數據...")
-    
-    success = init_railway_calendar_data()
-    
-    if success:
-        logger.info("✅ Railway 農曆數據初始化成功")
-        sys.exit(0)
-    else:
-        logger.error("❌ Railway 農曆數據初始化失敗")
-        sys.exit(1) 
+    init_railway_calendar_data() 
