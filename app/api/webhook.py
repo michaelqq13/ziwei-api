@@ -58,28 +58,31 @@ def get_or_create_session(user_id: str) -> MemoryUserSession:
         user_sessions[user_id] = MemoryUserSession(user_id)
     return user_sessions[user_id]
 
-def send_line_message(user_id: str, message: str) -> bool:
-    """發送LINE訊息"""
+def send_line_message(user_id: str, message: str, quick_reply_items: List[Dict] = None) -> bool:
+    """發送LINE訊息，支援可選 Quick Reply"""
     try:
         from app.config.linebot_config import LineBotConfig
         import requests
-        
-        # 構建訊息數據
+
+        # 構建訊息物件
+        text_message = {
+            'type': 'text',
+            'text': message
+        }
+        # 如果有 Quick Reply items，加入 quickReply 欄位
+        if quick_reply_items:
+            text_message['quickReply'] = {'items': quick_reply_items}
+
+        # 構建 push 請求資料
         headers = {
             'Authorization': f'Bearer {LineBotConfig.CHANNEL_ACCESS_TOKEN}',
             'Content-Type': 'application/json'
         }
-        
         data = {
             'to': user_id,
-            'messages': [
-                {
-                    'type': 'text',
-                    'text': message
-                }
-            ]
+            'messages': [text_message]
         }
-        
+
         # 發送訊息
         response = requests.post(
             'https://api.line.me/v2/bot/message/push',
@@ -87,14 +90,12 @@ def send_line_message(user_id: str, message: str) -> bool:
             json=data,
             timeout=30
         )
-        
+
         if response.status_code == 200:
             logger.info(f"成功發送訊息給用戶 {user_id}")
             return True
-        else:
-            logger.error(f"發送訊息失敗，狀態碼：{response.status_code}，回應：{response.text}")
-            return False
-        
+        logger.error(f"發送訊息失敗，狀態碼：{response.status_code}，回應：{response.text}")
+        return False
     except Exception as e:
         logger.error(f"發送LINE訊息失敗：{e}")
         return False
@@ -848,7 +849,7 @@ def handle_message_event(event: dict, db: Optional[Session]):
                     response = handle_fortune_request(db, user, fortune_type)
                     send_line_message(user_id, response)
                     
-                elif session.state == "awaiting_gender":
+                elif session.state == "waiting_for_gender":
                     response = handle_gender_input(db, user, session, text)
                     send_line_message(user_id, response)
                     
