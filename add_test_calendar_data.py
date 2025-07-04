@@ -7,7 +7,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.calendar_data import Base, CalendarData
+from app.models.calendar import Base, CalendarData
 from app.config.database_config import DatabaseConfig
 import logging
 

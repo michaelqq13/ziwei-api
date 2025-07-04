@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.config.database_config import DatabaseConfig
-from app.models.calendar_data import Base, CalendarData
+from app.models.calendar import Base, CalendarData
 from datetime import datetime
 import logging
 import pandas as pd

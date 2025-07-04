@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 # 項目模組導入
 from app.utils.chinese_calendar import ChineseCalendar
 from app.models.birth_info import BirthInfo
-from app.models.calendar_data import CalendarData  # SQLAlchemy 模型
+from app.models.calendar import CalendarData  # 統一使用 calendar 模型
 from app.logic.star_calculator import StarCalculator
 from app.data.heavenly_stems.four_transformations import four_transformations_explanations
 from app.db.repository import CalendarRepository

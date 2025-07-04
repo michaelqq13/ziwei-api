@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 # 添加項目根目錄到 Python 路徑
 sys.path.append('/app')
 
-from app.models.calendar_data import CalendarData
+from app.models.calendar import CalendarData
 from app.config.database_config import DatabaseConfig
 
 def get_database_url():
