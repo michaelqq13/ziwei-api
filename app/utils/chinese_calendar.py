@@ -251,25 +251,46 @@ class ChineseCalendar:
             對應的天干
         """
         if day_stem:
-            # 根據日干確定子時天干
-            stem_start = {
-                "甲": "甲", "己": "甲",  # 甲己日起甲
-                "乙": "丙", "庚": "丙",  # 乙庚日起丙
-                "丙": "戊", "辛": "戊",  # 丙辛日起戊
-                "丁": "庚", "壬": "庚",  # 丁壬日起庚
-                "戊": "壬", "癸": "壬"   # 戊癸日起壬
-            }[day_stem]
+            # 傳統時干起法：甲己起甲子、乙庚起丙子、丙辛起戊子、丁壬起庚子、戊癸起壬子
+            time_stem_sequences = {
+                "甲": ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙"],
+                "己": ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙"],
+                "乙": ["丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁"],
+                "庚": ["丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁"],
+                "丙": ["戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"],
+                "辛": ["戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"],
+                "丁": ["庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛"],
+                "壬": ["庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛"],
+                "戊": ["壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"],
+                "癸": ["壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
+            }
             
-            # 獲取子時天干的索引
-            start_index = cls.HEAVENLY_STEMS.index(stem_start)
-            
-            # 計算時辰索引（每兩個小時一個時辰）
-            hour_index = hour // 2
-            
-            # 計算時干索引（每個時辰天干加兩個）
-            stem_index = (start_index + hour_index * 2) % 10
-            
-            return cls.HEAVENLY_STEMS[stem_index]
+            if day_stem in time_stem_sequences:
+                # 獲取時支
+                hour_branch = cls.get_hour_branch(hour)
+                
+                # 時辰對應的索引
+                branch_to_index = {
+                    "子": 0, "丑": 1, "寅": 2, "卯": 3, "辰": 4, "巳": 5,
+                    "午": 6, "未": 7, "申": 8, "酉": 9, "戌": 10, "亥": 11
+                }
+                
+                hour_index = branch_to_index[hour_branch]
+                return time_stem_sequences[day_stem][hour_index]
+            else:
+                # 如果日干不在對照表中，使用原有邏輯
+                stem_start = {
+                    "甲": "甲", "己": "甲",  # 甲己日起甲
+                    "乙": "丙", "庚": "丙",  # 乙庚日起丙
+                    "丙": "戊", "辛": "戊",  # 丙辛日起戊
+                    "丁": "庚", "壬": "庚",  # 丁壬日起庚
+                    "戊": "壬", "癸": "壬"   # 戊癸日起壬
+                }.get(day_stem, "甲")
+                
+                start_index = cls.HEAVENLY_STEMS.index(stem_start)
+                hour_index = hour // 2
+                stem_index = (start_index + hour_index * 2) % 10
+                return cls.HEAVENLY_STEMS[stem_index]
         else:
             # 如果沒有提供日干，則使用簡化計算（不推薦）
             stem_index = (hour // 2) % 10
@@ -318,7 +339,7 @@ class ChineseCalendar:
     
     @classmethod
     def get_day_ganzhi(cls, year: int, month: int, day: int) -> str:
-        """計算日干支（簡化版本）
+        """計算日干支
         
         Args:
             year: 西元年份
@@ -328,21 +349,24 @@ class ChineseCalendar:
         Returns:
             日干支字符串
         """
-        # 這是一個簡化的實現，實際的日干支計算需要考慮歷史變遷
-        # 使用公元1年1月1日為基準點（假設為甲子日）
-        
         from datetime import date
         try:
             target_date = date(year, month, day)
-            base_date = date(1, 1, 1)  # 基準日期
+            # 使用1900年1月1日作為基準點（甲戌日）
+            # 這是一個已知的正確基準點
+            base_date = date(1900, 1, 1)
             
             # 計算天數差
             days_diff = (target_date - base_date).days
             
-            # 日干支循環（60天一循環）
-            cycle_index = days_diff % 60
-            stem_index = cycle_index % 10
-            branch_index = cycle_index % 12
+            # 1900年1月1日 = 甲戌日
+            # 甲 = 0, 戌 = 10
+            base_stem_index = 0   # 甲
+            base_branch_index = 10  # 戌
+            
+            # 計算目標日期的干支索引
+            stem_index = (base_stem_index + days_diff) % 10
+            branch_index = (base_branch_index + days_diff) % 12
             
             return cls.HEAVENLY_STEMS[stem_index] + cls.EARTHLY_BRANCHES[branch_index]
         except ValueError:

@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime
+from datetime import datetime, date
 from dataclasses import dataclass
 import traceback
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 # 項目模組導入
 from app.utils.chinese_calendar import ChineseCalendar
 from app.models.birth_info import BirthInfo
-from app.models.calendar_data import CalendarData
+from app.models.calendar_data import CalendarData  # SQLAlchemy 模型
 from app.logic.star_calculator import StarCalculator
 from app.data.heavenly_stems.four_transformations import four_transformations_explanations
 from app.db.repository import CalendarRepository
@@ -23,6 +23,22 @@ class Palace:
     stem: str  # 天干
     branch: str  # 地支
     body_palace: bool = False  # 是否為身宮
+
+@dataclass
+class SimplifiedCalendarData:
+    """
+    簡化的農曆資料
+    用於簡化模式時的數據結構（已停用）
+    """
+    year_gan_zhi: str  # 年干支
+    month_gan_zhi: str  # 月干支
+    day_gan_zhi: str  # 日干支
+    hour_gan_zhi: str  # 時干支
+    minute_gan_zhi: str  # 分干支
+    lunar_month_in_chinese: str  # 農曆月（中文）
+    lunar_day_in_chinese: str  # 農曆日（中文）
+    solar_term: str  # 節氣
+    data_source: str  # 數據來源
 
 class PurpleStarChart:
     def __init__(self, year: int = None, month: int = None, day: int = None, hour: int = None, minute: int = None, gender: str = None, birth_info: BirthInfo = None, db: Session = None):
@@ -100,7 +116,7 @@ class PurpleStarChart:
             
             # 嘗試查詢前後幾天的數據來診斷問題
             try:
-                from app.models.calendar_data import CalendarData
+                # 直接使用已導入的 CalendarData，不需要重新導入
                 nearby_records = self.calendar_repo.db_session.query(CalendarData).filter(
                     CalendarData.gregorian_year == self.birth_info.year,
                     CalendarData.gregorian_month == self.birth_info.month,
