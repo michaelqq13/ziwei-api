@@ -146,7 +146,7 @@ def send_line_flex_messages(user_id: str, messages: List) -> bool:
         if not message_objects:
             logger.error("沒有成功轉換的訊息")
             return False
-        
+
         data = {
             "to": user_id,
             "messages": message_objects
@@ -174,131 +174,6 @@ def send_line_flex_messages(user_id: str, messages: List) -> bool:
         logger.error(f"❌ 發送Flex訊息時發生異常: {e}")
         logger.error(f"異常詳情: {traceback.format_exc()}")
         return False
-
-def format_divination_result(result: Dict) -> str:
-    """格式化占卜結果為用戶友好的訊息"""
-    if not result.get("success"):
-        return "🔮 占卜過程發生錯誤，請稍後再試。"
-    
-    # 基本資訊
-    gender_text = "男性" if result["gender"] == "M" else "女性"
-    
-    # 解析時間字符串並轉換為台北時間
-    divination_time_str = result["divination_time"]
-    if divination_time_str.endswith('+08:00'):
-        # 如果已經包含時區信息，直接解析
-        divination_time = datetime.fromisoformat(divination_time_str)
-    else:
-        # 如果沒有時區信息，當作UTC時間處理，然後轉換為台北時間
-        divination_time = datetime.fromisoformat(divination_time_str.replace('Z', '+00:00'))
-        if divination_time.tzinfo is None:
-            divination_time = divination_time.replace(tzinfo=timezone.utc)
-        divination_time = divination_time.astimezone(TAIPEI_TZ)
-    
-    time_str = divination_time.strftime("%Y-%m-%d %H:%M")
-    
-    message = f"""🔮 **紫微斗數占卜結果** ✨
-
-📅 占卜時間：{time_str} (台北時間)
-👤 性別：{gender_text}
-🏰 太極點命宮：{result["taichi_palace"]}
-🕰️ 分鐘地支：{result["minute_dizhi"]}
-⭐ 宮干：{result["palace_tiangan"]}
-
-━━━━━━━━━━━━━━━━━
-📊 **基本命盤資訊**
-
-"""
-    
-    # 添加基本盤資訊
-    basic_chart = result.get("basic_chart", {})
-    if basic_chart:
-        for palace_name, info in basic_chart.items():
-            message += f"【{palace_name}】\n"
-            message += f"天干：{info.get('tiangan', '未知')} 地支：{info.get('dizhi', '未知')}\n"
-            stars = info.get('stars', [])
-            if stars:
-                message += f"星曜：{', '.join(stars)}\n"
-            message += "\n"
-    
-    message += "━━━━━━━━━━━━━━━━━\n"
-    message += "📊 **四化解析**\n\n"
-    message += "💰 祿：有利的事情（好運、財運、順利、機會）\n"
-    message += "👑 權：有主導權的事情（領導力、決策權、掌控力）\n"
-    message += "🌟 科：提升地位名聲（受人重視、被看見、受表揚）\n"
-    message += "⚡ 忌：可能困擾的事情（阻礙、困難、需要注意）\n"
-    
-    # 添加四化結果
-    for i, sihua in enumerate(result["sihua_results"], 1):
-        emoji_map = {"忌": "⚡", "祿": "💰", "權": "👑", "科": "📚"}
-        emoji = emoji_map.get(sihua["type"], "⭐")
-        
-        # 在每個四化星前加分隔線
-        message += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        message += f"{emoji} **{sihua['type']}星 - {sihua['star']}**\n"
-        message += f"   落宮：{sihua['palace']}\n\n"
-        message += f"{sihua['explanation']}\n"
-    
-    message += "━━━━━━━━━━━━━━━━━\n"
-    message += "✨ 願星空指引您的方向 ✨"
-    
-    return message
-
-def format_user_info(user_stats: Dict) -> str:
-    """格式化用戶資訊"""
-    user_info = user_stats["user_info"]
-    stats = user_stats["statistics"] 
-    membership = user_stats["membership_info"]
-    
-    message = f"""👤 **會員資訊** ✨
-
-🏷️ 暱稱：{user_info["display_name"] or "未設定"}
-🎖️ 等級：{membership["level_name"]}
-📅 加入時間：{datetime.fromisoformat(user_info["created_at"]).strftime("%Y-%m-%d")}
-
-📊 **使用統計**
-🔮 總占卜次數：{stats["total_divinations"]} 次
-📅 本週占卜：{stats["weekly_divinations"]} 次
-"""
-    
-    if not membership["is_premium"]:
-        message += f"⏳ 週限制：{stats['weekly_limit']} 次\n"
-    else:
-        message += "⏳ 週限制：無限制 ✨\n"
-    
-    message += f"\n🔐 **功能權限**\n"
-    
-    permissions = user_stats["permissions"]
-    if permissions["divination"]["allowed"]:
-        if permissions["divination"]["reason"] == "unlimited":
-            message += "🔮 占卜功能：✅ 無限制\n"
-        else:
-            remaining = permissions["divination"]["remaining_count"]
-            message += f"🔮 占卜功能：✅ 剩餘 {remaining} 次\n"
-    else:
-        message += "🔮 占卜功能：❌ 本週額度已用完\n"
-    
-    fortune_features = [
-        ("yearly_fortune", "📊 流年運勢"),
-        ("monthly_fortune", "🌙 流月運勢"), 
-        ("daily_fortune", "☀️ 流日運勢")
-    ]
-    
-    for feature_key, feature_name in fortune_features:
-        if permissions[feature_key]["allowed"]:
-            message += f"{feature_name}：✅ 可使用\n"
-        else:
-            message += f"{feature_name}：❌ 需付費會員\n"
-    
-    message += "⭐ 命盤綁定：✅ 可使用\n"
-    
-    message += f"\n📝 **個人設定**\n"
-    message += "• 輸入「設定暱稱」可修改顯示名稱\n"
-    
-    if not membership["is_premium"]:
-        message += "\n💎 升級付費會員享受更多功能！"
-    
-    return message
 
 def handle_divination_request(db: Optional[Session], user: LineBotUser, session: MemoryUserSession) -> str:
     """處理占卜請求"""
@@ -504,386 +379,6 @@ def format_divination_result_text(result: Dict, is_admin: bool = False) -> str:
     
     return message
 
-def handle_chart_binding(db: Optional[Session], user: LineBotUser, session: MemoryUserSession) -> str:
-    """處理命盤綁定請求"""
-    # 檢查是否已經綁定
-    existing_binding = db.query(ChartBinding).filter(ChartBinding.user_id == user.id).first()
-    
-    if existing_binding:
-        birth_date = f"{existing_binding.birth_year}/{existing_binding.birth_month}/{existing_binding.birth_day}"
-        birth_time = f"{existing_binding.birth_hour:02d}:{existing_binding.birth_minute:02d}"
-        gender_text = "男性" if existing_binding.gender == "M" else "女性"
-        calendar_text = "農曆" if existing_binding.calendar_type == "lunar" else "國曆"
-        
-        return f"""⭐ **您的命盤綁定資訊** ✨
-
-📅 出生日期：{birth_date} ({calendar_text})
-🕐 出生時間：{birth_time}
-👤 性別：{gender_text}
-📅 綁定時間：{existing_binding.created_at.strftime("%Y-%m-%d %H:%M")}
-
-如需重新綁定，請聯繫管理員。"""
-    
-    # 開始綁定流程
-    session.set_state("chart_binding_year")
-    return """⭐ **命盤綁定** ✨
-
-請依序提供您的出生資訊：
-
-📅 **第一步：出生年份**
-請輸入您的出生年份（例如：1990）"""
-
-def handle_chart_binding_process(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
-    """處理命盤綁定過程"""
-    text = text.strip()
-    
-    if session.state == "chart_binding_year":
-        try:
-            year = int(text)
-            if year < 1900 or year > get_current_taipei_time().year:
-                return "請輸入有效的年份（1900年之後）"
-            
-            session.set_data("birth_year", year)
-            session.set_state("chart_binding_month")
-            return "📅 **第二步：出生月份**\n請輸入月份（1-12）："
-            
-        except ValueError:
-            return "請輸入有效的數字年份"
-    
-    elif session.state == "chart_binding_month":
-        try:
-            month = int(text)
-            if month < 1 or month > 12:
-                return "請輸入有效的月份（1-12）"
-            
-            session.set_data("birth_month", month)
-            session.set_state("chart_binding_day")
-            return "📅 **第三步：出生日期**\n請輸入日期（1-31）："
-            
-        except ValueError:
-            return "請輸入有效的數字月份"
-    
-    elif session.state == "chart_binding_day":
-        try:
-            day = int(text)
-            if day < 1 or day > 31:
-                return "請輸入有效的日期（1-31）"
-            
-            session.set_data("birth_day", day)
-            session.set_state("chart_binding_hour")
-            return "🕐 **第四步：出生時間**\n請輸入小時（0-23）："
-            
-        except ValueError:
-            return "請輸入有效的數字日期"
-    
-    elif session.state == "chart_binding_hour":
-        try:
-            hour = int(text)
-            if hour < 0 or hour > 23:
-                return "請輸入有效的小時（0-23）"
-            
-            session.set_data("birth_hour", hour)
-            session.set_state("chart_binding_minute")
-            return "🕐 **第五步：出生分鐘**\n請輸入分鐘（0-59）："
-            
-        except ValueError:
-            return "請輸入有效的數字小時"
-    
-    elif session.state == "chart_binding_minute":
-        try:
-            minute = int(text)
-            if minute < 0 or minute > 59:
-                return "請輸入有效的分鐘（0-59）"
-            
-            session.set_data("birth_minute", minute)
-            session.set_state("chart_binding_gender")
-            return """👤 **第六步：性別**
-請選擇您的性別：
-• 回覆「男」或「M」代表男性
-• 回覆「女」或「F」代表女性"""
-            
-        except ValueError:
-            return "請輸入有效的數字分鐘"
-    
-    elif session.state == "chart_binding_gender":
-        text_upper = text.upper()
-        gender = None
-        
-        if text_upper in ["男", "M", "MALE", "MAN"]:
-            gender = "M"
-        elif text_upper in ["女", "F", "FEMALE", "WOMAN"]:
-            gender = "F"
-        
-        if not gender:
-            return """請輸入有效的性別：
-• 回覆「男」或「M」代表男性
-• 回覆「女」或「F」代表女性"""
-        
-        session.set_data("gender", gender)
-        session.set_state("chart_binding_calendar")
-        return """📅 **第七步：曆法**
-請選擇出生日期的曆法：
-• 回覆「國曆」或「陽曆」
-• 回覆「農曆」或「陰曆」"""
-    
-    elif session.state == "chart_binding_calendar":
-        text_lower = text.lower()
-        calendar_type = None
-        
-        if text in ["國曆", "陽曆", "solar"] or "國" in text or "陽" in text:
-            calendar_type = "solar"
-        elif text in ["農曆", "陰曆", "lunar"] or "農" in text or "陰" in text:
-            calendar_type = "lunar"
-        
-        if not calendar_type:
-            return """請選擇有效的曆法：
-• 回覆「國曆」或「陽曆」
-• 回覆「農曆」或「陰曆」"""
-        
-        # 保存命盤綁定
-        try:
-            chart_binding = ChartBinding(
-                user_id=user.id,
-                birth_year=session.get_data("birth_year"),
-                birth_month=session.get_data("birth_month"),
-                birth_day=session.get_data("birth_day"),
-                birth_hour=session.get_data("birth_hour"),
-                birth_minute=session.get_data("birth_minute"),
-                gender=session.get_data("gender"),
-                calendar_type=calendar_type
-            )
-            
-            db.add(chart_binding)
-            db.commit()
-            
-            # 清除會話狀態
-            session.clear()
-            
-            birth_date = f"{chart_binding.birth_year}/{chart_binding.birth_month}/{chart_binding.birth_day}"
-            birth_time = f"{chart_binding.birth_hour:02d}:{chart_binding.birth_minute:02d}"
-            gender_text = "男性" if chart_binding.gender == "M" else "女性"
-            calendar_text = "農曆" if chart_binding.calendar_type == "lunar" else "國曆"
-            
-            return f"""✅ **命盤綁定成功** ✨
-
-📅 出生日期：{birth_date} ({calendar_text})
-🕐 出生時間：{birth_time}
-👤 性別：{gender_text}
-
-現在您可以使用流年、流月、流日運勢查詢功能了！"""
-            
-        except Exception as e:
-            logger.error(f"保存命盤綁定失敗: {e}")
-            session.clear()
-            return "❌ 命盤綁定失敗，請稍後再試。"
-    
-    return "❓ 綁定流程發生錯誤，請重新開始。"
-
-def handle_fortune_request(db: Optional[Session], user: LineBotUser, fortune_type: str) -> str:
-    """處理運勢查詢請求"""
-    # 檢查是否有綁定命盤
-    if not user.birth_year or not user.birth_month or not user.birth_day:
-        return """📊 查看運勢需要先綁定個人命盤
-
-💫 請先執行「命盤綁定」功能
-🏠 輸入您的出生日期和時間
-⭐ 完成後即可查看詳細運勢分析"""
-    
-    return f"""🏷️ 此功能正在開發中...
-📅 您的命盤已綁定，運勢計算功能即將上線！
-
-期待為您提供更精準的運勢分析。"""
-
-def clean_sihua_explanation(text: str) -> str:
-    """清理四化解釋文字，保留基本標點，清理裝飾性標點"""
-    if not text:
-        return text
-    
-    # 定義需要清理的裝飾性標點符號
-    unwanted_punctuation = {
-        '★', '☆', '※', '○', '●', '□', '■', '◆', '◇', '△', '▲', '▽', '▼',
-        '「', '」', '『', '』', '"', '"', ''', ''', '"', "'", '〈', '〉', '《', '》',
-        '（', '）', '(', ')', '【', '】', '[', ']', '〔', '〕', '{', '}',
-        '～', '~', '…', '－', '—', '·', '_', '*', '#', '@', '&', '%', 
-        '$', '^', '+', '=', '|', '\\', '/', '`'
-    }
-    
-    # 清理文字，保留基本標點符號（逗號、句號、冒號、分號、問號、驚嘆號）
-    cleaned_text = ''
-    for char in text:
-        if char in unwanted_punctuation:
-            # 跳過裝飾性標點符號
-            continue
-        else:
-            cleaned_text += char
-    
-    # 清理多餘的空格
-    cleaned_text = ' '.join(cleaned_text.split())
-    
-    return cleaned_text
-
-def handle_sihua_detail_request(db: Optional[Session], user: LineBotUser, text: str) -> str:
-    """處理四化詳細解釋請求"""
-    try:
-        # 解析四化類型
-        sihua_type = None
-        if "祿星完整解釋" in text:
-            sihua_type = "祿"
-        elif "權星完整解釋" in text:
-            sihua_type = "權"
-        elif "科星完整解釋" in text:
-            sihua_type = "科"
-        elif "忌星完整解釋" in text:
-            sihua_type = "忌"
-        
-        if not sihua_type:
-            return "❓ 無法識別您要查看的四化類型，請重新操作。"
-        
-        # 從session中獲取占卜結果
-        session = get_or_create_session(user.line_user_id)
-        divination_result = session.get_data("last_divination_result")
-        
-        if not divination_result:
-            return f"""🔮 查看{sihua_type}星詳細解釋需要先進行占卜
-
-💫 請先執行「本週占卜」功能
-⭐ 完成占卜後即可查看完整的四化解釋"""
-        
-        # 從占卜結果中獲取對應的四化數據
-        sihua_results = divination_result.get("sihua_results", [])
-        
-        # 篩選出對應類型的四化
-        target_sihua_list = [
-            sihua for sihua in sihua_results 
-            if sihua.get("type") == sihua_type
-        ]
-        
-        if not target_sihua_list:
-            return f"❓ 未找到{sihua_type}星的相關資料，請重新進行占卜。"
-        
-        # 清理四化解釋文字中的標點符號
-        for sihua_info in target_sihua_list:
-            if "explanation" in sihua_info:
-                sihua_info["explanation"] = clean_sihua_explanation(sihua_info["explanation"])
-        
-        # 生成詳細解釋消息
-        from app.utils.divination_flex_message import DivinationFlexMessageGenerator
-        
-        flex_generator = DivinationFlexMessageGenerator()
-        detail_message = flex_generator.generate_sihua_detail_message(sihua_type, target_sihua_list)
-        
-        if detail_message:
-            # 發送 Flex Message
-            if send_line_flex_messages(user.line_user_id, [detail_message]):
-                return None  # 已發送 Flex Message，不需要文字回覆
-            else:
-                # Flex Message 發送失敗，返回文字版本
-                return generate_text_sihua_detail(sihua_type, target_sihua_list)
-        else:
-            return generate_text_sihua_detail(sihua_type, target_sihua_list)
-        
-    except Exception as e:
-        logger.error(f"處理四化詳細解釋請求失敗: {e}")
-        return "❌ 系統處理請求時發生錯誤，請稍後再試。"
-
-def generate_text_sihua_detail(sihua_type: str, sihua_list: List[Dict]) -> str:
-    """生成四化詳細解釋的文字版本"""
-    try:
-        emoji_map = {
-            "祿": "💰",
-            "權": "👑", 
-            "科": "🌟",
-            "忌": "⚡"
-        }
-        
-        desc_map = {
-            "祿": "祿星代表財富、福祿、好運與機會。化祿的星曜通常能帶來好的發展，有賺錢的機會，做事順利，容易得到貴人幫助。",
-            "權": "權星代表權力、領導力、主導權與掌控能力。化權的星曜會增強其主導性，使人具有領導才能，有助於事業發展和地位提升。",
-            "科": "科星代表名聲、聲望、文化、學習與考試運。化科的星曜能提升個人的名氣和社會地位，有利於學習進修、考試升學。",
-            "忌": "忌星代表阻礙、困難、執著與不順利。化忌提醒需要特別留意的地方，關鍵在於如何化解和轉化這些困難。"
-        }
-        
-        emoji = emoji_map.get(sihua_type, "⭐")
-        description = desc_map.get(sihua_type, "四化星對運勢產生重要影響")
-        
-        result = f"""{emoji} {sihua_type}星完整解釋
-
-📋 總體說明：
-{description}
-
-✨ 詳細分析："""
-        
-        for i, sihua_info in enumerate(sihua_list, 1):
-            star = sihua_info.get("star", "")
-            palace = sihua_info.get("palace", "")
-            explanation = sihua_info.get("explanation", "")
-            
-            # 清理解釋文字
-            explanation = clean_sihua_explanation(explanation)
-            
-            result += f"""
-
-{i}. ⭐ {star} 📍 {palace}
-{explanation}"""
-        
-        result += f"""
-
-📖 以上為{sihua_type}星的完整解釋內容
-🔮 更多功能持續開發中..."""
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"生成文字版四化解釋失敗: {e}")
-        return f"❌ 生成{sihua_type}星解釋時發生錯誤。"
-
-def handle_admin_authentication(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
-    """處理管理員認證"""
-    if session.state == "admin_auth_phrase":
-        if text.strip() == LineBotConfig.ADMIN_SECRET_PHRASE:
-            session.set_state("admin_auth_password")
-            return "🔑 請輸入管理員密碼："
-        else:
-            session.clear()
-            return "❌ 密語錯誤，認證失敗。"
-    
-    elif session.state == "admin_auth_password":
-        if text.strip() == LineBotConfig.ADMIN_PASSWORD:
-            # 提升為管理員
-            if permission_manager.promote_to_admin(db, user.line_user_id):
-                session.clear()
-                return "✅ 管理員認證成功！您已獲得管理員權限。"
-            else:
-                session.clear()
-                return "❌ 權限提升失敗，請稍後再試。"
-        else:
-            session.clear()
-            return "❌ 密碼錯誤，認證失敗。"
-    
-    return "❓ 認證流程錯誤。"
-
-def handle_nickname_setting(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
-    """處理暱稱設定"""
-    if session.state == "setting_nickname":
-        nickname = text.strip()
-        
-        if not nickname:
-            session.clear()
-            return "❌ 暱稱不能為空，設定取消。"
-        
-        if len(nickname) > 50:
-            return "❌ 暱稱長度不能超過50個字元，請重新輸入："
-        
-        # 更新暱稱
-        if permission_manager.update_user_nickname(db, user.line_user_id, nickname):
-            session.clear()
-            return f"✅ 暱稱已更新為：{nickname}"
-        else:
-            session.clear()
-            return "❌ 暱稱更新失敗，請稍後再試。"
-    
-    return "❓ 暱稱設定流程錯誤。"
-
 @router.post("/webhook")
 async def line_webhook(request: Request, background_tasks: BackgroundTasks):
     """處理 LINE Webhook 事件（支持可選數據庫）"""
@@ -937,7 +432,7 @@ def handle_line_event(event: dict, db: Optional[Session]):
             handle_unfollow_event(event, db)
         else:
             logger.info(f"忽略事件類型：{event_type}")
-            
+        
     except Exception as e:
         logger.error(f"處理LINE事件錯誤：{e}")
 
@@ -968,53 +463,11 @@ def handle_message_event(event: dict, db: Optional[Session]):
                     if response:
                         send_line_message(user_id, response)
                     
-                elif text.startswith("設定暱稱"):
-                    response = handle_nickname_setting(db, user, session, text)
-                    if response:
-                        send_line_message(user_id, response)
-                    
-                elif text == "管理員":
-                    response = handle_admin_authentication(db, user, session, text)
-                    if response:
-                        send_line_message(user_id, response)
-                    
-                elif text.startswith("查看") and "星完整解釋" in text:
-                    # 處理四化完整解釋請求
-                    response = handle_sihua_detail_request(db, user, text)
-                    if response:
-                        send_line_message(user_id, response)
-                    
-                elif text == "命盤綁定":
-                    response = handle_chart_binding(db, user, session)
-                    if response:
-                        send_line_message(user_id, response)
-                    
-                elif text in ["流年運勢", "流月運勢", "流日運勢"]:
-                    fortune_type = text.replace("運勢", "").lower()
-                    response = handle_fortune_request(db, user, fortune_type)
-                    if response:
-                        send_line_message(user_id, response)
-                    
                 elif session.state == "waiting_for_gender":
                     response = handle_gender_input(db, user, session, text)
                     if response:
                         send_line_message(user_id, response)
-                    
-                elif session.state.startswith("chart_binding"):
-                    response = handle_chart_binding_process(db, user, session, text)
-                    if response:
-                        send_line_message(user_id, response)
-                    
-                elif session.state == "admin_auth":
-                    response = handle_admin_authentication(db, user, session, text)
-                    if response:
-                        send_line_message(user_id, response)
-                    
-                elif session.state == "setting_nickname":
-                    response = handle_nickname_setting(db, user, session, text)
-                    if response:
-                        send_line_message(user_id, response)
-                    
+
                 else:
                     # 默認回覆
                     send_line_message(user_id, """🌟 歡迎使用星空紫微斗數系統！ ✨
@@ -1022,10 +475,6 @@ def handle_message_event(event: dict, db: Optional[Session]):
 🔮 **主要功能：**
 • 本週占卜 - 根據當下時間占卜運勢
 • 會員資訊 - 查看個人資訊和使用統計
-• 命盤綁定 - 綁定個人出生資料
-• 流年運勢 - 查看年度運勢 (需綁定命盤)
-• 流月運勢 - 查看月度運勢 (需綁定命盤)
-• 流日運勢 - 查看每日運勢 (需綁定命盤)
 
 💫 **使用方式：**
 • 點擊下方星球按鈕快速操作
@@ -1054,7 +503,7 @@ def handle_follow_event(event: dict, db: Optional[Session]):
                 logger.warning(f"創建用戶記錄失敗：{e}")
         else:
             logger.info(f"簡化模式：用戶加入 {user_id}")
-        
+
         # 發送歡迎訊息
         welcome_message = """🌟 歡迎使用星空紫微斗數系統！ ✨
 
@@ -1069,7 +518,7 @@ def handle_follow_event(event: dict, db: Optional[Session]):
 ⭐ 願紫微斗數為您指引人生方向！"""
         
         send_line_message(user_id, welcome_message)
-        
+            
     except Exception as e:
         logger.error(f"處理加好友事件錯誤：{e}")
 
@@ -1091,241 +540,29 @@ def handle_unfollow_event(event: dict, db: Optional[Session]):
     except Exception as e:
         logger.error(f"處理取消好友事件錯誤：{e}")
 
-# 健康檢查端點
-@router.get("/health")
-async def health_check():
-    """健康檢查端點"""
-    return {"status": "healthy", "service": "LINE Bot Webhook"}
+def format_user_info(user_stats: Dict) -> str:
+    """格式化用戶資訊"""
+    user_info = user_stats["user_info"]
+    stats = user_stats["statistics"] 
+    membership = user_stats["membership_info"]
+    
+    message = f"""👤 **會員資訊** ✨
 
-# Rich Menu 管理端點（管理員使用）
-@router.post("/admin/setup-rich-menu")
-async def setup_rich_menu_endpoint():
-    """設定 Rich Menu（管理員端點）"""
-    try:
-        menu_id = rich_menu_manager.ensure_default_rich_menu()
-        if menu_id:
-            return {"success": True, "rich_menu_id": menu_id}
-        else:
-            return {"success": False, "error": "Rich Menu 設定失敗"}
-    except Exception as e:
-        logger.error(f"設定 Rich Menu 錯誤: {e}")
-        return {"success": False, "error": str(e)}
+🏷️ 暱稱：{user_info["display_name"] or "未設定"}
+🎖️ 等級：{membership["level_name"]}
+📅 加入時間：{datetime.fromisoformat(user_info["created_at"]).strftime("%Y-%m-%d")}
 
-@router.post("/admin/force-recreate-rich-menu")
-async def force_recreate_rich_menu_endpoint():
-    """強制重新創建 Rich Menu（管理員端點）"""
-    try:
-        # 先清理舊的 Rich Menu
-        deleted_count = rich_menu_manager.cleanup_old_rich_menus()
-        logger.info(f"清理了 {deleted_count} 個舊的 Rich Menu")
-        
-        # 強制重新創建
-        menu_id = rich_menu_manager.setup_complete_rich_menu(force_recreate=True)
-        if menu_id:
-            return {
-                "success": True, 
-                "rich_menu_id": menu_id,
-                "message": f"已強制重新創建 Rich Menu，清理了 {deleted_count} 個舊菜單"
-            }
-        else:
-            return {"success": False, "error": "Rich Menu 重新創建失敗"}
-    except Exception as e:
-        logger.error(f"強制重新創建 Rich Menu 錯誤: {e}")
-        return {"success": False, "error": str(e)}
-
-@router.post("/admin/set-user-rich-menu")
-async def set_user_rich_menu_endpoint(request: Request):
-    """為特定用戶設置 Rich Menu（管理員端點）"""
-    try:
-        body = await request.json()
-        user_id = body.get("user_id")
-        
-        if not user_id:
-            return {"success": False, "error": "缺少 user_id 參數"}
-        
-        # 1. 確保有預設Rich Menu
-        menu_id = rich_menu_manager.get_default_rich_menu_id()
-        if not menu_id:
-            logger.info("沒有預設Rich Menu，正在創建...")
-            menu_id = rich_menu_manager.setup_complete_rich_menu(force_recreate=True)
-        
-        if not menu_id:
-            return {"success": False, "error": "無法獲取或創建預設Rich Menu"}
-        
-        # 2. 先取消用戶現有的Rich Menu連結
-        try:
-            rich_menu_manager.unlink_user_rich_menu(user_id)
-            logger.info(f"已取消用戶 {user_id} 的舊Rich Menu連結")
-        except Exception as unlink_error:
-            logger.warning(f"取消舊Rich Menu連結時發生錯誤: {unlink_error}")
-        
-        # 3. 為用戶設置新的Rich Menu
-        success = rich_menu_manager.set_user_rich_menu(user_id, menu_id)
-        
-        if success:
-            # 4. 驗證設置
-            user_menu_id = rich_menu_manager.get_user_rich_menu_id(user_id)
-            return {
-                "success": True,
-                "message": f"成功為用戶 {user_id} 設置 Rich Menu",
-                "rich_menu_id": menu_id,
-                "user_menu_id": user_menu_id
-            }
-        else:
-            return {"success": False, "error": f"為用戶 {user_id} 設置 Rich Menu 失敗"}
-            
-    except Exception as e:
-        logger.error(f"設置用戶 Rich Menu 錯誤: {e}")
-        return {"success": False, "error": str(e)}
-
-# 測試特定時間的占卜結果端點
-@router.get("/test-divination")
-async def test_divination():
-    """測試特定時間的占卜結果"""
-    try:
-        # 獲取可選的數據庫會話
-        db = get_optional_db()
-        
-        test_time = datetime(2025, 6, 30, 22, 51)
-        gender = "M"
-        
-        result = divination_logic.perform_divination(gender, test_time, db)
-        
-        if result["success"]:
-            return {
-                "success": True,
-                "message": "測試成功",
-                "result": result,
-                "database_mode": "normal" if db else "simplified"
-            }
-        else:
-            return {
-                "success": False,
-                "message": "測試失敗",
-                "error": result.get("error"),
-                "database_mode": "normal" if db else "simplified"
-            }
-            
-    except Exception as e:
-        logger.error(f"測試占卜錯誤: {e}")
-        return {
-            "success": False,
-            "message": "測試失敗",
-            "error": str(e)
-        }
-    finally:
-        # 清理數據庫會話
-        if db:
-            db.close()
-
-# 測試 Flex Message 發送端點
-@router.post("/test-flex-message")
-async def test_flex_message_endpoint(request: Request):
-    """測試 Flex Message 發送（測試用）"""
-    try:
-        body = await request.json()
-        user_id = body.get("user_id")
-        
-        if not user_id:
-            return {"success": False, "error": "缺少 user_id 參數"}
-        
-        # 創建測試用的占卜結果
-        test_result = {
-            "success": True,
-            "gender": "M",
-            "divination_time": "2024-01-15T14:30:00+08:00",
-            "taichi_palace": "命宮",
-            "minute_dizhi": "午",
-            "palace_tiangan": "甲",
-            "basic_chart": {
-                "命宮": {
-                    "tiangan": "甲",
-                    "dizhi": "子",
-                    "stars": ["紫微（廟旺）", "七殺（平和）", "文昌", "左輔"]
-                },
-                "兄弟宮": {
-                    "tiangan": "乙",
-                    "dizhi": "丑",
-                    "stars": ["天機（廟旺）", "天梁（廟旺）", "文曲"]
-                }
-            },
-            "taichi_palace_mapping": {
-                "子": "命宮",
-                "丑": "兄弟宮"
-            },
-            "sihua_results": [
-                {
-                    "type": "祿",
-                    "star": "廉貞",
-                    "palace": "命宮",
-                    "explanation": "今天格外渴望出頭，競爭力強，敢於展現自我，容易因主動爭取而獲得好處或被看見。"
-                },
-                {
-                    "type": "權",
-                    "star": "破軍",
-                    "palace": "財帛宮",
-                    "explanation": "財務決策能力增強，善於把握投資機會，容易在金錢方面展現主導權。"
-                }
-            ]
-        }
-        
-        # 生成 Flex Messages
-        flex_generator = DivinationFlexMessageGenerator()
-        is_admin = body.get("is_admin", False)
-        flex_messages = flex_generator.generate_divination_messages(test_result, is_admin)
-        
-        if flex_messages:
-            # 發送 Flex Messages
-            success = send_line_flex_messages(user_id, flex_messages)
-            if success:
-                return {
-                    "success": True,
-                    "message": f"成功發送 {len(flex_messages)} 個 Flex 訊息",
-                    "message_count": len(flex_messages),
-                    "is_admin": is_admin
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "Flex 訊息發送失敗"
-                }
-        else:
-            return {
-                "success": False,
-                "error": "無法生成 Flex 訊息"
-            }
-            
-    except Exception as e:
-        logger.error(f"測試 Flex 訊息錯誤: {e}")
-        return {"success": False, "error": str(e)}
-
-# 清理用戶會話端點
-@router.post("/clear-user-session")
-async def clear_user_session_endpoint(request: Request):
-    """清理用戶會話（管理員用）"""
-    try:
-        body = await request.json()
-        user_id = body.get("user_id")
-        
-        if not user_id:
-            return {"success": False, "error": "缺少 user_id 參數"}
-        
-        # 清理用戶會話
-        if user_id in user_sessions:
-            del user_sessions[user_id]
-            return {
-                "success": True,
-                "message": f"已清理用戶 {user_id} 的會話"
-            }
-        else:
-            return {
-                "success": True,
-                "message": f"用戶 {user_id} 沒有活動會話"
-            }
-            
-    except Exception as e:
-        logger.error(f"清理用戶會話錯誤: {e}")
-        return {"success": False, "error": str(e)}
+📊 **使用統計**
+🔮 總占卜次數：{stats["total_divinations"]} 次
+📅 本週占卜：{stats["weekly_divinations"]} 次
+"""
+    
+    if not membership["is_premium"]:
+        message += f"⏳ 週限制：{stats['weekly_limit']} 次\n"
+    else:
+        message += "⏳ 週限制：無限制 ✨\n"
+    
+    return message
 
 def get_or_create_user(db: Session, user_id: str) -> LineBotUser:
     """獲取或創建用戶"""
@@ -1364,36 +601,6 @@ def clear_user_session(db: Session, user_id: str):
     except Exception as e:
         logger.error(f"清理用戶會話失敗：{e}")
 
-def send_divination_result(user_id: str, divination_result: dict):
-    """發送占卜結果"""
-    try:
-        # 格式化占卜結果為訊息
-        if divination_result.get("success"):
-            sihua_results = divination_result.get("sihua_results", [])
-            taichi_palace = divination_result.get("taichi_palace", "")
-            
-            message_parts = [f"🔮 占卜結果 - 太極點：{taichi_palace}\n"]
-            
-            for result in sihua_results:
-                trans_type = result.get("transformation_type", "")
-                star_name = result.get("star_name", "")
-                taichi_palace_name = result.get("taichi_palace", "")
-                explanation = result.get("explanation", "")
-                
-                message_parts.append(f"✨ {star_name}化{trans_type} 在 {taichi_palace_name}")
-                if explanation:
-                    message_parts.append(f"{explanation}\n")
-            
-            message = "\n".join(message_parts)
-        else:
-            message = "占卜過程發生錯誤，請稍後重試"
-        
-        send_line_message(user_id, message)
-        
-    except Exception as e:
-        logger.error(f"發送占卜結果失敗：{e}")
-        send_line_message(user_id, "發送占卜結果時發生錯誤")
-
 def verify_line_signature(body: bytes, signature: str) -> bool:
     """驗證LINE簽名"""
     try:
@@ -1405,6 +612,12 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
     except Exception as e:
         logger.error(f"簽名驗證失敗：{e}")
         return False
+
+# 健康檢查端點
+@router.get("/health")
+async def health_check():
+    """健康檢查端點"""
+    return {"status": "healthy", "service": "LINE Bot Webhook"}
 
 # 導出路由器
 __all__ = ["router"] 

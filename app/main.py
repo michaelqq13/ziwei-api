@@ -132,7 +132,8 @@ async def test_divination(db: Session = Depends(get_db)):
     """測試特定時間的占卜結果"""
     try:
         logger.info("開始執行占卜測試")
-        test_time = datetime(2025, 6, 30, 22, 51)
+        # 使用當前時間進行測試，而不是硬編碼的時間
+        test_time = datetime.now()
         gender = "M"
         
         logger.info(f"測試參數 - 時間：{test_time}, 性別：{gender}")
@@ -152,27 +153,12 @@ async def test_divination(db: Session = Depends(get_db)):
                 "宮干": result.get("palace_tiangan")
             }
             
-            expected = {
-                "命宮地支": "申",
-                "分鐘地支": "亥",
-                "太極點命宮": "亥宮",
-                "宮干": "丁"
-            }
-            
-            matches = {
-                key: {
-                    "actual": value,
-                    "expected": expected[key],
-                    "matches": value == expected[key]
-                }
-                for key, value in verification.items()
-            }
-            
             return {
                 "success": True,
                 "message": "測試成功",
                 "result": result,
-                "verification": matches
+                "verification": verification,
+                "test_time": test_time.isoformat()
             }
         else:
             logger.error(f"占卜失敗：{result.get('error')}")

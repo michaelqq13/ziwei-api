@@ -18,7 +18,7 @@ class LineBotConfig:
     
     # ========== 管理員設定 ==========
     ADMIN_SECRET_PHRASE = "星空紫微"  # 管理員密語
-    ADMIN_PASSWORD = "admin2024"     # 管理員密碼
+    ADMIN_PASSWORD = "admin2025"     # 管理員密碼
     
     # ========== 會員制度設定 ==========
     class MembershipLevel:
