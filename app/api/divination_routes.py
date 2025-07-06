@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from app.db.database import get_db
+from app.logic.permission_manager import permission_manager
 from app.logic.divination import (
     can_divination_this_week,
     get_this_week_divination,
@@ -27,17 +28,21 @@ router = APIRouter(prefix="/api/divination", tags=["divination"])
 async def check_divination_status(user_id: str, db: Session = Depends(get_db)):
     """檢查用戶的占卜狀態"""
     try:
-        # 檢查本週是否已經占卜
-        can_divinate = can_divination_this_week(user_id, db)
+        # 獲取或創建用戶
+        user = permission_manager.get_or_create_user(db, user_id)
         
-        if can_divinate:
+        # 檢查占卜權限
+        permission_result = permission_manager.check_divination_permission(db, user)
+        
+        if permission_result["allowed"]:
             # 檢查是否有性別偏好
             gender = get_user_divination_gender(user_id, db)
             return {
                 "can_divinate": True,
                 "has_gender_preference": gender is not None,
                 "gender": gender,
-                "reason": "allowed"
+                "is_premium": user.is_premium(),
+                "reason": permission_result.get("reason", "allowed")
             }
         else:
             # 獲取本週的占卜記錄
@@ -46,14 +51,15 @@ async def check_divination_status(user_id: str, db: Session = Depends(get_db)):
             
             return {
                 "can_divinate": False,
-                "reason": "weekly_limit_reached",
+                "reason": permission_result["reason"],
                 "days_until_reset": get_days_until_next_monday(),
-                "this_week_result": this_week_result
+                "this_week_result": this_week_result,
+                "is_premium": user.is_premium()
             }
             
     except Exception as e:
         logger.error(f"檢查占卜狀態失敗 {user_id}: {e}")
-        raise HTTPException(status_code=500, detail="檢查占卜狀態失敗")
+        raise HTTPException(status_code=500, detail="服務暫時不可用，請稍後再試")
 
 @router.post("/perform/{user_id}")
 async def perform_divination(user_id: str, gender: str, db: Session = Depends(get_db)):
@@ -88,7 +94,7 @@ async def perform_divination(user_id: str, gender: str, db: Session = Depends(ge
         raise
     except Exception as e:
         logger.error(f"執行占卜失敗 {user_id}: {e}")
-        raise HTTPException(status_code=500, detail="占卜計算失敗")
+        raise HTTPException(status_code=500, detail="占卜服務暫時不可用，請稍後再試")
 
 @router.post("/set-gender/{user_id}")
 async def set_divination_gender(user_id: str, gender: str, db: Session = Depends(get_db)):

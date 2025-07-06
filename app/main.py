@@ -5,10 +5,16 @@ import os
 import subprocess
 import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from app.api import routes
 from app.api import divination_routes
+from app.api import time_divination_routes
 from app.api import binding_routes
 from app.api import permission_routes
 from app.api import protected_routes
@@ -21,10 +27,14 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 import logging
+from app.utils.security_middleware import security_check_middleware
 
 # 設置日誌
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 速率限制器
+limiter = Limiter(key_func=get_remote_address)
 
 def run_database_migrations():
     """在應用啟動時運行數據庫遷移"""
@@ -104,34 +114,98 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 添加CORS中間件
+# 安全中間件設定
+# 1. 信任的主機限制
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=ALLOWED_HOSTS + ["*"]  # 生產環境應移除 "*"
+)
+
+# 2. CORS 設定 - 限制來源
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允許所有來源
+    allow_origins=ALLOWED_ORIGINS,  # 限制特定來源
     allow_credentials=True,
-    allow_methods=["*"],  # 允許所有方法
-    allow_headers=["*"],  # 允許所有請求頭
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # 限制方法
+    allow_headers=["*"],
+    max_age=3600,  # 預檢請求快取時間
 )
+
+# 3. 速率限制中間件
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# 4. 請求大小限制中間件
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    """限制請求大小"""
+    MAX_SIZE = 1024 * 1024 * 2  # 2MB 限制
+    
+    if request.method in ["POST", "PUT", "PATCH"]:
+        content_length = request.headers.get("content-length")
+        if content_length:
+            content_length = int(content_length)
+            if content_length > MAX_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"請求大小超過限制 ({MAX_SIZE / 1024 / 1024}MB)"
+                )
+    
+    response = await call_next(request)
+    return response
+
+# 5. 安全標頭中間件
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """添加安全標頭"""
+    response = await call_next(request)
+    
+    # 安全標頭
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    return response
+
+# 6. 安全檢查中間件
+app.middleware("http")(security_check_middleware)
 
 # API路由
 app.include_router(routes.router, prefix="/api")
 app.include_router(divination_routes.router)
+app.include_router(time_divination_routes.router)
 app.include_router(binding_routes.router, prefix="/api/binding")
-app.include_router(permission_routes.router, prefix="/api/permissions")
+app.include_router(permission_routes.router)
 app.include_router(protected_routes.router, prefix="/api")
 app.include_router(payment_routes.router, prefix="/api/payment")
 app.include_router(chart_binding_routes.router, prefix="/api")
 app.include_router(webhook.router)  # LINE Bot webhook at root path
 
 @app.get("/")
-def read_root():
+@limiter.limit("10/minute")  # 首頁限制
+def read_root(request: Request):
     return {"message": "Welcome to the Purple Star Astrology API"}
 
 @app.get("/test-divination")
-async def test_divination(db: Session = Depends(get_db)):
-    """測試特定時間的占卜結果"""
+@limiter.limit("5/minute")  # 測試端點嚴格限制
+async def test_divination(
+    request: Request,
+    db: Session = Depends(get_db),
+    admin_key: str = None  # 添加管理員密鑰參數
+):
+    """測試特定時間的占卜結果（僅限管理員）"""
     try:
-        logger.info("開始執行占卜測試")
+        # 安全檢查：需要管理員密鑰
+        if admin_key != os.getenv("ADMIN_TEST_KEY", "your-admin-test-key"):
+            raise HTTPException(status_code=403, detail="需要管理員權限")
+        
+        logger.info("開始執行占卜測試（管理員模式）")
         # 使用當前時間進行測試，而不是硬編碼的時間
         test_time = datetime.now()
         gender = "M"
@@ -139,31 +213,34 @@ async def test_divination(db: Session = Depends(get_db)):
         logger.info(f"測試參數 - 時間：{test_time}, 性別：{gender}")
         
         result = divination_logic.perform_divination(gender, test_time, db)
-        logger.info(f"占卜結果：{result}")
+        logger.info("占卜測試完成")
         
         if result["success"]:
-            # 驗證結果
+            # 驗證結果（只返回基本驗證資訊，不返回完整結果）
             basic_chart = result.get("basic_chart", {})
             ming_palace = next((palace for palace_name, palace in basic_chart.items() if palace_name == "命宮"), None)
             
             verification = {
-                "命宮地支": ming_palace["dizhi"] if ming_palace else None,
+                "測試成功": True,
                 "分鐘地支": result.get("minute_dizhi"),
                 "太極點命宮": result.get("taichi_palace"),
-                "宮干": result.get("palace_tiangan")
+                "宮干": result.get("palace_tiangan"),
+                "四化數量": len(result.get("sihua_results", []))
             }
             
             return {
                 "success": True,
                 "message": "測試成功",
-                "result": result,
                 "verification": verification,
-                "test_time": test_time.isoformat()
+                "test_time": test_time.isoformat(),
+                "note": "完整結果不在此顯示以保護演算法"
             }
         else:
             logger.error(f"占卜失敗：{result.get('error')}")
-            raise HTTPException(status_code=500, detail=result.get("error"))
+            raise HTTPException(status_code=500, detail="占卜測試失敗")
             
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"測試過程發生錯誤：{str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="測試系統錯誤")

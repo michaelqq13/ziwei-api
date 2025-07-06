@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional
+import logging
 
 from app.logic.purple_star_chart import PurpleStarChart
 from app.models.birth_info import BirthInfo
@@ -16,6 +17,8 @@ from app.utils.permission_middleware import (
     create_premium_required_response
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/protected", tags=["受保護的功能"])
 
 # ============ 免費功能 ============
@@ -29,11 +32,8 @@ async def get_basic_chart(
     """基本排盤功能（免費）- 顯示星曜名稱但不含四化解釋"""
     try:
         birth_info = BirthInfo(**birth_data.dict())
-        calendar_repo = CalendarRepository(db)
         
-        chart = PurpleStarChart(birth_info, calendar_repo)
-        chart.initialize()
-        chart.calculate_stars()
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
         
         result = chart.get_chart()
         
@@ -52,9 +52,10 @@ async def get_basic_chart(
         return result
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"排盤計算失敗: {str(e)}")
+        logger.error(f"基本排盤失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="排盤服務暫時不可用")
 
 @router.get("/user/status")
 async def get_user_status(
@@ -73,7 +74,8 @@ async def get_user_status(
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"獲取用戶狀態失敗: {str(e)}")
+        logger.error(f"獲取用戶狀態失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
 
 # ============ 付費功能 ============
 
@@ -86,11 +88,8 @@ async def get_premium_chart(
     """完整排盤功能（付費）- 包含四化詳細解釋"""
     try:
         birth_info = BirthInfo(**birth_data.dict())
-        calendar_repo = CalendarRepository(db)
         
-        chart = PurpleStarChart(birth_info, calendar_repo)
-        chart.initialize()
-        chart.calculate_stars()
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
         
         result = chart.get_chart()
         result["version"] = "premium"
@@ -99,9 +98,10 @@ async def get_premium_chart(
         return result
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"排盤計算失敗: {str(e)}")
+        logger.error(f"排盤計算失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="排盤服務暫時不可用")
 
 @router.post("/chart/four-transformations")
 async def get_four_transformations_premium(
@@ -112,11 +112,8 @@ async def get_four_transformations_premium(
     """四化詳細解釋（付費功能）"""
     try:
         birth_info = BirthInfo(**birth_data.dict())
-        calendar_repo = CalendarRepository(db)
         
-        chart = PurpleStarChart(birth_info, calendar_repo)
-        chart.initialize()
-        chart.calculate_stars()
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
         
         four_transformations = chart.get_four_transformations_explanations()
         
@@ -129,9 +126,10 @@ async def get_four_transformations_premium(
         }
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"四化解釋計算失敗: {str(e)}")
+        logger.error(f"四化解釋計算失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
 
 @router.post("/chart/annual-fortune")
 async def get_annual_fortune_premium(
@@ -143,11 +141,8 @@ async def get_annual_fortune_premium(
     """流年運勢（付費功能）"""
     try:
         birth_info = BirthInfo(**birth_data.dict())
-        calendar_repo = CalendarRepository(db)
         
-        chart = PurpleStarChart(birth_info, calendar_repo)
-        chart.initialize()
-        chart.calculate_stars()
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
         
         annual_fortune = chart.calculate_annual_fortune(target_year)
         
@@ -160,9 +155,10 @@ async def get_annual_fortune_premium(
         }
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"流年運勢計算失敗: {str(e)}")
+        logger.error(f"流年運勢計算失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
 
 @router.post("/chart/monthly-fortune")
 async def get_monthly_fortune_premium(
@@ -175,11 +171,8 @@ async def get_monthly_fortune_premium(
     """流月運勢（付費功能）"""
     try:
         birth_info = BirthInfo(**birth_data.dict())
-        calendar_repo = CalendarRepository(db)
         
-        chart = PurpleStarChart(birth_info, calendar_repo)
-        chart.initialize()
-        chart.calculate_stars()
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
         
         monthly_fortune = chart.calculate_monthly_fortune(target_year, target_month)
         
@@ -192,9 +185,10 @@ async def get_monthly_fortune_premium(
         }
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"流月運勢計算失敗: {str(e)}")
+        logger.error(f"流月運勢計算失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
 
 @router.post("/chart/daily-fortune")
 async def get_daily_fortune_premium(
@@ -208,11 +202,8 @@ async def get_daily_fortune_premium(
     """流日運勢（付費功能）"""
     try:
         birth_info = BirthInfo(**birth_data.dict())
-        calendar_repo = CalendarRepository(db)
         
-        chart = PurpleStarChart(birth_info, calendar_repo)
-        chart.initialize()
-        chart.calculate_stars()
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
         
         daily_fortune = chart.calculate_daily_fortune(target_year, target_month, target_day)
         
@@ -225,9 +216,10 @@ async def get_daily_fortune_premium(
         }
         
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"流日運勢計算失敗: {str(e)}")
+        logger.error(f"流日運勢計算失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
 
 # ============ 管理員功能 ============
 
@@ -262,7 +254,8 @@ async def get_all_users(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"獲取用戶列表失敗: {str(e)}")
+        logger.error(f"獲取用戶列表失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
 
 # ============ 功能升級提示 ============
 
@@ -318,4 +311,198 @@ async def get_upgrade_info(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"獲取升級信息失敗: {str(e)}") 
+        logger.error(f"獲取升級信息失敗 {current_user_id}: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
+
+@router.post("/chart/taichi", response_model=PurpleStarChartSchema)
+def get_purple_star_chart_taichi(request: dict, db: Session = Depends(get_db)):
+    """獲取太極點命盤"""
+    try:
+        birth_data = request.get("birth_data")
+        taichi_branch = request.get("taichi_branch")
+        
+        if not birth_data or not taichi_branch:
+            raise HTTPException(status_code=400, detail="birth_data and taichi_branch are required")
+        
+        birth_info = BirthInfo(**birth_data)
+        
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
+        chart.apply_taichi(taichi_branch)
+        
+        return chart.get_chart()
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
+    except Exception as e:
+        logger.error(f"太極點命盤計算失敗: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
+
+@router.post("/chart/taichi-sihua-explanations")
+def get_taichi_sihua_explanations(request: dict, db: Session = Depends(get_db)):
+    """獲取太極點四化解釋"""
+    try:
+        birth_data = request.get("birth_data")
+        taichi_branch = request.get("taichi_branch")
+        
+        if not birth_data or not taichi_branch:
+            raise HTTPException(status_code=400, detail="birth_data and taichi_branch are required")
+        
+        birth_info = BirthInfo(**birth_data)
+        
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
+        chart.apply_taichi(taichi_branch)
+        
+        # 獲取太極點天干
+        taichi_stem = chart.palaces[f"太極{taichi_branch}"].stem
+        
+        # 獲取太極點四化解釋
+        explanations = chart.get_taichi_sihua_explanations(taichi_stem)
+        
+        return {
+            "success": True,
+            "birth_info": birth_data,
+            "taichi_branch": taichi_branch,
+            "taichi_stem": taichi_stem,
+            "explanations": explanations
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
+    except Exception as e:
+        logger.error(f"太極點四化解釋失敗: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
+
+@router.post("/chart/taichi-with-sihua")
+def get_taichi_chart_with_sihua(request: dict, db: Session = Depends(get_db)):
+    """獲取太極點命盤及四化解釋"""
+    try:
+        birth_data = request.get("birth_data")
+        taichi_branch = request.get("taichi_branch")
+        
+        if not birth_data or not taichi_branch:
+            raise HTTPException(status_code=400, detail="birth_data and taichi_branch are required")
+        
+        birth_info = BirthInfo(**birth_data)
+        
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
+        chart.apply_taichi(taichi_branch)
+        
+        # 獲取太極點天干
+        taichi_stem = chart.palaces[f"太極{taichi_branch}"].stem
+        
+        # 獲取太極點四化解釋
+        explanations = chart.get_taichi_sihua_explanations(taichi_stem)
+        
+        return {
+            "success": True,
+            "birth_info": birth_data,
+            "taichi_branch": taichi_branch,
+            "taichi_stem": taichi_stem,
+            "chart": chart.get_chart(),
+            "explanations": explanations
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
+    except Exception as e:
+        logger.error(f"太極點命盤及四化解釋失敗: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
+
+@router.post("/chart/taichi-annual-fortune")
+def get_taichi_annual_fortune(request: dict, db: Session = Depends(get_db)):
+    """獲取太極點流年資訊"""
+    try:
+        birth_data = request.get("birth_data")
+        taichi_branch = request.get("taichi_branch")
+        target_year = request.get("target_year")
+        
+        if not birth_data or not taichi_branch:
+            raise HTTPException(status_code=400, detail="birth_data and taichi_branch are required")
+        
+        birth_info = BirthInfo(**birth_data)
+        
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
+        chart.apply_taichi(taichi_branch)
+        
+        # 計算流年
+        annual_fortune = chart.calculate_annual_fortune(target_year)
+        
+        return {
+            "success": True,
+            "birth_info": birth_data,
+            "taichi_branch": taichi_branch,
+            "annual_fortune": annual_fortune
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
+    except Exception as e:
+        logger.error(f"太極點流年計算失敗: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
+
+@router.post("/chart/taichi-monthly-fortune")
+def get_taichi_monthly_fortune(request: dict, db: Session = Depends(get_db)):
+    """獲取太極點流月資訊"""
+    try:
+        birth_data = request.get("birth_data")
+        taichi_branch = request.get("taichi_branch")
+        target_year = request.get("target_year")
+        target_month = request.get("target_month")
+        
+        if not birth_data or not taichi_branch:
+            raise HTTPException(status_code=400, detail="birth_data and taichi_branch are required")
+        
+        birth_info = BirthInfo(**birth_data)
+        
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
+        chart.apply_taichi(taichi_branch)
+        
+        # 計算流月
+        monthly_fortune = chart.calculate_monthly_fortune(target_year, target_month)
+        
+        return {
+            "success": True,
+            "birth_info": birth_data,
+            "taichi_branch": taichi_branch,
+            "monthly_fortune": monthly_fortune
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
+    except Exception as e:
+        logger.error(f"太極點流月計算失敗: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用")
+
+@router.post("/chart/taichi-daily-fortune")
+def get_taichi_daily_fortune(request: dict, db: Session = Depends(get_db)):
+    """獲取太極點流日資訊"""
+    try:
+        birth_data = request.get("birth_data")
+        taichi_branch = request.get("taichi_branch")
+        target_year = request.get("target_year")
+        target_month = request.get("target_month")
+        target_day = request.get("target_day")
+        
+        if not birth_data or not taichi_branch:
+            raise HTTPException(status_code=400, detail="birth_data and taichi_branch are required")
+        
+        birth_info = BirthInfo(**birth_data)
+        
+        chart = PurpleStarChart(birth_info=birth_info, db=db)
+        chart.apply_taichi(taichi_branch)
+        
+        # 計算流日
+        daily_fortune = chart.calculate_daily_fortune(target_year, target_month, target_day)
+        
+        return {
+            "success": True,
+            "birth_info": birth_data,
+            "taichi_branch": taichi_branch,
+            "daily_fortune": daily_fortune
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="請求的資源不存在")
+    except Exception as e:
+        logger.error(f"太極點流日計算失敗: {e}")
+        raise HTTPException(status_code=500, detail="服務暫時不可用") 

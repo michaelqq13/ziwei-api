@@ -139,7 +139,6 @@ class RichMenuImageGenerator:
         sun_style = button_config.get('sun_style', 'classic')  # 太陽樣式參數
         earth_style = button_config.get('earth_style', 'classic')  # 地球樣式參數
         moon_style = button_config.get('moon_style', 'classic')  # 月亮樣式參數
-        crystal_ball_style = button_config.get('crystal_ball_style', 'classic')  # 水晶球樣式參數
         
         # 按鈕中心位置
         center_x = button_size // 2
@@ -154,7 +153,7 @@ class RichMenuImageGenerator:
             self._draw_rocket_detailed(draw, center_x, center_y, planet_radius, base_color, rocket_style)
         else:
             # 其他星球繪製，傳遞樣式參數
-            self._draw_unique_planet(draw, center_x, center_y, planet_radius, base_color, text, planet_name, sun_style, earth_style, moon_style, crystal_ball_style)
+            self._draw_unique_planet(draw, center_x, center_y, planet_radius, base_color, text, planet_name, sun_style, earth_style, moon_style)
         
         # 添加按鈕文字
         text_color = (255, 255, 255)
@@ -162,7 +161,7 @@ class RichMenuImageGenerator:
         
         return button_img, (center_x, center_y)
     
-    def _draw_unique_planet(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int], button_name: str, planet_name: str, sun_style: str = "classic", earth_style: str = "classic", moon_style: str = "classic", crystal_ball_style: str = "classic"):
+    def _draw_unique_planet(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int], button_name: str, planet_name: str, sun_style: str = "classic", earth_style: str = "classic", moon_style: str = "classic"):
         """根據星球名稱繪製不同的詳細星球"""
         if planet_name == "太陽":
             self._draw_sun_detailed(draw, center_x, center_y, radius, base_color, sun_style)
@@ -172,17 +171,10 @@ class RichMenuImageGenerator:
             self._draw_moon_detailed(draw, center_x, center_y, radius, base_color, moon_style)
         elif planet_name == "土星":
             self._draw_saturn_detailed(draw, center_x, center_y, radius, base_color)
-        elif planet_name == "水晶球":
-            # 添加水晶球繪製
-            self._draw_crystal_ball_detailed(draw, center_x, center_y, radius, base_color, crystal_ball_style)
         elif planet_name == "火箭":
             # 檢查是否有指定火箭樣式
             rocket_style = getattr(self, '_current_rocket_style', 'classic')
             self._draw_rocket_detailed(draw, center_x, center_y, radius, base_color, rocket_style)
-        elif planet_name == "幽浮":
-            # 添加幽浮詳細繪製
-            ufo_style = getattr(self, '_current_ufo_style', 'classic_with_beam')
-            self._draw_ufo_detailed(draw, center_x, center_y, radius, base_color, ufo_style)
         elif planet_name == "太空人":
             self._draw_astronaut_detailed(draw, center_x, center_y, radius, base_color)
         elif planet_name == "衛星":
@@ -2504,800 +2496,8 @@ class RichMenuImageGenerator:
         
         return positions
 
-    def _draw_sun_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製太陽表情 - 溫暖友善"""
-        # 眼睛
-        eye_size = radius // 6
-        draw.ellipse([
-            (center_x - radius//3 - eye_size, center_y - radius//4 - eye_size),
-            (center_x - radius//3 + eye_size, center_y - radius//4 + eye_size)
-        ], fill=(0, 0, 0))
-        draw.ellipse([
-            (center_x + radius//3 - eye_size, center_y - radius//4 - eye_size),
-            (center_x + radius//3 + eye_size, center_y - radius//4 + eye_size)
-        ], fill=(0, 0, 0))
-        
-        # 微笑
-        mouth_width = radius // 2
-        draw.arc([
-            (center_x - mouth_width, center_y),
-            (center_x + mouth_width, center_y + mouth_width)
-        ], 0, 180, fill=(255, 100, 100), width=5)
-
-    def _draw_simple_sun_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製簡單太陽表情"""
-        # 簡單的點眼睛
-        eye_size = radius // 8
-        draw.ellipse([
-            (center_x - radius//4 - eye_size, center_y - radius//5 - eye_size),
-            (center_x - radius//4 + eye_size, center_y - radius//5 + eye_size)
-        ], fill=(0, 0, 0))
-        draw.ellipse([
-            (center_x + radius//4 - eye_size, center_y - radius//5 - eye_size),
-            (center_x + radius//4 + eye_size, center_y - radius//5 + eye_size)
-        ], fill=(0, 0, 0))
-        
-        # 簡單微笑
-        mouth_width = radius // 3
-        draw.arc([
-            (center_x - mouth_width, center_y + radius//6),
-            (center_x + mouth_width, center_y + radius//6 + mouth_width//2)
-        ], 0, 180, fill=(255, 150, 0), width=4)
-
-    def _draw_modern_sun_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製現代太陽表情 - 幾何風格"""
-        # 三角形眼睛
-        eye_size = radius // 6
-        # 左眼
-        draw.polygon([
-            (center_x - radius//3, center_y - radius//4 - eye_size),
-            (center_x - radius//3 - eye_size, center_y - radius//4 + eye_size),
-            (center_x - radius//3 + eye_size, center_y - radius//4 + eye_size)
-        ], fill=(0, 0, 0))
-        # 右眼
-        draw.polygon([
-            (center_x + radius//3, center_y - radius//4 - eye_size),
-            (center_x + radius//3 - eye_size, center_y - radius//4 + eye_size),
-            (center_x + radius//3 + eye_size, center_y - radius//4 + eye_size)
-        ], fill=(0, 0, 0))
-        
-        # 幾何微笑
-        mouth_width = radius // 3
-        draw.polygon([
-            (center_x - mouth_width, center_y + radius//6),
-            (center_x, center_y + radius//3),
-            (center_x + mouth_width, center_y + radius//6)
-        ], fill=(255, 100, 0))
-
-    def _draw_star_symbol(self, draw: ImageDraw.Draw, center_x: int, center_y: int, size: int, color: Tuple[int, int, int]):
-        """繪製星形符號"""
-        points = []
-        for i in range(10):
-            angle = i * 36
-            angle_rad = math.radians(angle)
-            if i % 2 == 0:
-                r = size
-            else:
-                r = size // 2
-            x = center_x + r * math.cos(angle_rad)
-            y = center_y + r * math.sin(angle_rad)
-            points.append((x, y))
-        
-        draw.polygon(points, fill=color)
-
-    def _draw_earth_clouds(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, cloud_color: Tuple[int, int, int]):
-        """繪製地球雲層"""
-        # 繪製幾朵雲
-        cloud_positions = [
-            (center_x - radius//3, center_y - radius//2, radius//8),
-            (center_x + radius//4, center_y - radius//3, radius//10),
-            (center_x - radius//2, center_y + radius//4, radius//12),
-            (center_x + radius//3, center_y + radius//3, radius//9)
-        ]
-        
-        for cloud_x, cloud_y, cloud_size in cloud_positions:
-            # 繪製雲朵（多個重疊的圓形）
-            for i in range(3):
-                offset_x = random.randint(-cloud_size//2, cloud_size//2)
-                offset_y = random.randint(-cloud_size//2, cloud_size//2)
-                draw.ellipse([
-                    (cloud_x + offset_x - cloud_size, cloud_y + offset_y - cloud_size),
-                    (cloud_x + offset_x + cloud_size, cloud_y + offset_y + cloud_size)
-                ], fill=cloud_color)
-
-    def _draw_earth_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製地球表情"""
-        # 眼睛
-        eye_size = radius // 8
-        draw.ellipse([
-            (center_x - radius//4 - eye_size, center_y - radius//5 - eye_size),
-            (center_x - radius//4 + eye_size, center_y - radius//5 + eye_size)
-        ], fill=(255, 255, 255))
-        draw.ellipse([
-            (center_x + radius//4 - eye_size, center_y - radius//5 - eye_size),
-            (center_x + radius//4 + eye_size, center_y - radius//5 + eye_size)
-        ], fill=(255, 255, 255))
-        
-        # 瞳孔
-        pupil_size = eye_size // 2
-        draw.ellipse([
-            (center_x - radius//4 - pupil_size, center_y - radius//5 - pupil_size),
-            (center_x - radius//4 + pupil_size, center_y - radius//5 + pupil_size)
-        ], fill=(0, 0, 0))
-        draw.ellipse([
-            (center_x + radius//4 - pupil_size, center_y - radius//5 - pupil_size),
-            (center_x + radius//4 + pupil_size, center_y - radius//5 + pupil_size)
-        ], fill=(0, 0, 0))
-        
-        # 微笑
-        mouth_width = radius // 3
-        draw.arc([
-            (center_x - mouth_width, center_y + radius//6),
-            (center_x + mouth_width, center_y + radius//6 + mouth_width//2)
-        ], 0, 180, fill=(255, 255, 255), width=4)
-
-    def _draw_moon_detailed(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int], moon_style: str = "classic"):
-        """繪製詳細月球，支持多種樣式"""
-        if moon_style == "classic":
-            self._draw_classic_moon(draw, center_x, center_y, radius, base_color)
-        elif moon_style == "sleepy":
-            self._draw_sleepy_moon(draw, center_x, center_y, radius, base_color)
-        elif moon_style == "crescent":
-            self._draw_crescent_moon(draw, center_x, center_y, radius, base_color)
-        elif moon_style == "kawaii":
-            self._draw_kawaii_moon(draw, center_x, center_y, radius, base_color)
-        elif moon_style == "mystical":
-            self._draw_mystical_moon(draw, center_x, center_y, radius, base_color)
-        else:
-            self._draw_classic_moon(draw, center_x, center_y, radius, base_color)
-
-    def _draw_classic_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """經典月球樣式"""
-        # 月球主體
-        moon_color = (240, 240, 240)
-        draw.ellipse([
-            (center_x - radius, center_y - radius),
-            (center_x + radius, center_y + radius)
-        ], fill=moon_color)
-        
-        # 隕石坑
-        crater_color = (200, 200, 200)
-        craters = [
-            (center_x - radius * 0.3, center_y - radius * 0.4, 12),
-            (center_x + radius * 0.2, center_y - radius * 0.2, 8),
-            (center_x - radius * 0.1, center_y + radius * 0.3, 10),
-            (center_x + radius * 0.4, center_y + radius * 0.1, 6)
-        ]
-        
-        for crater_x, crater_y, crater_size in craters:
-            draw.ellipse([
-                (crater_x - crater_size, crater_y - crater_size),
-                (crater_x + crater_size, crater_y + crater_size)
-            ], fill=crater_color)
-        
-        # 溫和表情
-        self._draw_moon_face(draw, center_x, center_y, radius)
-
-    def _draw_moon_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製月球表情"""
-        # 眼睛
-        eye_size = radius // 8
-        draw.ellipse([
-            (center_x - radius//4 - eye_size, center_y - radius//6 - eye_size),
-            (center_x - radius//4 + eye_size, center_y - radius//6 + eye_size)
-        ], fill=(100, 100, 100))
-        draw.ellipse([
-            (center_x + radius//4 - eye_size, center_y - radius//6 - eye_size),
-            (center_x + radius//4 + eye_size, center_y - radius//6 + eye_size)
-        ], fill=(100, 100, 100))
-        
-        # 微笑
-        mouth_width = radius // 4
-        draw.arc([
-            (center_x - mouth_width, center_y + radius//8),
-            (center_x + mouth_width, center_y + radius//8 + mouth_width)
-        ], 0, 180, fill=(100, 100, 100), width=3)
-
-    def _draw_sleepy_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """睡覺月球樣式"""
-        # 月球主體
-        moon_color = (250, 250, 240)
-        draw.ellipse([
-            (center_x - radius, center_y - radius),
-            (center_x + radius, center_y + radius)
-        ], fill=moon_color)
-        
-        # 隕石坑
-        crater_color = (220, 220, 210)
-        craters = [
-            (center_x - radius * 0.4, center_y - radius * 0.3, 10),
-            (center_x + radius * 0.3, center_y - radius * 0.1, 8),
-            (center_x - radius * 0.2, center_y + radius * 0.4, 12)
-        ]
-        
-        for crater_x, crater_y, crater_size in craters:
-            draw.ellipse([
-                (crater_x - crater_size, crater_y - crater_size),
-                (crater_x + crater_size, crater_y + crater_size)
-            ], fill=crater_color)
-        
-        # 睡覺表情
-        self._draw_sleepy_face(draw, center_x, center_y, radius)
-
-    def _draw_sleepy_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製睡覺表情"""
-        # 閉眼（弧線）
-        eye_width = radius // 6
-        draw.arc([
-            (center_x - radius//3 - eye_width, center_y - radius//5 - eye_width//2),
-            (center_x - radius//3 + eye_width, center_y - radius//5 + eye_width//2)
-        ], 180, 360, fill=(100, 100, 100), width=3)
-        draw.arc([
-            (center_x + radius//3 - eye_width, center_y - radius//5 - eye_width//2),
-            (center_x + radius//3 + eye_width, center_y - radius//5 + eye_width//2)
-        ], 180, 360, fill=(100, 100, 100), width=3)
-
-    def _draw_crescent_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """月牙樣式"""
-        # 月球主體
-        moon_color = (255, 255, 240)
-        draw.ellipse([
-            (center_x - radius, center_y - radius),
-            (center_x + radius, center_y + radius)
-        ], fill=moon_color)
-        
-        # 遮擋圓創造月牙效果
-        mask_radius = int(radius * 0.8)
-        mask_x = center_x + radius // 3
-        draw.ellipse([
-            (mask_x - mask_radius, center_y - mask_radius),
-            (mask_x + mask_radius, center_y + mask_radius)
-        ], fill=(47, 47, 79))  # 夜空色
-
-    def _draw_kawaii_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """可愛日系月亮樣式"""
-        # 月球主體
-        moon_color = (250, 250, 250)
-        draw.ellipse([
-            (center_x - radius, center_y - int(radius * 0.9)),
-            (center_x + radius, center_y + int(radius * 0.9))
-        ], fill=moon_color)
-        
-        # 可愛表情
-        self._draw_kawaii_moon_face(draw, center_x, center_y, radius)
-
-    def _draw_kawaii_moon_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
-        """繪製可愛月球表情"""
-        # 大眼睛
-        eye_size = radius // 6
-        draw.ellipse([
-            (center_x - radius//3 - eye_size, center_y - radius//4 - eye_size),
-            (center_x - radius//3 + eye_size, center_y - radius//4 + eye_size)
-        ], fill=(0, 0, 0))
-        draw.ellipse([
-            (center_x + radius//3 - eye_size, center_y - radius//4 - eye_size),
-            (center_x + radius//3 + eye_size, center_y - radius//4 + eye_size)
-        ], fill=(0, 0, 0))
-        
-        # 可愛嘴巴
-        mouth_width = radius // 4
-        draw.ellipse([
-            (center_x - mouth_width//2, center_y + radius//6),
-            (center_x + mouth_width//2, center_y + radius//6 + mouth_width//2)
-        ], fill=(255, 150, 150))
-
-    def _draw_mystical_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """神秘月球樣式"""
-        # 主體（深色神秘色彩）
-        draw.ellipse([
-            (center_x - radius, center_y - radius),
-            (center_x + radius, center_y + radius)
-        ], fill=(100, 100, 150))
-        
-        # 神秘眼睛
-        eye_size = radius // 5
-        draw.ellipse([
-            (center_x - radius//4 - eye_size, center_y - radius//6 - eye_size),
-            (center_x - radius//4 + eye_size, center_y - radius//6 + eye_size)
-        ], fill=(200, 200, 255))
-        draw.ellipse([
-            (center_x + radius//4 - eye_size, center_y - radius//6 - eye_size),
-            (center_x + radius//4 + eye_size, center_y - radius//6 + eye_size)
-        ], fill=(200, 200, 255))
-
-    def _draw_shuttle_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, width: int, height: int):
-        """太空梭表情"""
-        eye_color = (255, 255, 255, 255)
-        eye_width = width // 6
-        eye_height = height // 4
-        
-        draw.ellipse([
-            (center_x - width // 4 - eye_width // 2, center_y - eye_height // 2),
-            (center_x - width // 4 + eye_width // 2, center_y + eye_height // 2)
-        ], fill=eye_color)
-        
-        draw.ellipse([
-            (center_x + width // 4 - eye_width // 2, center_y - eye_height // 2),
-            (center_x + width // 4 + eye_width // 2, center_y + eye_height // 2)
-        ], fill=eye_color)
-        
-        pupil_color = (50, 50, 50, 255)
-        pupil_size = eye_width // 2
-        
-        draw.ellipse([
-            (center_x - width // 4 - pupil_size // 2, center_y - pupil_size // 2),
-            (center_x - width // 4 + pupil_size // 2, center_y + pupil_size // 2)
-        ], fill=pupil_color)
-        
-        draw.ellipse([
-            (center_x + width // 4 - pupil_size // 2, center_y - pupil_size // 2),
-            (center_x + width // 4 + pupil_size // 2, center_y + pupil_size // 2)
-        ], fill=pupil_color)
-        
-        mouth_color = (200, 200, 200, 255)
-        draw.line([
-            (center_x - width // 6, center_y + height // 4),
-            (center_x + width // 6, center_y + height // 4)
-        ], fill=mouth_color, width=2)
-
-    def _draw_shuttle_flames(self, draw: ImageDraw.Draw, center_x: int, flame_y: int, width: int):
-        """太空梭火焰效果"""
-        flame_colors = [
-            (255, 200, 0, 255),
-            (255, 100, 0, 200),
-            (255, 255, 255, 180)
-        ]
-        
-        for i, color in enumerate(flame_colors):
-            flame_height = 40 - i * 10
-            flame_width = width // 3 - i * 5
-            
-            flame_points = [
-                (center_x - flame_width // 2, flame_y),
-                (center_x - flame_width // 4, flame_y + flame_height // 2),
-                (center_x, flame_y + flame_height),
-                (center_x + flame_width // 4, flame_y + flame_height // 2),
-                (center_x + flame_width // 2, flame_y)
-            ]
-            draw.polygon(flame_points, fill=color)
-        
-        side_flame_color = (255, 150, 0, 150)
-        side_flame_size = width // 8
-        
-        draw.ellipse([
-            (center_x - width // 2 - side_flame_size, flame_y - side_flame_size),
-            (center_x - width // 2, flame_y + side_flame_size)
-        ], fill=side_flame_color)
-        
-        draw.ellipse([
-            (center_x + width // 2, flame_y - side_flame_size),
-            (center_x + width // 2 + side_flame_size, flame_y + side_flame_size)
-        ], fill=side_flame_color)
-
-    def _draw_mini_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, window_size: int):
-        """迷你火箭表情"""
-        eye_color = (255, 255, 255, 255)
-        eye_radius = window_size // 6
-        
-        draw.ellipse([
-            (center_x - window_size // 4 - eye_radius, center_y - eye_radius),
-            (center_x - window_size // 4 + eye_radius, center_y + eye_radius)
-        ], fill=eye_color)
-        
-        draw.ellipse([
-            (center_x + window_size // 4 - eye_radius, center_y - eye_radius),
-            (center_x + window_size // 4 + eye_radius, center_y + eye_radius)
-        ], fill=eye_color)
-        
-        pupil_color = (50, 50, 50, 255)
-        pupil_radius = eye_radius // 2
-        
-        draw.ellipse([
-            (center_x - window_size // 4 - pupil_radius, center_y - pupil_radius),
-            (center_x - window_size // 4 + pupil_radius, center_y + pupil_radius)
-        ], fill=pupil_color)
-        
-        draw.ellipse([
-            (center_x + window_size // 4 - pupil_radius, center_y - pupil_radius),
-            (center_x + window_size // 4 + pupil_radius, center_y + pupil_radius)
-        ], fill=pupil_color)
-        
-        highlight_color = (255, 255, 255, 255)
-        highlight_size = pupil_radius // 3
-        
-        draw.ellipse([
-            (center_x - window_size // 4 - highlight_size, center_y - highlight_size),
-            (center_x - window_size // 4 + highlight_size, center_y + highlight_size)
-        ], fill=highlight_color)
-        
-        draw.ellipse([
-            (center_x + window_size // 4 - highlight_size, center_y - highlight_size),
-            (center_x + window_size // 4 + highlight_size, center_y + highlight_size)
-        ], fill=highlight_color)
-        
-        mouth_color = (255, 100, 100, 255)
-        mouth_radius = window_size // 8
-        
-        draw.ellipse([
-            (center_x - mouth_radius, center_y + window_size // 6 - mouth_radius),
-            (center_x + mouth_radius, center_y + window_size // 6 + mouth_radius)
-        ], fill=mouth_color)
-
-    def _draw_mini_flames(self, draw: ImageDraw.Draw, center_x: int, flame_y: int, width: int):
-        """迷你火箭火焰效果"""
-        flame_colors = [
-            (255, 200, 100, 255),
-            (255, 150, 100, 200),
-            (255, 100, 150, 150)
-        ]
-        
-        for i, color in enumerate(flame_colors):
-            flame_height = 20 - i * 5
-            flame_width = width // 4 - i * 3
-            
-            flame_points = [
-                (center_x - flame_width // 2, flame_y),
-                (center_x - flame_width // 4, flame_y + flame_height // 2),
-                (center_x, flame_y + flame_height),
-                (center_x + flame_width // 4, flame_y + flame_height // 2),
-                (center_x + flame_width // 2, flame_y)
-            ]
-            draw.polygon(flame_points, fill=color)
-        
-        star_color = (255, 255, 100, 150)
-        star_size = 3
-        
-        star_x = center_x - width // 3
-        star_y = flame_y + 15
-        self._draw_cute_star(draw, star_x, star_y, star_size, star_color)
-        
-        star_x = center_x + width // 3
-        star_y = flame_y + 15
-        self._draw_cute_star(draw, star_x, star_y, star_size, star_color)
-
-    def _draw_ufo_detailed(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int], ufo_style: str = "classic_with_beam"):
-        """
-        繪製詳細的幽浮 - 經典飛碟造型帶光束效果
-        """
-        if ufo_style == "classic_with_beam":
-            self._draw_classic_ufo_with_beam(draw, center_x, center_y, radius, base_color)
-        elif ufo_style == "modern":
-            self._draw_modern_ufo(draw, center_x, center_y, radius, base_color)
-        elif ufo_style == "cartoon":
-            self._draw_cartoon_ufo(draw, center_x, center_y, radius, base_color)
-        else:
-            self._draw_classic_ufo_with_beam(draw, center_x, center_y, radius, base_color)
-
-    def _draw_classic_ufo_with_beam(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """
-        經典幽浮造型 - 帶白色光束效果
-        """
-        # 先繪製光束效果（在幽浮下方）
-        beam_width = int(radius * 1.5)
-        beam_height = int(radius * 2.0)
-        beam_start_y = center_y + radius // 2
-        beam_end_y = beam_start_y + beam_height
-        
-        # 光束漸變效果 - 從上到下逐漸變寬
-        beam_colors = [
-            (255, 255, 255, 200),  # 白色
-            (255, 255, 200, 150),  # 淡黃色
-            (200, 255, 255, 100),  # 淡藍色
-            (255, 255, 255, 50),   # 透明白色
-        ]
-        
-        for i, beam_color in enumerate(beam_colors):
-            current_width = beam_width // 4 + (beam_width * i // 4)
-            current_y = beam_start_y + (beam_height * i // 4)
-            current_height = beam_height // 4
-            
-            # 繪製梯形光束
-            beam_points = [
-                (center_x - beam_width // 8, beam_start_y),  # 上左
-                (center_x + beam_width // 8, beam_start_y),  # 上右
-                (center_x + current_width // 2, current_y + current_height),  # 下右
-                (center_x - current_width // 2, current_y + current_height),  # 下左
-            ]
-            draw.polygon(beam_points, fill=beam_color)
-        
-        # 光束中的小顆粒效果
-        particle_color = (255, 255, 255, 180)
-        for _ in range(12):
-            particle_x = center_x + random.randint(-beam_width // 4, beam_width // 4)
-            particle_y = beam_start_y + random.randint(0, beam_height)
-            particle_size = random.randint(2, 5)
-            draw.ellipse([
-                (particle_x - particle_size, particle_y - particle_size),
-                (particle_x + particle_size, particle_y + particle_size)
-            ], fill=particle_color)
-        
-        # 幽浮主體 - 經典飛碟造型
-        ufo_width = int(radius * 1.8)
-        ufo_height = int(radius * 0.8)
-        
-        # 飛碟底部（較大的橢圓）
-        bottom_color = (180, 180, 180, 255)  # 銀灰色
-        draw.ellipse([
-            (center_x - ufo_width // 2, center_y - ufo_height // 4),
-            (center_x + ufo_width // 2, center_y + ufo_height // 2)
-        ], fill=bottom_color)
-        
-        # 飛碟頂部駕駛艙（較小的橢圓）
-        dome_width = int(ufo_width * 0.6)
-        dome_height = int(ufo_height * 0.7)
-        dome_color = (200, 220, 255, 200)  # 半透明藍色
-        draw.ellipse([
-            (center_x - dome_width // 2, center_y - dome_height),
-            (center_x + dome_width // 2, center_y + dome_height // 4)
-        ], fill=dome_color)
-        
-        # 駕駛艙邊框
-        dome_border_color = (150, 150, 150, 255)
-        draw.ellipse([
-            (center_x - dome_width // 2, center_y - dome_height),
-            (center_x + dome_width // 2, center_y + dome_height // 4)
-        ], outline=dome_border_color, width=3)
-        
-        # 飛碟底部邊框
-        draw.ellipse([
-            (center_x - ufo_width // 2, center_y - ufo_height // 4),
-            (center_x + ufo_width // 2, center_y + ufo_height // 2)
-        ], outline=(120, 120, 120, 255), width=4)
-        
-        # 底部的燈光效果
-        light_colors = [
-            (255, 100, 100, 255),  # 紅色
-            (100, 255, 100, 255),  # 綠色
-            (100, 100, 255, 255),  # 藍色
-            (255, 255, 100, 255),  # 黃色
-            (255, 100, 255, 255),  # 紫色
-        ]
-        
-        for i, light_color in enumerate(light_colors):
-            angle = i * 72  # 每72度一個燈
-            angle_rad = math.radians(angle)
-            light_x = center_x + int((ufo_width * 0.35) * math.cos(angle_rad))
-            light_y = center_y + int((ufo_height * 0.2) * math.sin(angle_rad))
-            light_size = 6
-            
-            # 燈光本體
-            draw.ellipse([
-                (light_x - light_size, light_y - light_size),
-                (light_x + light_size, light_y + light_size)
-            ], fill=light_color)
-            
-            # 燈光暈光效果
-            halo_color = (light_color[0], light_color[1], light_color[2], 100)
-            draw.ellipse([
-                (light_x - light_size - 3, light_y - light_size - 3),
-                (light_x + light_size + 3, light_y + light_size + 3)
-            ], fill=halo_color)
-        
-        # 駕駛艙內的外星人剪影
-        alien_color = (50, 50, 50, 150)
-        alien_head_size = dome_width // 6
-        alien_y = center_y - dome_height // 2
-        
-        # 外星人頭部
-        draw.ellipse([
-            (center_x - alien_head_size, alien_y - alien_head_size),
-            (center_x + alien_head_size, alien_y + alien_head_size)
-        ], fill=alien_color)
-        
-        # 外星人大眼睛
-        eye_color = (255, 255, 255, 200)
-        eye_size = alien_head_size // 3
-        draw.ellipse([
-            (center_x - alien_head_size // 2 - eye_size, alien_y - eye_size),
-            (center_x - alien_head_size // 2 + eye_size, alien_y + eye_size)
-        ], fill=eye_color)
-        draw.ellipse([
-            (center_x + alien_head_size // 2 - eye_size, alien_y - eye_size),
-            (center_x + alien_head_size // 2 + eye_size, alien_y + eye_size)
-        ], fill=eye_color)
-        
-        # 反光效果
-        reflection_color = (255, 255, 255, 150)
-        reflection_size = dome_width // 4
-        draw.ellipse([
-            (center_x - dome_width // 4, center_y - dome_height * 0.7),
-            (center_x - dome_width // 4 + reflection_size, center_y - dome_height * 0.7 + reflection_size // 2)
-        ], fill=reflection_color)
-        
-        # 周圍的能量波紋
-        energy_color = (100, 255, 255, 80)
-        for i in range(3):
-            wave_radius = ufo_width // 2 + 20 + i * 15
-            draw.ellipse([
-                (center_x - wave_radius, center_y - wave_radius // 3),
-                (center_x + wave_radius, center_y + wave_radius // 3)
-            ], outline=energy_color, width=2)
-
-    def _draw_modern_ufo(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """
-        現代幽浮造型 - 簡潔科技風格
-        """
-        # 現代化的三角形飛碟
-        ufo_size = int(radius * 1.6)
-        
-        # 主體三角形
-        triangle_points = [
-            (center_x, center_y - ufo_size),  # 頂點
-            (center_x - ufo_size, center_y + ufo_size // 2),  # 左下
-            (center_x + ufo_size, center_y + ufo_size // 2),  # 右下
-        ]
-        
-        main_color = (200, 200, 200, 255)
-        draw.polygon(triangle_points, fill=main_color)
-        draw.polygon(triangle_points, outline=(150, 150, 150, 255), width=4)
-        
-        # 中央能量核心
-        core_color = (100, 200, 255, 255)
-        core_size = radius // 3
-        draw.ellipse([
-            (center_x - core_size, center_y - core_size),
-            (center_x + core_size, center_y + core_size)
-        ], fill=core_color)
-        
-        # 能量脈衝效果
-        pulse_color = (100, 200, 255, 100)
-        for i in range(3):
-            pulse_radius = core_size + i * 8
-            draw.ellipse([
-                (center_x - pulse_radius, center_y - pulse_radius),
-                (center_x + pulse_radius, center_y + pulse_radius)
-            ], outline=pulse_color, width=2)
-
-    def _draw_cartoon_ufo(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
-        """
-        卡通幽浮造型 - 可愛風格
-        """
-        # 可愛的圓形飛碟
-        ufo_radius = int(radius * 1.2)
-        
-        # 主體
-        main_color = (255, 200, 255, 255)  # 粉色
-        draw.ellipse([
-            (center_x - ufo_radius, center_y - ufo_radius // 2),
-            (center_x + ufo_radius, center_y + ufo_radius // 2)
-        ], fill=main_color)
-        
-        # 可愛的駕駛艙
-        dome_color = (255, 255, 200, 200)
-        dome_size = int(ufo_radius * 0.6)
-        draw.ellipse([
-            (center_x - dome_size, center_y - dome_size),
-            (center_x + dome_size, center_y + dome_size // 2)
-        ], fill=dome_color)
-        
-        # 可愛表情
-        eye_size = dome_size // 4
-        draw.ellipse([
-            (center_x - dome_size // 3 - eye_size, center_y - dome_size // 2 - eye_size),
-            (center_x - dome_size // 3 + eye_size, center_y - dome_size // 2 + eye_size)
-        ], fill=(0, 0, 0, 255))
-        draw.ellipse([
-            (center_x + dome_size // 3 - eye_size, center_y - dome_size // 2 - eye_size),
-            (center_x + dome_size // 3 + eye_size, center_y - dome_size // 2 + eye_size)
-        ], fill=(0, 0, 0, 255))
-        
-        # 微笑
-        mouth_width = dome_size // 2
-        draw.arc([
-            (center_x - mouth_width, center_y - dome_size // 4),
-            (center_x + mouth_width, center_y + dome_size // 4)
-        ], 0, 180, fill=(255, 100, 100, 255), width=4)
-
-    def _draw_crystal_ball_detailed(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int], crystal_ball_style: str = "classic"):
-        """
-        繪製水晶球 - 根據用戶提供的圖片風格
-        """
-        # 水晶球底座（金色的裝飾底座）
-        base_height = radius // 3
-        base_width = int(radius * 1.4)
-        base_y = center_y + radius - base_height // 2
-        
-        # 底座主體（橢圓形）
-        base_color_main = (218, 165, 32, 255)  # 金色
-        draw.ellipse([
-            (center_x - base_width // 2, base_y - base_height // 2),
-            (center_x + base_width // 2, base_y + base_height // 2)
-        ], fill=base_color_main)
-        
-        # 底座裝飾花紋
-        pattern_color = (184, 134, 11, 255)  # 深金色
-        pattern_y = base_y
-        for i in range(8):
-            angle = i * 45
-            angle_rad = math.radians(angle)
-            pattern_x = center_x + (base_width // 3) * math.cos(angle_rad)
-            pattern_y_pos = pattern_y + (base_height // 6) * math.sin(angle_rad)
-            
-            # 繪製小裝飾圓圈
-            draw.ellipse([
-                (pattern_x - 3, pattern_y_pos - 3),
-                (pattern_x + 3, pattern_y_pos + 3)
-            ], fill=pattern_color)
-        
-        # 水晶球主體（半透明的紫色球體）
-        ball_color = (200, 150, 200, 180)  # 半透明紫色
-        draw.ellipse([
-            (center_x - radius, center_y - radius),
-            (center_x + radius, center_y + radius)
-        ], fill=ball_color)
-        
-        # 水晶球內部的星星（金色五角星）
-        star_color = (255, 215, 0, 255)  # 金色
-        star_size = radius // 4
-        star_x = center_x
-        star_y = center_y - radius // 6
-        self._draw_five_pointed_star(draw, star_x, star_y, star_size, star_color)
-        
-        # 水晶球內部的小星星裝飾
-        small_star_color = (255, 255, 255, 200)  # 半透明白色
-        small_star_positions = [
-            (center_x - radius//3, center_y - radius//3),
-            (center_x + radius//3, center_y - radius//4),
-            (center_x - radius//4, center_y + radius//4),
-            (center_x + radius//4, center_y + radius//3),
-            (center_x - radius//6, center_y - radius//2),
-            (center_x + radius//5, center_y - radius//2)
-        ]
-        
-        for star_x, star_y in small_star_positions:
-            self._draw_small_cross_star(draw, star_x, star_y, 4, small_star_color)
-        
-        # 水晶球反光效果
-        highlight_color = (255, 255, 255, 120)  # 半透明白色
-        highlight_radius = radius // 3
-        highlight_x = center_x - radius // 3
-        highlight_y = center_y - radius // 3
-        
-        draw.ellipse([
-            (highlight_x - highlight_radius, highlight_y - highlight_radius),
-            (highlight_x + highlight_radius, highlight_y + highlight_radius)
-        ], fill=highlight_color)
-        
-        # 水晶球邊緣光暈
-        for i in range(3):
-            glow_radius = radius + i * 8
-            glow_color = (200, 150, 200, 30 - i * 10)  # 漸變透明度
-            draw.ellipse([
-                (center_x - glow_radius, center_y - glow_radius),
-                (center_x + glow_radius, center_y + glow_radius)
-            ], outline=glow_color, width=2)
-
-    def _draw_five_pointed_star(self, draw: ImageDraw.Draw, center_x: int, center_y: int, size: int, color: Tuple[int, int, int, int]):
-        """繪製五角星"""
-        points = []
-        for i in range(10):
-            angle = i * 36 - 90  # 從頂部開始
-            angle_rad = math.radians(angle)
-            if i % 2 == 0:
-                # 外角
-                r = size
-            else:
-                # 內角
-                r = size // 2
-            x = center_x + r * math.cos(angle_rad)
-            y = center_y + r * math.sin(angle_rad)
-            points.append((x, y))
-        
-        draw.polygon(points, fill=color)
-
-    def _draw_small_cross_star(self, draw: ImageDraw.Draw, center_x: int, center_y: int, size: int, color: Tuple[int, int, int, int]):
-        """繪製小十字星"""
-        # 水平線
-        draw.line([(center_x - size, center_y), (center_x + size, center_y)], fill=color, width=2)
-        # 垂直線
-        draw.line([(center_x, center_y - size), (center_x, center_y + size)], fill=color, width=2)
-        # 對角線
-        draw.line([(center_x - size//2, center_y - size//2), (center_x + size//2, center_y + size//2)], fill=color, width=1)
-        draw.line([(center_x - size//2, center_y + size//2), (center_x + size//2, center_y - size//2)], fill=color, width=1)
-
 # 全局實例
 rich_menu_image_generator = RichMenuImageGenerator()
-
 
 def generate_admin_starry_rich_menu(output_path: str = "rich_menu_images/admin_starry_sky_menu.png") -> Tuple[str, List[Dict]]:
     """生成管理員版本的星空主題 Rich Menu 圖片"""
@@ -3350,8 +2550,8 @@ def generate_admin_starry_rich_menu(output_path: str = "rich_menu_images/admin_s
             x, y = button_positions[i]
             button_areas.append({
                 "bounds": {
-                    "x": x - 100,
-                    "y": y - 100,
+                    "x": max(0, x - 100),
+                    "y": max(0, y - 100),
                     "width": 200,
                     "height": 200
                 },
@@ -3364,36 +2564,85 @@ def generate_admin_starry_rich_menu(output_path: str = "rich_menu_images/admin_s
     return output_path, button_areas
 
 def generate_starry_rich_menu(output_path: str = "rich_menu_images/starry_sky_menu.png") -> Tuple[str, List[Dict]]:
-    """生成一般會員版本的星空主題 Rich Menu 圖片 (6個按鈕)"""
+    """
+    生成星空主題 Rich Menu 的便捷函數（一般會員版本）
+    使用三區塊分佈：左邊2個，中間2個，右邊2個（共6個按鈕）
     
-    # 生成按鈕位置（6個按鈕的三區域分佈）
+    Returns:
+        Tuple[str, List[Dict]]: (圖片路徑, 按鈕區域配置)
+    """
+    from app.config.linebot_config import LineBotConfig
+    
     def generate_three_zone_positions_6buttons(num_buttons: int, width: int, height: int) -> List[Tuple[int, int]]:
         """
-        為6個按鈕生成三區域分佈位置
+        生成三區塊分佈的按鈕位置：左邊2個，中間2個，右邊2個（共6個按鈕）
+        
+        Args:
+            num_buttons: 按鈕數量
+            width: 選單寬度
+            height: 選單高度
+            
+        Returns:
+            List[Tuple[int, int]]: 按鈕位置列表 (x, y)
         """
+        import random
+        
         positions = []
         
-        # 區域1：上方 (2個按鈕)
-        zone1_y = height // 4
-        zone1_x_positions = [width // 3, 2 * width // 3]
-        for x in zone1_x_positions:
-            positions.append((x, zone1_y))
+        # 設定安全邊界
+        margin_x = 200
+        margin_y = 150
         
-        # 區域2：中間 (2個按鈕)
-        zone2_y = height // 2
-        zone2_x_positions = [width // 4, 3 * width // 4]
-        for x in zone2_x_positions:
-            positions.append((x, zone2_y))
+        # 將寬度分成三個區塊
+        zone_width = (width - 2 * margin_x) // 3
         
-        # 區域3：下方 (2個按鈕)
-        zone3_y = 3 * height // 4
-        zone3_x_positions = [width // 3, 2 * width // 3]
-        for x in zone3_x_positions:
-            positions.append((x, zone3_y))
+        # 定義三個區塊的範圍（每個區塊2個按鈕）
+        zones = [
+            {"start_x": margin_x, "end_x": margin_x + zone_width, "count": 2},  # 左邊區塊
+            {"start_x": margin_x + zone_width, "end_x": margin_x + 2 * zone_width, "count": 2},  # 中間區塊
+            {"start_x": margin_x + 2 * zone_width, "end_x": width - margin_x, "count": 2}  # 右邊區塊
+        ]
         
-        return positions[:num_buttons]
+        button_index = 0
+        
+        for zone in zones:
+            zone_start_x = zone["start_x"]
+            zone_end_x = zone["end_x"]
+            zone_count = zone["count"]
+            
+            # 在每個區塊內隨機分佈按鈕
+            for i in range(zone_count):
+                if button_index >= num_buttons:
+                    break
+                
+                # 在區塊內隨機選擇位置
+                x = random.randint(zone_start_x + 50, zone_end_x - 50)
+                y = random.randint(margin_y, height - margin_y)
+                
+                # 確保與同區塊內其他按鈕有足夠距離
+                attempts = 0
+                while attempts < 50:
+                    valid = True
+                    for existing_x, existing_y in positions:
+                        distance = ((x - existing_x)**2 + (y - existing_y)**2)**0.5
+                        if distance < 200:  # 最小距離
+                            valid = False
+                            break
+                    
+                    if valid:
+                        break
+                    
+                    # 重新生成位置
+                    x = random.randint(zone_start_x + 50, zone_end_x - 50)
+                    y = random.randint(margin_y, height - margin_y)
+                    attempts += 1
+                
+                positions.append((x, y))
+                button_index += 1
+        
+        return positions
     
-    # 生成按鈕位置
+    # 生成三區塊分佈的按鈕位置
     button_positions = generate_three_zone_positions_6buttons(
         num_buttons=6,
         width=LineBotConfig.RICH_MENU_WIDTH,
@@ -3490,3 +2739,461 @@ __all__ = [
     "rich_menu_image_generator", 
     "generate_starry_rich_menu"
 ]
+
+# 添加缺失的輔助函數
+def _draw_shuttle_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, width: int, height: int):
+    """太空梭表情"""
+    eye_color = (255, 255, 255, 255)
+    eye_width = width // 6
+    eye_height = height // 4
+    
+    draw.ellipse([
+        (center_x - width // 4 - eye_width // 2, center_y - eye_height // 2),
+        (center_x - width // 4 + eye_width // 2, center_y + eye_height // 2)
+    ], fill=eye_color)
+    
+    draw.ellipse([
+        (center_x + width // 4 - eye_width // 2, center_y - eye_height // 2),
+        (center_x + width // 4 + eye_width // 2, center_y + eye_height // 2)
+    ], fill=eye_color)
+    
+    pupil_color = (50, 50, 50, 255)
+    pupil_size = eye_width // 2
+    
+    draw.ellipse([
+        (center_x - width // 4 - pupil_size // 2, center_y - pupil_size // 2),
+        (center_x - width // 4 + pupil_size // 2, center_y + pupil_size // 2)
+    ], fill=pupil_color)
+    
+    draw.ellipse([
+        (center_x + width // 4 - pupil_size // 2, center_y - pupil_size // 2),
+        (center_x + width // 4 + pupil_size // 2, center_y + pupil_size // 2)
+    ], fill=pupil_color)
+    
+    mouth_color = (200, 200, 200, 255)
+    draw.line([
+        (center_x - width // 6, center_y + height // 4),
+        (center_x + width // 6, center_y + height // 4)
+    ], fill=mouth_color, width=2)
+
+def _draw_shuttle_flames(self, draw: ImageDraw.Draw, center_x: int, flame_y: int, width: int):
+    """太空梭火焰效果"""
+    flame_colors = [
+        (255, 200, 0, 255),
+        (255, 100, 0, 200),
+        (255, 255, 255, 180)
+    ]
+    
+    for i, color in enumerate(flame_colors):
+        flame_height = 40 - i * 10
+        flame_width = width // 3 - i * 5
+        
+        flame_points = [
+            (center_x - flame_width // 2, flame_y),
+            (center_x - flame_width // 4, flame_y + flame_height // 2),
+            (center_x, flame_y + flame_height),
+            (center_x + flame_width // 4, flame_y + flame_height // 2),
+            (center_x + flame_width // 2, flame_y)
+        ]
+        draw.polygon(flame_points, fill=color)
+    
+    side_flame_color = (255, 150, 0, 150)
+    side_flame_size = width // 8
+    
+    draw.ellipse([
+        (center_x - width // 2 - side_flame_size, flame_y - side_flame_size),
+        (center_x - width // 2, flame_y + side_flame_size)
+    ], fill=side_flame_color)
+    
+    draw.ellipse([
+        (center_x + width // 2, flame_y - side_flame_size),
+        (center_x + width // 2 + side_flame_size, flame_y + side_flame_size)
+    ], fill=side_flame_color)
+
+def _draw_mini_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, window_size: int):
+    """迷你火箭表情"""
+    eye_color = (255, 255, 255, 255)
+    eye_radius = window_size // 6
+    
+    draw.ellipse([
+        (center_x - window_size // 4 - eye_radius, center_y - eye_radius),
+        (center_x - window_size // 4 + eye_radius, center_y + eye_radius)
+    ], fill=eye_color)
+    
+    draw.ellipse([
+        (center_x + window_size // 4 - eye_radius, center_y - eye_radius),
+        (center_x + window_size // 4 + eye_radius, center_y + eye_radius)
+    ], fill=eye_color)
+    
+    pupil_color = (50, 50, 50, 255)
+    pupil_radius = eye_radius // 2
+    
+    draw.ellipse([
+        (center_x - window_size // 4 - pupil_radius, center_y - pupil_radius),
+        (center_x - window_size // 4 + pupil_radius, center_y + pupil_radius)
+    ], fill=pupil_color)
+    
+    draw.ellipse([
+        (center_x + window_size // 4 - pupil_radius, center_y - pupil_radius),
+        (center_x + window_size // 4 + pupil_radius, center_y + pupil_radius)
+    ], fill=pupil_color)
+    
+    highlight_color = (255, 255, 255, 255)
+    highlight_size = pupil_radius // 3
+    
+    draw.ellipse([
+        (center_x - window_size // 4 - highlight_size, center_y - highlight_size),
+        (center_x - window_size // 4 + highlight_size, center_y + highlight_size)
+    ], fill=highlight_color)
+    
+    draw.ellipse([
+        (center_x + window_size // 4 - highlight_size, center_y - highlight_size),
+        (center_x + window_size // 4 + highlight_size, center_y + highlight_size)
+    ], fill=highlight_color)
+    
+    mouth_color = (255, 100, 100, 255)
+    mouth_radius = window_size // 8
+    
+    draw.ellipse([
+        (center_x - mouth_radius, center_y + window_size // 6 - mouth_radius),
+        (center_x + mouth_radius, center_y + window_size // 6 + mouth_radius)
+    ], fill=mouth_color)
+
+def _draw_mini_flames(self, draw: ImageDraw.Draw, center_x: int, flame_y: int, width: int):
+    """迷你火箭火焰效果"""
+    flame_colors = [
+        (255, 200, 100, 255),
+        (255, 150, 100, 200),
+        (255, 100, 150, 150)
+    ]
+    
+    for i, color in enumerate(flame_colors):
+        flame_height = 20 - i * 5
+        flame_width = width // 4 - i * 3
+        
+        flame_points = [
+            (center_x - flame_width // 2, flame_y),
+            (center_x - flame_width // 4, flame_y + flame_height // 2),
+            (center_x, flame_y + flame_height),
+            (center_x + flame_width // 4, flame_y + flame_height // 2),
+            (center_x + flame_width // 2, flame_y)
+        ]
+        draw.polygon(flame_points, fill=color)
+    
+    star_color = (255, 255, 100, 150)
+    star_size = 3
+    
+    star_x = center_x - width // 3
+    star_y = flame_y + 15
+    self._draw_cute_star(draw, star_x, star_y, star_size, star_color)
+    
+    star_x = center_x + width // 3
+    star_y = flame_y + 15
+    self._draw_cute_star(draw, star_x, star_y, star_size, star_color)
+
+# 將函數添加到 RichMenuImageGenerator 類
+RichMenuImageGenerator._draw_shuttle_face = _draw_shuttle_face
+RichMenuImageGenerator._draw_shuttle_flames = _draw_shuttle_flames
+RichMenuImageGenerator._draw_mini_face = _draw_mini_face
+RichMenuImageGenerator._draw_mini_flames = _draw_mini_flames
+
+def _draw_moon_detailed(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int], moon_style: str = "classic"):
+    """
+    繪製塗鴉風格的月球 - 支持多種樣式
+    """
+    if moon_style == "classic":
+        self._draw_classic_moon(draw, center_x, center_y, radius, base_color)
+    elif moon_style == "sleepy":
+        self._draw_sleepy_moon(draw, center_x, center_y, radius, base_color)
+    elif moon_style == "crescent":
+        self._draw_crescent_moon(draw, center_x, center_y, radius, base_color)
+    elif moon_style == "kawaii":
+        self._draw_kawaii_moon(draw, center_x, center_y, radius, base_color)
+    elif moon_style == "mystical":
+        self._draw_mystical_moon(draw, center_x, center_y, radius, base_color)
+    else:
+        self._draw_classic_moon(draw, center_x, center_y, radius, base_color)
+    
+def _draw_classic_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
+    """
+    經典月亮樣式 - 去除背後圓圈線條
+    """
+    # 月球主體 - 淡灰色
+    moon_color = (220, 220, 220)
+    draw.ellipse([
+        (center_x - radius, center_y - radius),
+        (center_x + radius, center_y + radius)
+    ], fill=moon_color)
+    
+    # 手繪風格的隕石坑
+    crater_color = (180, 180, 180)
+    
+    # 大隕石坑
+    large_craters = [
+        (center_x - radius * 0.3, center_y - radius * 0.2, 15),
+        (center_x + radius * 0.2, center_y + radius * 0.3, 12),
+        (center_x - radius * 0.1, center_y + radius * 0.1, 10)
+    ]
+    
+    for crater_x, crater_y, crater_size in large_craters:
+        if (crater_x - center_x)**2 + (crater_y - center_y)**2 <= (radius * 0.8)**2:
+            draw.ellipse([
+                (crater_x - crater_size, crater_y - crater_size),
+                (crater_x + crater_size, crater_y + crater_size)
+            ], fill=crater_color)
+    
+    # 小隕石坑
+    for _ in range(8):
+        crater_x = center_x + random.randint(-radius//2, radius//2)
+        crater_y = center_y + random.randint(-radius//2, radius//2)
+        crater_size = random.randint(3, 8)
+        
+        if (crater_x - center_x)**2 + (crater_y - center_y)**2 <= (radius * 0.8)**2:
+            draw.ellipse([
+                (crater_x - crater_size, crater_y - crater_size),
+                (crater_x + crater_size, crater_y + crater_size)
+            ], fill=crater_color)
+    
+    # 月亮表情
+    self._draw_moon_face(draw, center_x, center_y, radius)
+    
+def _draw_sleepy_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
+    """
+    睡覺月亮樣式 - 經典睡眠表情
+    """
+    # 月球主體
+    moon_color = (230, 230, 230)
+    draw.ellipse([
+        (center_x - radius, center_y - radius),
+        (center_x + radius, center_y + radius)
+    ], fill=moon_color)
+    
+    # 簡單隕石坑
+    crater_color = (190, 190, 190)
+    for _ in range(6):
+        crater_x = center_x + random.randint(-radius//3, radius//3)
+        crater_y = center_y + random.randint(-radius//3, radius//3)
+        crater_size = random.randint(5, 12)
+        
+        draw.ellipse([
+            (crater_x - crater_size, crater_y - crater_size),
+            (crater_x + crater_size, crater_y + crater_size)
+        ], fill=crater_color)
+    
+    # 睡覺表情
+    self._draw_sleepy_moon_face(draw, center_x, center_y, radius)
+    
+    # ZZZ 效果
+    self._draw_zzz_effect(draw, center_x, center_y, radius)
+    
+def _draw_crescent_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
+    """
+    月牙樣式
+    """
+    # 月牙形狀
+    moon_color = (240, 240, 240)
+    
+    # 主圓
+    draw.ellipse([
+        (center_x - radius, center_y - radius),
+        (center_x + radius, center_y + radius)
+    ], fill=moon_color)
+    
+    # 遮擋圓創造月牙效果
+    mask_radius = int(radius * 0.8)
+    mask_x = center_x + radius // 3
+    draw.ellipse([
+        (mask_x - mask_radius, center_y - mask_radius),
+        (mask_x + mask_radius, center_y + mask_radius)
+    ], fill=(47, 47, 79))  # 夜空色
+    
+    # 月牙上的隕石坑
+    crater_color = (200, 200, 200)
+    craters = [
+        (center_x - radius * 0.4, center_y - radius * 0.3, 8),
+        (center_x - radius * 0.2, center_y + radius * 0.2, 6),
+        (center_x - radius * 0.6, center_y, 5)
+    ]
+    
+    for crater_x, crater_y, crater_size in craters:
+        # 檢查是否在月牙可見區域
+        if (crater_x - center_x)**2 + (crater_y - center_y)**2 <= radius**2:
+            if (crater_x - mask_x)**2 + (crater_y - center_y)**2 > mask_radius**2:
+                draw.ellipse([
+                    (crater_x - crater_size, crater_y - crater_size),
+                    (crater_x + crater_size, crater_y + crater_size)
+                ], fill=crater_color)
+    
+    # 月牙表情
+    self._draw_crescent_moon_face(draw, center_x, center_y, radius)
+    
+def _draw_kawaii_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
+    """
+    可愛日系月亮樣式
+    """
+    # 月球主體（稍微扁平）
+    moon_color = (250, 250, 250)
+    draw.ellipse([
+        (center_x - radius, center_y - int(radius * 0.9)),
+        (center_x + radius, center_y + int(radius * 0.9))
+    ], fill=moon_color)
+    
+    # 心形隕石坑
+    heart_crater_color = (220, 220, 220)
+    heart_positions = [
+        (center_x - radius * 0.3, center_y - radius * 0.2),
+        (center_x + radius * 0.2, center_y + radius * 0.3)
+    ]
+    
+    for heart_x, heart_y in heart_positions:
+        self._draw_heart_crater(draw, heart_x, heart_y, 12, heart_crater_color)
+    
+    # 星星隕石坑
+    star_crater_color = (210, 210, 210)
+    for i in range(4):
+        star_x = center_x + radius * 0.5 * math.cos(i * math.pi / 2)
+        star_y = center_y + radius * 0.5 * math.sin(i * math.pi / 2)
+        self._draw_star_crater(draw, star_x, star_y, 8, star_crater_color)
+    
+    # 可愛表情
+    self._draw_kawaii_moon_face(draw, center_x, center_y, radius)
+    
+def _draw_mystical_moon(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int, base_color: Tuple[int, int, int]):
+    """
+    神秘月球樣式 - 魔法風格
+    """
+    # 主體（深色神秘色彩）
+    draw.ellipse([
+        (center_x - radius, center_y - radius),
+        (center_x + radius, center_y + radius)
+    ], fill=(100, 100, 150))
+    
+    # 隕石坑（神秘符號）
+    crater_positions = [
+        (center_x - radius//3, center_y - radius//3, radius//8),
+        (center_x + radius//4, center_y - radius//4, radius//10),
+        (center_x - radius//4, center_y + radius//3, radius//12),
+        (center_x + radius//3, center_y + radius//4, radius//9)
+    ]
+    
+    for crater_x, crater_y, crater_size in crater_positions:
+        # 繪製星形符號
+        self._draw_star_symbol(draw, crater_x, crater_y, crater_size, (80, 80, 120))
+    
+    # 神秘眼睛
+    eye_size = radius // 5
+    draw.ellipse([
+        (center_x - radius//4 - eye_size, center_y - radius//6 - eye_size),
+        (center_x - radius//4 + eye_size, center_y - radius//6 + eye_size)
+    ], fill=(200, 200, 255))
+    draw.ellipse([
+        (center_x + radius//4 - eye_size, center_y - radius//6 - eye_size),
+        (center_x + radius//4 + eye_size, center_y - radius//6 + eye_size)
+    ], fill=(200, 200, 255))
+    
+    # 瞳孔
+    pupil_size = eye_size // 2
+    draw.ellipse([
+        (center_x - radius//4 - pupil_size, center_y - radius//6 - pupil_size),
+        (center_x - radius//4 + pupil_size, center_y - radius//6 + pupil_size)
+    ], fill=(50, 50, 100))
+    draw.ellipse([
+        (center_x + radius//4 - pupil_size, center_y - radius//6 - pupil_size),
+        (center_x + radius//4 + pupil_size, center_y - radius//6 + pupil_size)
+    ], fill=(50, 50, 100))
+    
+    # 神秘微笑
+    mouth_width = radius // 3
+    draw.arc([
+        (center_x - mouth_width, center_y + radius//6),
+        (center_x + mouth_width, center_y + radius//6 + mouth_width)
+    ], 0, 180, fill=(150, 150, 200), width=4)
+    
+    # 周圍魔法星星
+    for i in range(6):
+        angle = i * 60
+        angle_rad = math.radians(angle)
+        star_x = center_x + (radius + 30) * math.cos(angle_rad)
+        star_y = center_y + (radius + 30) * math.sin(angle_rad)
+        self._draw_star_symbol(draw, star_x, star_y, 8, (200, 200, 255))
+    
+    def _draw_star_symbol(self, draw: ImageDraw.Draw, center_x: int, center_y: int, size: int, color: Tuple[int, int, int]):
+        """繪製星形符號"""
+        points = []
+        for i in range(10):
+            angle = i * 36
+            angle_rad = math.radians(angle)
+            if i % 2 == 0:
+                r = size
+            else:
+                r = size // 2
+            x = center_x + r * math.cos(angle_rad)
+            y = center_y + r * math.sin(angle_rad)
+            points.append((x, y))
+        
+        draw.polygon(points, fill=color)
+
+    def _draw_sun_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
+        """繪製太陽表情 - 溫暖友善"""
+        # 眼睛
+        eye_size = radius // 6
+        draw.ellipse([
+            (center_x - radius//3 - eye_size, center_y - radius//4 - eye_size),
+            (center_x - radius//3 + eye_size, center_y - radius//4 + eye_size)
+        ], fill=(0, 0, 0))
+        draw.ellipse([
+            (center_x + radius//3 - eye_size, center_y - radius//4 - eye_size),
+            (center_x + radius//3 + eye_size, center_y - radius//4 + eye_size)
+        ], fill=(0, 0, 0))
+        
+        # 微笑
+        mouth_width = radius // 2
+        draw.arc([
+            (center_x - mouth_width, center_y),
+            (center_x + mouth_width, center_y + mouth_width)
+        ], 0, 180, fill=(255, 100, 100), width=5)
+
+    def _draw_simple_sun_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
+        """繪製簡單太陽表情"""
+        # 簡單的點眼睛
+        eye_size = radius // 8
+        draw.ellipse([
+            (center_x - radius//4 - eye_size, center_y - radius//5 - eye_size),
+            (center_x - radius//4 + eye_size, center_y - radius//5 + eye_size)
+        ], fill=(0, 0, 0))
+        draw.ellipse([
+            (center_x + radius//4 - eye_size, center_y - radius//5 - eye_size),
+            (center_x + radius//4 + eye_size, center_y - radius//5 + eye_size)
+        ], fill=(0, 0, 0))
+        
+        # 簡單微笑
+        mouth_width = radius // 3
+        draw.arc([
+            (center_x - mouth_width, center_y + radius//6),
+            (center_x + mouth_width, center_y + radius//6 + mouth_width//2)
+        ], 0, 180, fill=(255, 150, 0), width=4)
+
+    def _draw_modern_sun_face(self, draw: ImageDraw.Draw, center_x: int, center_y: int, radius: int):
+        """繪製現代太陽表情 - 幾何風格"""
+        # 三角形眼睛
+        eye_size = radius // 6
+        # 左眼
+        draw.polygon([
+            (center_x - radius//3, center_y - radius//4 - eye_size),
+            (center_x - radius//3 - eye_size, center_y - radius//4 + eye_size),
+            (center_x - radius//3 + eye_size, center_y - radius//4 + eye_size)
+        ], fill=(0, 0, 0))
+        # 右眼
+        draw.polygon([
+            (center_x + radius//3, center_y - radius//4 - eye_size),
+            (center_x + radius//3 - eye_size, center_y - radius//4 + eye_size),
+            (center_x + radius//3 + eye_size, center_y - radius//4 + eye_size)
+        ], fill=(0, 0, 0))
+        
+        # 幾何微笑
+        mouth_width = radius // 3
+        draw.polygon([
+            (center_x - mouth_width, center_y + radius//6),
+            (center_x, center_y + radius//3),
+            (center_x + mouth_width, center_y + radius//6)
+        ], fill=(255, 100, 0))

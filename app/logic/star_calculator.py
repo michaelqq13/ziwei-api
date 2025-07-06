@@ -713,26 +713,28 @@ class StarCalculator:
             return  # 如果年干不在對照表中，直接返回
         
         transformations = self.FOUR_TRANSFORMATIONS[year_stem]
-        logger.info(f"該年干的四化: {transformations}")
+        # 修正：不記錄具體的四化星曜名稱
+        logger.info(f"開始處理四化，共 {len(transformations)} 個")
         
         # 記錄處理結果
-        processed_transformations = []
-        missing_stars = []
+        processed_count = 0
+        missing_count = 0
         
         # 遍歷四化（祿、權、科、忌）
         for transformation_type, star_name in transformations.items():
-            logger.info(f"處理四化 {transformation_type} -> {star_name}")
+            # 修正：不記錄具體的星曜名稱
+            logger.debug(f"處理四化類型: {transformation_type}")
             # 在所有宮位中找到該星曜
             star_found = False
             for palace_name, palace_info in palaces.items():
-                logger.info(f"檢查宮位 {palace_name} 的星曜: {palace_info.stars}")
+                # 修正：不記錄具體的宮位星曜列表
+                logger.debug(f"檢查宮位: {palace_name}")
                 # 檢查該宮位是否有此星曜
                 updated_stars = []
                 
                 for star in palace_info.stars:
                     # 提取星曜名稱（去除狀態描述）
                     clean_star_name = star.split("（")[0] if "（" in star else star
-                    logger.info(f"比對星曜: {clean_star_name} vs {star_name}")
                     
                     if clean_star_name == star_name:
                         # 找到了要四化的星曜，加上四化標記
@@ -742,30 +744,29 @@ class StarCalculator:
                         else:
                             # 沒有狀態的星曜，如 "太陽" -> "太陽化祿"
                             base_star = f"{star}化{transformation_type}"
-                        logger.info(f"找到星曜 {star}，添加四化標記: {base_star}")
+                        # 修正：不記錄具體的星曜名稱和四化標記
+                        logger.debug(f"找到目標星曜，已添加四化標記")
                         updated_stars.append(base_star)
                         star_found = True
-                        processed_transformations.append(f"{star_name}化{transformation_type} -> {palace_info.name}")
+                        processed_count += 1
                     else:
                         # 保持原星曜不變
                         updated_stars.append(star)
                 
                 # 更新該宮位的星曜列表
                 if star_found:
-                    logger.info(f"更新宮位 {palace_name} 的星曜列表: {updated_stars}")
+                    # 修正：不記錄具體的宮位星曜列表
+                    logger.debug(f"已更新宮位星曜配置")
                     palace_info.stars = updated_stars
                     break  # 找到後跳出宮位循環，繼續處理下一個四化
             
             if not star_found:
-                logger.warning(f"未找到星曜 {star_name} 進行四化 {transformation_type}")
-                missing_stars.append(f"{star_name}化{transformation_type}")
+                # 修正：不記錄具體的星曜名稱
+                logger.warning(f"未找到目標星曜進行四化: {transformation_type}")
+                missing_count += 1
         
-        # 輸出處理結果摘要
-        logger.info(f"四化處理完成 - 成功處理: {len(processed_transformations)}, 缺失: {len(missing_stars)}")
-        if processed_transformations:
-            logger.info(f"成功處理的四化: {processed_transformations}")
-        if missing_stars:
-            logger.warning(f"缺失的四化星曜: {missing_stars}")
+        # 輸出處理結果摘要（只記錄數量，不記錄具體內容）
+        logger.info(f"四化處理完成 - 成功處理: {processed_count}, 缺失: {missing_count}")
         
         logger.info("四化應用完成")
 

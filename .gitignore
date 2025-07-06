@@ -80,10 +80,6 @@ data/calendar_data_1900-2100.csv
 data/calendar_data_current.csv
 *.csv
 
-# Large JSON data files
-ganzhi-service/data/complete_ganzhi_data.json
-ganzhi-service/data/*.json
-
 # Database files
 *.db
 *.sqlite3

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 # 項目模組導入
 from app.utils.chinese_calendar import ChineseCalendar
+from app.services.sixtail_service import sixtail_service  # 新增6tail服務
 from app.models.birth_info import BirthInfo
 from app.models.calendar import CalendarData  # 統一使用 calendar 模型
 from app.logic.star_calculator import StarCalculator
@@ -53,7 +54,7 @@ class PurpleStarChart:
             minute: 分鐘（可選，如果提供 birth_info 則不需要）
             gender: 性別（可選，如果提供 birth_info 則不需要）
             birth_info: BirthInfo 對象（可選，如果提供年月日時分和性別則不需要）
-            db: 數據庫會話（可選，如果沒有提供則使用簡化模式）
+            db: 數據庫會話（保留參數以維持API兼容性，但不再使用）
         """
         if birth_info:
             self.birth_info = birth_info
@@ -69,14 +70,12 @@ class PurpleStarChart:
                 latitude=25.0330     # 預設台北緯度
             )
         
-        # 數據庫會話現在是可選的
+        # 數據庫會話參數保留以維持API兼容性，但不再使用
         self.db = db
-        self.calendar_repo = CalendarRepository(db)
         self.star_calculator = StarCalculator()
         self.palaces: Dict[str, Palace] = {}
         self.calendar_data: Optional[CalendarData] = None
         self.palace_order: List[str] = []
-        # 強制使用數據庫模式初始化，已刪除簡化模式支持
         
         # 初始化命盤
         self.initialize()
@@ -105,50 +104,76 @@ class PurpleStarChart:
         logger.info("命盤初始化完成")
     
     def _initialize_normal_mode(self):
-        """正常模式初始化：使用數據庫中的準確農曆資料"""
-        # 1. 獲取農曆資料
-        logger.info(f"嘗試獲取農曆數據，查詢條件：{self.birth_info.year}-{self.birth_info.month}-{self.birth_info.day}")
+        """使用6tail服務初始化：獲取準確的農曆資料"""
+        logger.info(f"使用6tail服務獲取農曆數據，查詢條件：{self.birth_info.year}-{self.birth_info.month}-{self.birth_info.day} {self.birth_info.hour}:{self.birth_info.minute}")
         
-        self.calendar_data = self.calendar_repo.get_calendar_data(self.birth_info)
-        if not self.calendar_data:
-            logger.error("無法獲取對應的農曆數據")
-            logger.error(f"查詢條件詳情：年={self.birth_info.year}, 月={self.birth_info.month}, 日={self.birth_info.day}")
-            
-            # 嘗試查詢前後幾天的數據來診斷問題
+        # 使用6tail服務獲取完整時間資料
+        if sixtail_service.is_available():
             try:
-                # 直接使用已導入的 CalendarData，不需要重新導入
-                nearby_records = self.calendar_repo.db_session.query(CalendarData).filter(
-                    CalendarData.gregorian_year == self.birth_info.year,
-                    CalendarData.gregorian_month == self.birth_info.month,
-                    CalendarData.gregorian_day.between(self.birth_info.day - 2, self.birth_info.day + 2)
-                ).all()
+                # 從6tail服務獲取完整資料
+                sixtail_data = sixtail_service.get_complete_info(
+                    self.birth_info.year, 
+                    self.birth_info.month, 
+                    self.birth_info.day,
+                    self.birth_info.hour,
+                    self.birth_info.minute
+                )
                 
-                logger.error(f"附近日期的記錄數量：{len(nearby_records)}")
-                if nearby_records:
-                    for record in nearby_records[:3]:  # 只顯示前3筆
-                        logger.error(f"  可用記錄：{record.gregorian_year}-{record.gregorian_month}-{record.gregorian_day} {record.gregorian_hour}:00")
-                else:
-                    logger.error("附近日期也沒有任何記錄")
-                    
-                # 查詢整個數據庫的記錄數量
-                total_records = self.calendar_repo.db_session.query(CalendarData).count()
-                logger.error(f"數據庫總記錄數：{total_records}")
+                # 創建兼容的calendar_data對象
+                self.calendar_data = self._create_calendar_data_from_sixtail(sixtail_data)
                 
-            except Exception as debug_error:
-                logger.error(f"調試查詢失敗：{debug_error}")
-            
-            raise ValueError("無法獲取對應的農曆數據")
-            
-        logger.info(f"獲取到農曆數據: {self.calendar_data.__dict__}")
-            
-        # 在此計算並添加分鐘干支
-        # 使用日干和時辰來計算時干
-        day_stem = self.calendar_data.day_gan_zhi[0]  # 取日干
-        hour_stem = ChineseCalendar.get_hour_stem(self.birth_info.hour, day_stem)  # 基於日干計算時干
-        minute_branch = ChineseCalendar.get_minute_branch(self.birth_info.hour, self.birth_info.minute)
-        self.calendar_data.minute_gan_zhi = f"{hour_stem}{minute_branch}"
+                logger.info(f"成功從6tail服務獲取農曆數據")
+                logger.info(f"年干支: {self.calendar_data.year_gan_zhi}")
+                logger.info(f"月干支: {self.calendar_data.month_gan_zhi}")
+                logger.info(f"日干支: {self.calendar_data.day_gan_zhi}")
+                logger.info(f"時干支: {self.calendar_data.hour_gan_zhi}")
+                logger.info(f"農曆: {self.calendar_data.lunar_month_in_chinese}{self.calendar_data.lunar_day_in_chinese}")
+                
+            except RuntimeError as e:
+                # 6tail服務拋出的維修模式錯誤
+                logger.error(f"6tail服務進入維修模式: {e}")
+                raise e
+            except Exception as e:
+                logger.error(f"6tail服務獲取資料失敗: {e}")
+                raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
+                
+        else:
+            logger.error("6tail服務不可用，系統進入維修模式")
+            raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
+    
+    def _create_calendar_data_from_sixtail(self, sixtail_data: Dict) -> CalendarData:
+        """從6tail數據創建兼容的CalendarData對象"""
+        # 創建一個模擬的CalendarData對象
+        calendar_data = CalendarData()
         
-        logger.info(f"計算分鐘干支: {self.calendar_data.minute_gan_zhi}")
+        # 基本時間資料
+        calendar_data.gregorian_year = self.birth_info.year
+        calendar_data.gregorian_month = self.birth_info.month
+        calendar_data.gregorian_day = self.birth_info.day
+        calendar_data.gregorian_hour = self.birth_info.hour
+        calendar_data.gregorian_minute = self.birth_info.minute
+        
+        # 干支資料
+        ganzhi = sixtail_data.get("ganzhi", {})
+        calendar_data.year_gan_zhi = ganzhi.get("year", "甲子")
+        calendar_data.month_gan_zhi = ganzhi.get("month", "甲子")
+        calendar_data.day_gan_zhi = ganzhi.get("day", "甲子")
+        calendar_data.hour_gan_zhi = ganzhi.get("hour", "甲子")
+        
+        # 計算分干支 (6tail系統沒有分干支，使用時干支)
+        calendar_data.minute_gan_zhi = ganzhi.get("hour", "甲子")
+        
+        # 農曆資料
+        lunar = sixtail_data.get("lunar", {})
+        calendar_data.lunar_month_in_chinese = lunar.get("month_chinese", "正月")
+        calendar_data.lunar_day_in_chinese = lunar.get("day_chinese", "初一")
+        calendar_data.lunar_year_in_chinese = lunar.get("year_chinese", "甲子年")
+        
+        # 其他資料
+        calendar_data.solar_term = sixtail_data.get("solar_term", "")
+        calendar_data.data_source = "6tail"
+        
+        return calendar_data
     
     def _calculate_ming_palace(self):
         """計算命宮位置"""

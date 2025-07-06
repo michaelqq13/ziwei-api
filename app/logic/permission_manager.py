@@ -64,6 +64,10 @@ class PermissionManager:
             user.membership_level = LineBotConfig.MembershipLevel.ADMIN
             user.updated_at = datetime.utcnow()
             db.commit()
+            
+            # 自動更新 Rich Menu
+            self._update_user_rich_menu(line_user_id, is_admin=True)
+            
             return True
         return False
     
@@ -77,6 +81,14 @@ class PermissionManager:
             user.membership_level = LineBotConfig.MembershipLevel.ADMIN
             user.updated_at = datetime.utcnow()
             db.commit()
+            
+            # 自動更新 Rich Menu
+            try:
+                from app.utils.rich_menu_manager import update_user_rich_menu
+                update_user_rich_menu(line_user_id, is_admin=True)
+            except Exception as e:
+                logger.warning(f"更新管理員 Rich Menu 失敗: {e}")
+            
             return True
         return False
     
@@ -129,10 +141,18 @@ class PermissionManager:
             }
         
         # 免費會員檢查週限制
-        week_start = datetime.utcnow() - timedelta(days=7)
-        weekly_count = db.query(DivinationHistory).filter(
-            DivinationHistory.user_id == user.id,
-            DivinationHistory.created_at >= week_start
+        from app.models.divination import DivinationRecord
+        
+        # 計算本週開始日期
+        today = datetime.utcnow()
+        days_since_monday = today.weekday()
+        week_start = today - timedelta(days=days_since_monday)
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # 檢查本週占卜次數
+        weekly_count = db.query(DivinationRecord).filter(
+            DivinationRecord.user_id == user.line_user_id,  # 使用 line_user_id 而不是 id
+            DivinationRecord.week_start_date == week_start.date()
         ).count()
         
         remaining = LineBotConfig.FREE_DIVINATION_WEEKLY_LIMIT - weekly_count
@@ -201,16 +221,23 @@ class PermissionManager:
         """
         獲取用戶統計資訊
         """
+        from app.models.divination import DivinationRecord
+        from datetime import datetime, timedelta
+        
         # 占卜統計
-        total_divinations = db.query(DivinationHistory).filter(
-            DivinationHistory.user_id == user.id
+        total_divinations = db.query(DivinationRecord).filter(
+            DivinationRecord.user_id == user.line_user_id
         ).count()
         
         # 本週占卜次數
-        week_start = datetime.utcnow() - timedelta(days=7)
-        weekly_divinations = db.query(DivinationHistory).filter(
-            DivinationHistory.user_id == user.id,
-            DivinationHistory.created_at >= week_start
+        today = datetime.utcnow()
+        days_since_monday = today.weekday()
+        week_start = today - timedelta(days=days_since_monday)
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        weekly_divinations = db.query(DivinationRecord).filter(
+            DivinationRecord.user_id == user.line_user_id,
+            DivinationRecord.week_start_date == week_start.date()
         ).count()
         
         # 權限檢查
@@ -221,6 +248,8 @@ class PermissionManager:
                 "line_user_id": user.line_user_id,
                 "display_name": user.display_name,
                 "membership_level": user.membership_level,
+                "is_admin": user.is_admin(),
+                "is_premium": user.is_premium(),
                 "created_at": user.created_at.isoformat(),
                 "last_active_at": user.last_active_at.isoformat()
             },
@@ -287,6 +316,36 @@ class PermissionManager:
                 return f"❌ {feature_name}功能需要付費會員\n\n目前等級：{self._get_level_name(permission_result['current_level'])}\n請聯繫管理員升級會員"
             else:
                 return f"❌ 無法使用{feature_name}功能"
+    
+    def downgrade_from_admin(self, db: Session, line_user_id: str) -> bool:
+        """
+        從管理員降級為付費會員
+        """
+        user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+        if user and user.membership_level == LineBotConfig.MembershipLevel.ADMIN:
+            user.membership_level = LineBotConfig.MembershipLevel.PREMIUM
+            user.updated_at = datetime.utcnow()
+            db.commit()
+            
+            # 自動更新 Rich Menu
+            self._update_user_rich_menu(line_user_id, is_admin=False)
+            
+            return True
+        return False
+    
+    def _update_user_rich_menu(self, line_user_id: str, is_admin: bool) -> None:
+        """
+        更新用戶的 Rich Menu（私有方法）
+        """
+        try:
+            from app.utils.rich_menu_manager import update_user_rich_menu
+            success = update_user_rich_menu(line_user_id, is_admin)
+            if success:
+                logger.info(f"成功更新用戶 {line_user_id} 的 Rich Menu (管理員: {is_admin})")
+            else:
+                logger.warning(f"更新用戶 {line_user_id} Rich Menu 失敗")
+        except Exception as e:
+            logger.error(f"更新用戶 {line_user_id} Rich Menu 時發生錯誤: {e}")
 
 # 全局實例
 permission_manager = PermissionManager()

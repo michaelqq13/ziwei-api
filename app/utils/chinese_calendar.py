@@ -1,7 +1,7 @@
 from typing import Tuple, Dict, List
 
 class ChineseCalendar:
-    """中國曆法工具類"""
+    """中國曆法工具類 - 簡化版本，準備整合6tail系統"""
     
     # 天干
     HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
@@ -59,14 +59,7 @@ class ChineseCalendar:
 
     @classmethod
     def parse_chinese_day(cls, chinese_day: str) -> int:
-        """解析中文日期為數字
-        
-        Args:
-            chinese_day: 中文日期，如"初一"、"十五"、"廿九"等
-            
-        Returns:
-            對應的數字日期
-        """
+        """解析中文日期為數字"""
         # 去除"日"字
         day_str = chinese_day.replace('日', '')
         
@@ -121,14 +114,7 @@ class ChineseCalendar:
     
     @classmethod
     def get_palace_stems(cls, year_stem: str) -> Dict[str, str]:
-        """根據生年天干計算各宮位天干
-        
-        Args:
-            year_stem: 生年天干
-            
-        Returns:
-            各地支對應的天干字典
-        """
+        """根據生年天干計算各宮位天干"""
         # 獲取寅位的起始天干
         yin_stem = cls.PALACE_STEM_START[year_stem]
         yin_stem_index = cls.HEAVENLY_STEMS.index(yin_stem)
@@ -148,28 +134,13 @@ class ChineseCalendar:
     
     @classmethod
     def get_palace_order(cls, gender: str, start_branch: str) -> list:
-        """獲取宮位順序
-        
-        Args:
-            gender: 'M' 為男，'F' 為女（保留參數以維持接口兼容性，但不再使用）
-            start_branch: 起始地支（命宮地支）
-            
-        Returns:
-            固定的十二地支順序（地支位置永遠不變）
-        """
+        """獲取宮位順序"""
         # 地支位置永遠固定，按照紫微斗數盤的標準排列
-        # 順序：子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥
         return cls.EARTHLY_BRANCHES
     
     @classmethod
     def get_element_relationship(cls, element1: str, element2: str) -> str:
-        """獲取五行關係
-        
-        Returns:
-            '生' - 相生
-            '剋' - 相剋
-            '同' - 相同
-        """
+        """獲取五行關係"""
         if element1 == element2:
             return "同"
             
@@ -184,224 +155,8 @@ class ChineseCalendar:
         return relationships[element1][element2]
 
     @classmethod
-    def parse_chinese_month(cls, chinese_month: str) -> int:
-        """解析中文月份為數字
-        
-        Args:
-            chinese_month: 中文月份，如"正月"、"二月"、"五月"、"闰三月"等
-            
-        Returns:
-            對應的數字月份
-        """
-        month_mapping = {
-            "正月": 1, "一月": 1,
-            "二月": 2, "三月": 3, "四月": 4, "五月": 5, "六月": 6,
-            "七月": 7, "八月": 8, "九月": 9, "十月": 10,
-            "十一月": 11, "冬月": 11,
-            "十二月": 12, "臘月": 12
-        }
-        
-        # 處理閏月的情況 - 去除"闰"字
-        clean_month = chinese_month.replace('闰', '').replace('閏', '')
-        
-        # 去除"月"字進行匹配
-        month_str = clean_month.replace('月', '') + '月'
-        
-        if month_str in month_mapping:
-            return month_mapping[month_str]
-        else:
-            # 如果無法識別，嘗試直接轉換
-            try:
-                return int(clean_month.replace('月', ''))
-            except ValueError:
-                raise ValueError(f"無法解析中文月份: {chinese_month}") 
-
-    @classmethod
-    def get_minute_branch(cls, hour: int, minute: int) -> str:
-        """根據時分獲取分支
-        
-        每個時辰120分鐘，等分成12段，每段10分鐘
-        按地支順序分配：0-9分鐘→子，10-19分鐘→丑，...，110-119分鐘→亥
-        """
-        # 計算在當前時辰內的總分鐘數（0-119）
-        # 每個時辰跨越兩個小時
-        if hour % 2 == 1:  # 奇數小時是時辰的前半段 (0-59分鐘)
-            minute_in_shichen = minute
-        else:  # 偶數小時是時辰的後半段 (60-119分鐘)  
-            minute_in_shichen = 60 + minute
-            
-        # 每10分鐘一個地支段 (0-11)
-        segment = minute_in_shichen // 10
-        
-        # 限制在0-11範圍內
-        segment = min(segment, 11)
-        
-        # 直接按地支順序分配：0→子，1→丑，2→寅，...，11→亥
-        return cls.EARTHLY_BRANCHES[segment]
-    
-    @classmethod
-    def get_hour_stem(cls, hour: int, day_stem: str = None) -> str:
-        """根據小時和日干獲取時干
-        
-        Args:
-            hour: 小時（0-23）
-            day_stem: 日干（如果提供，則基於日干計算時干）
-            
-        Returns:
-            對應的天干
-        """
-        if day_stem:
-            # 傳統時干起法：甲己起甲子、乙庚起丙子、丙辛起戊子、丁壬起庚子、戊癸起壬子
-            time_stem_sequences = {
-                "甲": ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙"],
-                "己": ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙"],
-                "乙": ["丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁"],
-                "庚": ["丙", "丁", "戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁"],
-                "丙": ["戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"],
-                "辛": ["戊", "己", "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"],
-                "丁": ["庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛"],
-                "壬": ["庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛"],
-                "戊": ["壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"],
-                "癸": ["壬", "癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
-            }
-            
-            if day_stem in time_stem_sequences:
-                # 獲取時支
-                hour_branch = cls.get_hour_branch(hour)
-                
-                # 時辰對應的索引
-                branch_to_index = {
-                    "子": 0, "丑": 1, "寅": 2, "卯": 3, "辰": 4, "巳": 5,
-                    "午": 6, "未": 7, "申": 8, "酉": 9, "戌": 10, "亥": 11
-                }
-                
-                hour_index = branch_to_index[hour_branch]
-                return time_stem_sequences[day_stem][hour_index]
-            else:
-                # 如果日干不在對照表中，使用原有邏輯
-                stem_start = {
-                    "甲": "甲", "己": "甲",  # 甲己日起甲
-                    "乙": "丙", "庚": "丙",  # 乙庚日起丙
-                    "丙": "戊", "辛": "戊",  # 丙辛日起戊
-                    "丁": "庚", "壬": "庚",  # 丁壬日起庚
-                    "戊": "壬", "癸": "壬"   # 戊癸日起壬
-                }.get(day_stem, "甲")
-                
-                start_index = cls.HEAVENLY_STEMS.index(stem_start)
-                hour_index = hour // 2
-                stem_index = (start_index + hour_index * 2) % 10
-                return cls.HEAVENLY_STEMS[stem_index]
-        else:
-            # 如果沒有提供日干，則使用簡化計算（不推薦）
-            stem_index = (hour // 2) % 10
-            return cls.HEAVENLY_STEMS[stem_index]
-    
-    @classmethod
-    def get_year_ganzhi(cls, year: int) -> str:
-        """計算年干支
-        
-        Args:
-            year: 西元年份
-            
-        Returns:
-            年干支字符串
-        """
-        # 甲子年為公元4年，每60年一循環
-        base_year = 4
-        cycle = (year - base_year) % 60
-        stem_index = cycle % 10
-        branch_index = cycle % 12
-        return cls.HEAVENLY_STEMS[stem_index] + cls.EARTHLY_BRANCHES[branch_index]
-    
-    @classmethod
-    def get_month_ganzhi(cls, year: int, month: int) -> str:
-        """計算月干支
-        
-        Args:
-            year: 西元年份
-            month: 月份（1-12）
-            
-        Returns:
-            月干支字符串
-        """
-        # 獲取年干
-        year_ganzhi = cls.get_year_ganzhi(year)
-        year_stem = year_ganzhi[0]
-        
-        # 計算月干
-        month_stem = cls.get_month_stem(year_stem, month)
-        
-        # 月支：正月為寅，按順序遞增
-        month_branch_index = (month + 1) % 12
-        month_branch = cls.EARTHLY_BRANCHES[month_branch_index]
-        
-        return month_stem + month_branch
-    
-    @classmethod
-    def get_day_ganzhi(cls, year: int, month: int, day: int) -> str:
-        """計算日干支
-        
-        Args:
-            year: 西元年份
-            month: 月份（1-12）
-            day: 日期（1-31）
-            
-        Returns:
-            日干支字符串
-        """
-        from datetime import date
-        try:
-            target_date = date(year, month, day)
-            # 使用1900年1月1日作為基準點（甲戌日）
-            # 這是一個已知的正確基準點
-            base_date = date(1900, 1, 1)
-            
-            # 計算天數差
-            days_diff = (target_date - base_date).days
-            
-            # 1900年1月1日 = 甲戌日
-            # 甲 = 0, 戌 = 10
-            base_stem_index = 0   # 甲
-            base_branch_index = 10  # 戌
-            
-            # 計算目標日期的干支索引
-            stem_index = (base_stem_index + days_diff) % 10
-            branch_index = (base_branch_index + days_diff) % 12
-            
-            return cls.HEAVENLY_STEMS[stem_index] + cls.EARTHLY_BRANCHES[branch_index]
-        except ValueError:
-            # 如果日期無效，返回默認值
-            return "甲子"
-    
-    @classmethod
-    def get_hour_ganzhi(cls, hour: int, day_stem: str) -> str:
-        """計算時干支
-        
-        Args:
-            hour: 小時（0-23）
-            day_stem: 日干
-            
-        Returns:
-            時干支字符串
-        """
-        # 獲取時干
-        hour_stem = cls.get_hour_stem(hour, day_stem)
-        
-        # 獲取時支
-        hour_branch = cls.get_hour_branch(hour)
-        
-        return hour_stem + hour_branch
-    
-    @classmethod
     def parse_chinese_month(cls, lunar_month: str) -> int:
-        """解析農曆月份為數字
-        
-        Args:
-            lunar_month: 農曆月份，如"正月"、"二月"等
-            
-        Returns:
-            對應的數字月份（1-12）
-        """
+        """解析農曆月份為數字"""
         month_mapping = {
             "正月": 1, "一月": 1,
             "二月": 2, "三月": 3, "四月": 4, "五月": 5, "六月": 6,
@@ -412,3 +167,39 @@ class ChineseCalendar:
         month_str = lunar_month.replace('月', '')
         
         return month_mapping.get(lunar_month, month_mapping.get(month_str, 1))
+
+    @classmethod
+    def get_minute_branch(cls, hour: int, minute: int) -> str:
+        """計算分鐘地支 - 將由6tail系統替代"""
+        # 暫時保留接口，實際計算將由6tail系統處理
+        hour_branch = cls.get_hour_branch(hour)
+        return hour_branch
+
+    @classmethod
+    def get_hour_stem(cls, hour: int, day_stem: str = None) -> str:
+        """計算時干 - 將由6tail系統替代"""
+        # 暫時保留接口，實際計算將由6tail系統處理
+        if day_stem:
+            return day_stem
+        return "甲"
+
+    # 以下方法標記為已棄用，將由6tail系統替代
+    @classmethod
+    def get_year_ganzhi(cls, year: int) -> str:
+        """已棄用 - 將由6tail系統替代"""
+        return "甲子"
+    
+    @classmethod
+    def get_month_ganzhi(cls, year: int, month: int) -> str:
+        """已棄用 - 將由6tail系統替代"""
+        return "甲子"
+    
+    @classmethod
+    def get_day_ganzhi(cls, year: int, month: int, day: int) -> str:
+        """已棄用 - 將由6tail系統替代"""
+        return "甲子"
+    
+    @classmethod
+    def get_hour_ganzhi(cls, hour: int, day_stem: str) -> str:
+        """已棄用 - 將由6tail系統替代"""
+        return "甲子"

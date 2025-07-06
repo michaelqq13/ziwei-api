@@ -6,7 +6,7 @@
 3. 四化解析 Carousel (4個四化)
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from linebot.v3.messaging import (
     FlexMessage, FlexContainer, FlexCarousel, FlexBubble,
     FlexBox, FlexText, FlexSeparator, FlexFiller, MessageAction
@@ -88,14 +88,16 @@ class DivinationFlexMessageGenerator:
     def generate_divination_messages(
         self, 
         result: Dict[str, Any], 
-        is_admin: bool = False
+        is_admin: bool = False,
+        user_type: str = "free"  # 新增用戶類型參數：admin, premium, free
     ) -> List[FlexMessage]:
         """
-        生成占卜結果消息列表
+        生成占卜結果消息列表 - 根據用戶類型控制顯示內容
         
         Args:
             result: 占卜結果數據
-            is_admin: 是否為管理員
+            is_admin: 是否為管理員（向下兼容）
+            user_type: 用戶類型 - "admin"(管理員), "premium"(付費會員), "free"(免費會員)
             
         Returns:
             List[FlexMessage]: 消息列表
@@ -103,17 +105,21 @@ class DivinationFlexMessageGenerator:
         messages = []
         
         try:
-            logger.info(f"開始生成占卜Flex消息 - 管理員: {is_admin}")
+            # 如果 is_admin 為 True，則覆蓋 user_type 為 admin
+            if is_admin:
+                user_type = "admin"
             
-            # 1. 基本資訊摘要 (所有用戶可見)
+            logger.info(f"開始生成占卜Flex消息 - 用戶類型: {user_type}")
+            
+            # 1. 基本資訊摘要 - 所有用戶都可見，但內容根據用戶類型不同
             logger.info("生成基本資訊摘要...")
-            summary_message = self._create_summary_message(result, is_admin)
+            summary_message = self._create_summary_message(result, user_type)
             if summary_message:
                 messages.append(summary_message)
                 logger.info("✅ 基本資訊摘要生成成功")
             
             # 2. 基本命盤資訊 (僅管理員可見)
-            if is_admin:
+            if user_type == "admin":
                 logger.info("生成基本命盤資訊Carousel...")
                 basic_chart_message = self._create_basic_chart_carousel(result)
                 if basic_chart_message:
@@ -123,7 +129,7 @@ class DivinationFlexMessageGenerator:
                     logger.warning("⚠️ 基本命盤資訊Carousel生成失敗")
             
             # 3. 太極點命宮資訊 (僅管理員可見)
-            if is_admin:
+            if user_type == "admin":
                 logger.info("生成太極點命宮資訊Carousel...")
                 taichi_message = self._create_taichi_palace_carousel(result)
                 if taichi_message:
@@ -132,9 +138,9 @@ class DivinationFlexMessageGenerator:
                 else:
                     logger.warning("⚠️ 太極點命宮資訊Carousel生成失敗")
             
-            # 4. 四化解析 (所有用戶可見)
+            # 4. 四化解析 (所有用戶可見，但內容不同)
             logger.info("生成四化解析Carousel...")
-            sihua_message = self._create_sihua_carousel(result)
+            sihua_message = self._create_sihua_carousel(result, user_type)
             if sihua_message:
                 messages.append(sihua_message)
                 logger.info("✅ 四化解析Carousel生成成功")
@@ -149,8 +155,8 @@ class DivinationFlexMessageGenerator:
             
         return messages
     
-    def _create_summary_message(self, result: Dict[str, Any], is_admin: bool) -> Optional[FlexMessage]:
-        """創建基本資訊摘要"""
+    def _create_summary_message(self, result: Dict[str, Any], user_type: str) -> Optional[FlexMessage]:
+        """創建基本資訊摘要 - 根據用戶類型顯示不同內容"""
         try:
             # 基本資訊
             gender_text = "男性" if result.get("gender") == "M" else "女性"
@@ -173,8 +179,65 @@ class DivinationFlexMessageGenerator:
             else:
                 time_str = "現在"
             
-            # 管理員標識
-            admin_badge = "👑 管理員" if is_admin else ""
+            # 根據用戶類型設置標識
+            if user_type == "admin":
+                badge = "👑 管理員"
+                badge_color = "#FFD700"
+            elif user_type == "premium":
+                badge = "💎 付費會員"
+                badge_color = "#9B59B6"
+            else:
+                badge = ""
+                badge_color = "#666666"
+            
+            # 構建基本資訊內容
+            basic_info_contents = [
+                FlexBox(
+                    layout="horizontal",
+                    contents=[
+                        FlexText(text="📅 時間", size="sm", color="#666666", flex=1),
+                        FlexText(text=time_str, size="sm", weight="bold", flex=2, align="end")
+                    ],
+                    margin="md"
+                ),
+                FlexBox(
+                    layout="horizontal",
+                    contents=[
+                        FlexText(text="👤 性別", size="sm", color="#666666", flex=1),
+                        FlexText(text=gender_text, size="sm", weight="bold", flex=2, align="end")
+                    ],
+                    margin="sm"
+                )
+            ]
+            
+            # 管理員顯示完整資訊
+            if user_type == "admin":
+                basic_info_contents.extend([
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexText(text="🏰 太極宮", size="sm", color="#666666", flex=1),
+                            FlexText(text=taichi_palace, size="sm", weight="bold", flex=2, align="end")
+                        ],
+                        margin="sm"
+                    ),
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexText(text="🕰️ 分鐘支", size="sm", color="#666666", flex=1),
+                            FlexText(text=minute_dizhi, size="sm", weight="bold", flex=2, align="end")
+                        ],
+                        margin="sm"
+                    ),
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexText(text="⭐ 宮干", size="sm", color="#666666", flex=1),
+                            FlexText(text=palace_tiangan, size="sm", weight="bold", flex=2, align="end")
+                        ],
+                        margin="sm"
+                    )
+                ])
             
             bubble = FlexBubble(
                 size="kilo",  # 使用更大的尺寸
@@ -193,12 +256,12 @@ class DivinationFlexMessageGenerator:
                                     flex=1
                                 ),
                                 FlexText(
-                                    text=admin_badge,
+                                    text=badge,
                                     size="sm",
-                                    color="#FFD700",
+                                    color=badge_color,
                                     align="end",
                                     flex=0
-                                ) if is_admin else FlexFiller()
+                                ) if badge else FlexFiller()
                             ]
                         ),
                         
@@ -207,48 +270,7 @@ class DivinationFlexMessageGenerator:
                         # 占卜基本資訊
                         FlexBox(
                             layout="vertical",
-                            contents=[
-                                FlexBox(
-                                    layout="horizontal",
-                                    contents=[
-                                        FlexText(text="📅 時間", size="sm", color="#666666", flex=1),
-                                        FlexText(text=time_str, size="sm", weight="bold", flex=2, align="end")
-                                    ],
-                                    margin="md"
-                                ),
-                                FlexBox(
-                                    layout="horizontal",
-                                    contents=[
-                                        FlexText(text="👤 性別", size="sm", color="#666666", flex=1),
-                                        FlexText(text=gender_text, size="sm", weight="bold", flex=2, align="end")
-                                    ],
-                                    margin="sm"
-                                ),
-                                FlexBox(
-                                    layout="horizontal",
-                                    contents=[
-                                        FlexText(text="🏰 太極宮", size="sm", color="#666666", flex=1),
-                                        FlexText(text=taichi_palace, size="sm", weight="bold", flex=2, align="end")
-                                    ],
-                                    margin="sm"
-                                ),
-                                FlexBox(
-                                    layout="horizontal",
-                                    contents=[
-                                        FlexText(text="🕰️ 分鐘支", size="sm", color="#666666", flex=1),
-                                        FlexText(text=minute_dizhi, size="sm", weight="bold", flex=2, align="end")
-                                    ],
-                                    margin="sm"
-                                ),
-                                FlexBox(
-                                    layout="horizontal",
-                                    contents=[
-                                        FlexText(text="⭐ 宮干", size="sm", color="#666666", flex=1),
-                                        FlexText(text=palace_tiangan, size="sm", weight="bold", flex=2, align="end")
-                                    ],
-                                    margin="sm"
-                                )
-                            ]
+                            contents=basic_info_contents
                         ),
                         
                         FlexSeparator(margin="md"),
@@ -370,7 +392,7 @@ class DivinationFlexMessageGenerator:
             logger.error(f"創建太極點Carousel失敗: {e}")
             return None
     
-    def _create_sihua_carousel(self, result: Dict[str, Any]) -> Optional[FlexMessage]:
+    def _create_sihua_carousel(self, result: Dict[str, Any], user_type: str) -> Optional[FlexMessage]:
         """創建四化解析 Carousel"""
         try:
             sihua_results = result.get("sihua_results", [])
@@ -391,7 +413,7 @@ class DivinationFlexMessageGenerator:
             for sihua_type in ["祿", "權", "科", "忌"]:
                 sihua_list = sihua_groups[sihua_type]
                 if sihua_list:
-                    bubble = self._create_sihua_bubble(sihua_type, sihua_list)
+                    bubble = self._create_sihua_bubble(sihua_type, sihua_list, user_type)
                     if bubble:
                         bubbles.append(bubble)
             
@@ -603,12 +625,12 @@ class DivinationFlexMessageGenerator:
                 )
             
             bubble = FlexBubble(
-                size="giga",  # 使用超大尺寸，確保內容不被遮擋
+                size="micro",  # 改為最小尺寸，縮小bubble寬度
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
                     spacing="none",
-                    paddingAll="lg"  # 增加內邊距，給內容更多空間
+                    paddingAll="md"  # 減少內邊距以配合小尺寸
                 ),
                 styles={
                     "body": {
@@ -623,8 +645,8 @@ class DivinationFlexMessageGenerator:
             logger.error(f"創建宮位bubble失敗: {e}")
             return None
     
-    def _create_sihua_bubble(self, sihua_type: str, sihua_list: List[Dict[str, Any]]) -> Optional[FlexBubble]:
-        """創建四化 bubble - 分層顯示設計"""
+    def _create_sihua_bubble(self, sihua_type: str, sihua_list: List[Dict[str, Any]], user_type: str) -> Optional[FlexBubble]:
+        """創建四化 bubble - 根據用戶類型控制顯示內容"""
         try:
             color = self.SIHUA_COLORS.get(sihua_type, "#95A5A6")
             emoji = self.SIHUA_EMOJIS.get(sihua_type, "⭐")
@@ -680,30 +702,56 @@ class DivinationFlexMessageGenerator:
                 if i > 0:
                     body_contents.append(FlexSeparator(margin="md"))
                 
-                # 星曜和宮位 - 核心信息
-                body_contents.append(
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexText(
-                                text=f"⭐ {star}",
-                                weight="bold",
-                                size="lg",  # 加大字體
-                                color="#333333",
-                                flex=2
-                            ),
-                            FlexText(
-                                text=f"📍 {palace}",
-                                size="lg",  # 加大字體
-                                color="#666666",
-                                weight="bold",
-                                flex=2,
-                                align="end"
-                            )
-                        ],
-                        margin="md"
+                # 根據用戶類型決定是否顯示星曜和宮位資訊
+                if user_type == "admin":
+                    # 管理員：顯示完整資訊
+                    body_contents.append(
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text=f"⭐ {star}",
+                                    weight="bold",
+                                    size="lg",  # 加大字體
+                                    color="#333333",
+                                    flex=2
+                                ),
+                                FlexText(
+                                    text=f"📍 {palace}",
+                                    size="lg",  # 加大字體
+                                    color="#666666",
+                                    weight="bold",
+                                    flex=2,
+                                    align="end"
+                                )
+                            ],
+                            margin="md"
+                        )
                     )
-                )
+                else:
+                    # 付費會員和免費會員：隱藏星曜和宮位資訊
+                    body_contents.append(
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text=f"🔒 {sihua_type}星 #{i+1}",
+                                    weight="bold",
+                                    size="lg",
+                                    color="#333333",
+                                    flex=1
+                                ),
+                                FlexText(
+                                    text="🔐 會員專屬",
+                                    size="sm",
+                                    color="#999999",
+                                    flex=1,
+                                    align="end"
+                                )
+                            ],
+                            margin="md"
+                        )
+                    )
                 
                 # 核心現象 - 只顯示最重要的信息
                 if explanation:
@@ -750,35 +798,63 @@ class DivinationFlexMessageGenerator:
                     )
                 )
             
-            # 第二層：展開按鈕
-            body_contents.append(
-                FlexBox(
-                    layout="vertical",
-                    contents=[
-                        FlexSeparator(margin="lg"),
-                        FlexBox(
-                            layout="horizontal",
-                            contents=[
-                                FlexText(
-                                    text="📖 查看完整解釋",
-                                    size="md",
-                                    color="#FFFFFF",
-                                    weight="bold",
-                                    align="center",
-                                    flex=1
+            # 第二層：展開按鈕（根據用戶類型決定是否顯示）
+            if user_type in ["admin", "premium"]:  # 管理員和付費會員可以查看完整解釋
+                body_contents.append(
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexSeparator(margin="lg"),
+                            FlexBox(
+                                layout="horizontal",
+                                contents=[
+                                    FlexText(
+                                        text="📖 查看完整解釋",
+                                        size="md",
+                                        color="#FFFFFF",
+                                        weight="bold",
+                                        align="center",
+                                        flex=1
+                                    )
+                                ],
+                                backgroundColor=color,
+                                cornerRadius="md",
+                                paddingAll="md",
+                                margin="md",
+                                action=MessageAction(
+                                    text=f"查看{sihua_type}星完整解釋"
                                 )
-                            ],
-                            backgroundColor=color,
-                            cornerRadius="md",
-                            paddingAll="md",
-                            margin="md",
-                            action=MessageAction(
-                                text=f"查看{sihua_type}星完整解釋"
                             )
-                        )
-                    ]
+                        ]
+                    )
                 )
-            )
+            else:
+                # 免費會員：顯示升級提示
+                body_contents.append(
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexSeparator(margin="lg"),
+                            FlexBox(
+                                layout="horizontal",
+                                contents=[
+                                    FlexText(
+                                        text="🔒 升級查看完整解釋",
+                                        size="md",
+                                        color="#FFFFFF",
+                                        weight="bold",
+                                        align="center",
+                                        flex=1
+                                    )
+                                ],
+                                backgroundColor="#95A5A6",  # 灰色表示不可用
+                                cornerRadius="md",
+                                paddingAll="md",
+                                margin="md"
+                            )
+                        ]
+                    )
+                )
             
             # 底部說明
             body_contents.append(
@@ -793,12 +869,12 @@ class DivinationFlexMessageGenerator:
             )
             
             bubble = FlexBubble(
-                size="giga",  # 使用超大尺寸
+                size="giga",  # 恢復四化bubble的大尺寸
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
                     spacing="none",
-                    paddingAll="xl"  # 增加內邊距
+                    paddingAll="xl"  # 恢復四化bubble的大內邊距
                 ),
                 styles={
                     "body": {
@@ -872,20 +948,33 @@ class DivinationFlexMessageGenerator:
     
     def generate_sihua_detail_message(
         self, 
-        sihua_type: str, 
-        sihua_list: List[Dict[str, Any]]
+        result: Dict[str, Any],
+        sihua_type: str,
+        user_type: str = "free"  # 新增用戶類型參數
     ) -> Optional[FlexMessage]:
         """
-        生成四化詳細解釋消息
+        生成四化詳細解釋消息 - 考慮字數限制和用戶權限
         
         Args:
+            result: 占卜結果數據
             sihua_type: 四化類型 (祿/權/科/忌)
-            sihua_list: 該四化的星曜列表
+            user_type: 用戶類型 - "admin"(管理員), "premium"(付費會員), "free"(免費會員)
             
         Returns:
             包含完整解釋的 FlexMessage
         """
         try:
+            # 從占卜結果中提取四化數據
+            sihua_results = result.get("sihua_results", [])
+            sihua_list = []
+            
+            for sihua_info in sihua_results:
+                if sihua_info.get("type") == sihua_type:
+                    sihua_list.append(sihua_info)
+            
+            if not sihua_list:
+                return None
+                
             color = self.SIHUA_COLORS.get(sihua_type, "#95A5A6")
             emoji = self.SIHUA_EMOJIS.get(sihua_type, "⭐")
             
@@ -916,7 +1005,11 @@ class DivinationFlexMessageGenerator:
                 )
             )
             
-            # 四化總體說明
+            # 四化總體說明 - 限制字數
+            detailed_desc = self._get_detailed_sihua_description(sihua_type)
+            if len(detailed_desc) > 200:  # 限制總體說明字數
+                detailed_desc = detailed_desc[:200] + "..."
+            
             body_contents.append(
                 FlexBox(
                     layout="vertical",
@@ -929,7 +1022,7 @@ class DivinationFlexMessageGenerator:
                             margin="lg"
                         ),
                         FlexText(
-                            text=self._get_detailed_sihua_description(sihua_type),
+                            text=detailed_desc,
                             size="md",
                             color="#444444",
                             wrap=True,
@@ -939,8 +1032,9 @@ class DivinationFlexMessageGenerator:
                 )
             )
             
-            # 詳細星曜解釋
-            for i, sihua_info in enumerate(sihua_list):
+            # 詳細星曜解釋 - 限制星曜數量，避免內容過長
+            max_stars = 3  # 最多顯示3顆星，避免內容過長
+            for i, sihua_info in enumerate(sihua_list[:max_stars]):
                 star = str(sihua_info.get("star", ""))
                 palace = str(sihua_info.get("palace", ""))
                 explanation = str(sihua_info.get("explanation", ""))
@@ -951,54 +1045,70 @@ class DivinationFlexMessageGenerator:
                 # 添加分隔線
                 body_contents.append(FlexSeparator(margin="lg"))
                 
-                # 星曜標題
-                body_contents.append(
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexText(
-                                text=f"⭐ {star}",
-                                weight="bold",
-                                size="lg",
-                                color="#333333",
-                                flex=2
-                            ),
-                            FlexText(
-                                text=f"📍 {palace}",
-                                size="md",
-                                color="#666666",
-                                weight="bold",
-                                flex=2,
-                                align="end"
-                            )
-                        ],
-                        margin="md"
+                # 星曜標題 - 根據用戶類型決定是否顯示星曜和宮位資訊
+                if user_type == "admin":
+                    # 管理員：顯示完整星曜和宮位資訊
+                    body_contents.append(
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text=f"⭐ {star}",
+                                    weight="bold",
+                                    size="lg",
+                                    color="#333333",
+                                    flex=2
+                                ),
+                                FlexText(
+                                    text=f"📍 {palace}",
+                                    size="md",
+                                    color="#666666",
+                                    weight="bold",
+                                    flex=2,
+                                    align="end"
+                                )
+                            ],
+                            margin="md"
+                        )
                     )
-                )
+                else:
+                    # 付費會員和免費會員：隱藏星曜和宮位資訊
+                    body_contents.append(
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text=f"🔒 {sihua_type}星 #{i+1}",
+                                    weight="bold",
+                                    size="lg",
+                                    color="#333333",
+                                    flex=2
+                                ),
+                                FlexText(
+                                    text="🔐 會員專屬",
+                                    size="md",
+                                    color="#999999",
+                                    weight="bold",
+                                    flex=2,
+                                    align="end"
+                                )
+                            ],
+                            margin="md"
+                        )
+                    )
                 
-                # 完整解釋內容
+                # 完整解釋內容 - 分段處理並限制字數
                 if explanation:
-                    # 將解釋分段顯示
-                    explanation_parts = explanation.split('。')
+                    # 將解釋分段顯示，每段限制字數
+                    explanation_parts = self._split_text_with_limit(explanation, 150)  # 每段最多150字
                     
                     for j, part in enumerate(explanation_parts):
+                        if j >= 4:  # 每顆星最多顯示4段，避免過長
+                            break
+                            
                         if part.strip():
                             # 區分不同類型的內容
-                            if any(keyword in part for keyword in ["心理", "個性", "性格"]):
-                                label = "🧠 心理特質"
-                                label_color = "#9B59B6"
-                            elif any(keyword in part for keyword in ["現象", "表現", "行為"]):
-                                label = "🎭 外在表現"
-                                label_color = "#3498DB"
-                            elif any(keyword in part for keyword in ["事件", "發生", "情況"]):
-                                label = "📅 可能事件"
-                                label_color = "#E67E22"
-                            elif any(keyword in part for keyword in ["提示", "建議", "注意"]):
-                                label = "💡 建議提示"
-                                label_color = "#27AE60"
-                            else:
-                                label = "📝 詳細說明"
-                                label_color = "#7F8C8D"
+                            label, label_color = self._get_content_label(part)
                             
                             # 只在第一段或內容類型改變時顯示標籤
                             if j == 0 or (j > 0 and len(part.strip()) > 20):
@@ -1014,13 +1124,31 @@ class DivinationFlexMessageGenerator:
                             
                             body_contents.append(
                                 FlexText(
-                                    text=part.strip() + "。",
+                                    text=part.strip(),
                                     size="sm",
                                     color="#444444",
                                     wrap=True,
                                     margin="sm"
                                 )
                             )
+            
+            # 如果有更多星曜未顯示，添加提示
+            if len(sihua_list) > max_stars:
+                body_contents.append(
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexSeparator(margin="lg"),
+                            FlexText(
+                                text=f"+ 另有 {len(sihua_list) - max_stars} 顆{sihua_type}星未完整顯示",
+                                size="sm",
+                                color="#888888",
+                                align="center",
+                                margin="md"
+                            )
+                        ]
+                    )
+                )
             
             # 底部總結
             body_contents.append(
@@ -1040,7 +1168,7 @@ class DivinationFlexMessageGenerator:
             )
             
             bubble = FlexBubble(
-                size="giga",
+                size="giga",  # 使用大尺寸
                 body=FlexBox(
                     layout="vertical",
                     contents=body_contents,
@@ -1063,12 +1191,83 @@ class DivinationFlexMessageGenerator:
             logger.error(f"生成四化詳細解釋失敗: {e}")
             return None
     
+    def _split_text_with_limit(self, text: str, max_length: int) -> List[str]:
+        """
+        將文字按指定長度分割，確保不超過字數限制
+        
+        Args:
+            text: 要分割的文字
+            max_length: 每段的最大字數
+            
+        Returns:
+            分割後的文字列表
+        """
+        if not text or len(text) <= max_length:
+            return [text] if text else []
+        
+        # 先按句號分割
+        sentences = text.split('。')
+        result = []
+        current_part = ""
+        
+        for sentence in sentences:
+            if not sentence.strip():
+                continue
+                
+            # 如果當前段落加上新句子不超過限制
+            test_part = current_part + sentence + "。" if current_part else sentence + "。"
+            
+            if len(test_part) <= max_length:
+                current_part = test_part
+            else:
+                # 如果當前段落不為空，先保存
+                if current_part:
+                    result.append(current_part)
+                    current_part = ""
+                
+                # 如果單個句子就超過限制，需要強制分割
+                if len(sentence) > max_length:
+                    # 按字符強制分割
+                    for i in range(0, len(sentence), max_length - 1):
+                        part = sentence[i:i + max_length - 1]
+                        if part:
+                            result.append(part + "。")
+                else:
+                    current_part = sentence + "。"
+        
+        # 添加最後一段
+        if current_part:
+            result.append(current_part)
+        
+        return result
+    
+    def _get_content_label(self, text: str) -> Tuple[str, str]:
+        """
+        根據文字內容返回適當的標籤和顏色
+        
+        Args:
+            text: 文字內容
+            
+        Returns:
+            (標籤, 顏色) 的元組
+        """
+        if any(keyword in text for keyword in ["心理", "個性", "性格"]):
+            return "🧠 心理特質", "#9B59B6"
+        elif any(keyword in text for keyword in ["現象", "表現", "行為"]):
+            return "🎭 外在表現", "#3498DB"
+        elif any(keyword in text for keyword in ["事件", "發生", "情況"]):
+            return "📅 可能事件", "#E67E22"
+        elif any(keyword in text for keyword in ["提示", "建議", "注意"]):
+            return "💡 建議提示", "#27AE60"
+        else:
+            return "📝 詳細說明", "#7F8C8D"
+    
     def _get_detailed_sihua_description(self, sihua_type: str) -> str:
-        """獲取四化類型的詳細說明"""
+        """獲取四化類型的詳細說明 - 優化字數限制"""
         descriptions = {
-            "祿": "祿星為四化之首，代表財富、福祿、好運與機會。當星曜化祿時，通常表示在該領域能得到好的發展，有賺錢的機會，做事順利，容易得到貴人幫助。祿星也代表緣分與人際關係的和諧。",
-            "權": "權星代表權力、領導力、主導權與掌控能力。化權的星曜會增強其主導性，使人在該領域具有領導才能，但也可能變得強勢或固執。權星有助於事業發展和地位提升，但需注意不要過於專斷。",
-            "科": "科星代表名聲、聲望、文化、學習與考試運。化科的星曜能提升個人的名氣和社會地位，有利於學習進修、考試升學，也代表文化修養和專業能力的提升。科星也象徵貴人相助和良好的社會形象。",
-            "忌": "忌星代表阻礙、困難、執著與不順利。化忌並非完全凶惡，而是提醒需要特別留意的地方。忌星會帶來挑戰和考驗，但也能促使人成長和學習。關鍵在於如何化解和轉化這些困難。"
+            "祿": "祿星代表財富、好運與機會。化祿的星曜通常能帶來順利發展，有賺錢機會，容易得到貴人幫助，也代表人際關係和諧。",
+            "權": "權星代表權力、領導力與掌控能力。化權的星曜會增強主導性，有助於事業發展和地位提升，但需注意不要過於專斷。",
+            "科": "科星代表名聲、聲望與學習能力。化科的星曜能提升個人名氣和社會地位，有利於學習考試，也象徵貴人相助。",
+            "忌": "忌星代表阻礙、困難與挑戰。化忌會帶來考驗，但也能促使成長學習。關鍵在於如何化解和轉化困難。"
         }
-        return descriptions.get(sihua_type, "四化星對運勢產生重要影響，需要仔細分析其作用力。") 
+        return descriptions.get(sihua_type, "四化星對運勢產生重要影響，需要仔細分析。") 
