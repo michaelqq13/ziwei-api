@@ -21,46 +21,66 @@ class DriverViewRichMenuHandler:
         self.base_image_path = "rich_menu_images/driver_view_richmenu.png"
         self.rich_menu_cache = {}  # 緩存不同分頁的 Rich Menu ID
         
-        # 分頁配置
+        # 載入按鈕圖片配置
+        self.button_images_config = self._load_button_images_config()
+        
+        # 分頁配置 - 更新為使用圖片按鈕
         self.tab_configs = {
             "basic": {
                 "name": "基本功能",
                 "buttons": [
-                    {"text": "🔮 本週占卜", "action": {"type": "message", "text": "本週占卜"}},
-                    {"text": "📊 會員資訊", "action": {"type": "message", "text": "會員資訊"}},
-                    {"text": "⚙️ 設定", "action": {"type": "message", "text": "設定"}}
+                    {"text": "🔮 本週占卜", "action": {"type": "message", "text": "本週占卜"}, "image_key": "weekly_divination"},
+                    {"text": "📊 會員資訊", "action": {"type": "message", "text": "會員資訊"}, "image_key": "member_info"},
+                    {"text": "⚙️ 設定", "action": {"type": "message", "text": "設定"}, "image_key": None}  # 設定功能暫時沒有對應圖片
                 ]
             },
             "fortune": {
                 "name": "運勢",
                 "buttons": [
-                    {"text": "🎯 流年運勢", "action": {"type": "message", "text": "流年運勢"}},
-                    {"text": "🌙 流月運勢", "action": {"type": "message", "text": "流月運勢"}},
-                    {"text": "☀️ 流日運勢", "action": {"type": "message", "text": "流日運勢"}}
+                    {"text": "🎯 流年運勢", "action": {"type": "message", "text": "流年運勢"}, "image_key": "yearly_fortune"},
+                    {"text": "🌙 流月運勢", "action": {"type": "message", "text": "流月運勢"}, "image_key": "monthly_fortune"},
+                    {"text": "☀️ 流日運勢", "action": {"type": "message", "text": "流日運勢"}, "image_key": "daily_fortune"}
                 ]
             },
             "advanced": {
                 "name": "進階選項",
                 "buttons": [
-                    {"text": "🎲 指定時間占卜", "action": {"type": "message", "text": "指定時間占卜"}},
-                    {"text": "📈 詳細分析", "action": {"type": "message", "text": "詳細分析"}},
-                    {"text": "🔧 管理功能", "action": {"type": "message", "text": "管理功能"}}
+                    {"text": "🎲 指定時間占卜", "action": {"type": "message", "text": "指定時間占卜"}, "image_key": "scheduled_divination"},
+                    {"text": "📈 詳細分析", "action": {"type": "message", "text": "詳細分析"}, "image_key": None},  # 暫時沒有對應圖片
+                    {"text": "🔧 管理功能", "action": {"type": "message", "text": "管理功能"}, "image_key": None}   # 暫時沒有對應圖片
                 ]
             }
         }
         
-        # 按鈕位置配置
+        # 按鈕位置配置 - 修正按鈕大小
         self.tab_positions = [
             {"x": 417, "y": 50, "width": 500, "height": 280},   # 左側螢幕
             {"x": 1000, "y": 50, "width": 500, "height": 280}, # 中間螢幕
             {"x": 1583, "y": 50, "width": 500, "height": 280}  # 右側螢幕
         ]
         
+        # 修正按鈕位置和大小
         self.button_positions = [
-            {"x": 208, "y": 800, "width": 625, "height": 800},  # 左側按鈕
-            {"x": 833, "y": 800, "width": 634, "height": 800},  # 中間按鈕
-            {"x": 1467, "y": 800, "width": 625, "height": 800}  # 右側按鈕
+            {"x": 208, "y": 800, "width": 625, "height": 200},  # 左側按鈕 - 縮小高度
+            {"x": 833, "y": 800, "width": 634, "height": 200},  # 中間按鈕 - 縮小高度  
+            {"x": 1467, "y": 800, "width": 625, "height": 200}  # 右側按鈕 - 縮小高度
         ]
+    
+    def _load_button_images_config(self) -> Dict:
+        """載入按鈕圖片配置"""
+        try:
+            config_path = "user_images/button_image_config.json"
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    logger.info("✅ 按鈕圖片配置載入成功")
+                    return config
+            else:
+                logger.warning("⚠️ 按鈕圖片配置檔案不存在")
+                return {"button_images": {}, "image_settings": {}}
+        except Exception as e:
+            logger.error(f"❌ 載入按鈕圖片配置失敗: {e}")
+            return {"button_images": {}, "image_settings": {}}
     
     def create_tab_image_with_highlight(self, active_tab: str) -> str:
         """
@@ -77,13 +97,23 @@ class DriverViewRichMenuHandler:
             base_image = Image.open(self.base_image_path)
             draw = ImageDraw.Draw(base_image)
             
-            # 嘗試載入字體
+            # 嘗試載入支援中文的字體
             try:
-                font_large = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 60)
-                font_medium = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 40)
+                # macOS 中文字體
+                font_large = ImageFont.truetype("/System/Library/Fonts/Arial Unicode MS.ttf", 60)
+                font_medium = ImageFont.truetype("/System/Library/Fonts/Arial Unicode MS.ttf", 40)
+                font_small = ImageFont.truetype("/System/Library/Fonts/Arial Unicode MS.ttf", 32)
             except:
-                font_large = ImageFont.load_default()
-                font_medium = ImageFont.load_default()
+                try:
+                    # 備選中文字體
+                    font_large = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 60)
+                    font_medium = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
+                    font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 32)
+                except:
+                    # 最終備選
+                    font_large = ImageFont.load_default()
+                    font_medium = ImageFont.load_default()
+                    font_small = ImageFont.load_default()
             
             # 定義分頁標籤
             tabs = ["basic", "fortune", "advanced"]
@@ -126,9 +156,8 @@ class DriverViewRichMenuHandler:
                             center_x + r, center_y + r
                         ], fill=(0, 255, 100, alpha))
                     
-                    # 4. 分頁名稱（在螢幕上方）
-                    text_y = pos["y"] - 30
-                    draw.text((center_x, text_y), tab_name, fill=(0, 255, 100), 
+                    # 4. 分頁名稱（在螢幕內部顯示）
+                    draw.text((center_x, center_y), tab_name, fill=(0, 255, 100), 
                              font=font_medium, anchor="mm")
                     
                 else:
@@ -157,21 +186,39 @@ class DriverViewRichMenuHandler:
                         center_x + 15, center_y + 15
                     ], fill=(100, 100, 100), outline=(60, 60, 60))
                     
-                    # 4. 分頁名稱（暗色）
-                    text_y = pos["y"] - 30
-                    draw.text((center_x, text_y), tab_name, fill=(120, 120, 120), 
+                    # 4. 分頁名稱（暗色，在螢幕內部顯示）
+                    draw.text((center_x, center_y), tab_name, fill=(120, 120, 120), 
                              font=font_medium, anchor="mm")
             
-            # 5. 在底部添加當前分頁的功能提示
+            # 5. 繪製當前分頁的功能按鈕
+            if active_tab in self.tab_configs:
+                buttons = self.tab_configs[active_tab]["buttons"]
+                
+                for i, button_config in enumerate(buttons):
+                    if i < len(self.button_positions):
+                        btn_pos = self.button_positions[i]
+                        btn_text = button_config["text"]
+                        image_key = button_config.get("image_key")
+                        
+                        # 檢查是否有對應的圖片
+                        if image_key and image_key in self.button_images_config.get("button_images", {}):
+                            # 使用圖片按鈕
+                            self._draw_image_button(base_image, btn_pos, btn_text, image_key)
+                        else:
+                            # 使用文字按鈕 (備用方案)
+                            self._draw_text_button(base_image, btn_pos, btn_text, font_small)
+            
+            # 6. 在底部添加當前分頁的功能提示
             if active_tab in self.tab_configs:
                 buttons = self.tab_configs[active_tab]["buttons"]
                 button_texts = [btn["text"] for btn in buttons]
                 
                 # 底部功能預覽文字
                 preview_text = " | ".join(button_texts)
-                preview_y = base_image.height - 50
+                preview_y = base_image.height - 80
+                draw = ImageDraw.Draw(base_image)
                 draw.text((base_image.width // 2, preview_y), preview_text, 
-                         fill=(0, 255, 100), font=font_medium, anchor="mm")
+                         fill=(0, 255, 100), font=font_small, anchor="mm")
             
             # 保存圖片
             output_path = f"rich_menu_images/driver_view_{active_tab}_tab.png"
@@ -183,6 +230,103 @@ class DriverViewRichMenuHandler:
         except Exception as e:
             logger.error(f"❌ 創建分頁圖片失敗: {e}")
             return self.base_image_path
+    
+    def _draw_image_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, image_key: str):
+        """繪製圖片按鈕"""
+        try:
+            button_config = self.button_images_config["button_images"][image_key]
+            image_file = button_config["image_file"]
+            image_path = f"user_images/{image_file}"
+            
+            if not os.path.exists(image_path):
+                logger.warning(f"⚠️ 按鈕圖片不存在: {image_path}")
+                self._draw_text_button(base_image, btn_pos, btn_text, None)
+                return
+            
+            # 載入按鈕圖片
+            button_img = Image.open(image_path).convert("RGBA")
+            
+            # 計算圖片大小 (保持比例，適應按鈕區域)
+            image_settings = self.button_images_config.get("image_settings", {})
+            button_size = image_settings.get("button_size", 150)
+            
+            # 調整圖片大小
+            button_img.thumbnail((button_size, button_size), Image.Resampling.LANCZOS)
+            
+            # 計算圖片位置 (置中)
+            img_x = btn_pos["x"] + (btn_pos["width"] - button_img.width) // 2
+            img_y = btn_pos["y"] + (btn_pos["height"] - button_img.height) // 2 - 20  # 稍微上移為文字留空間
+            
+            # 創建半透明背景
+            overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            
+            # 繪製按鈕背景框
+            overlay_draw.rectangle([
+                btn_pos["x"], btn_pos["y"],
+                btn_pos["x"] + btn_pos["width"], btn_pos["y"] + btn_pos["height"]
+            ], outline=(0, 255, 100), width=2, fill=(0, 30, 10, 80))
+            
+            # 合併背景
+            base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay).convert('RGB')
+            
+            # 貼上按鈕圖片
+            base_image.paste(button_img, (img_x, img_y), button_img)
+            
+            # 添加文字標籤 (在圖片下方)
+            draw = ImageDraw.Draw(base_image)
+            text_y = img_y + button_img.height + 10
+            text_x = btn_pos["x"] + btn_pos["width"] // 2
+            
+            # 嘗試載入字體
+            try:
+                font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
+            except:
+                font_small = ImageFont.load_default()
+            
+            draw.text((text_x, text_y), btn_text, fill=(255, 255, 255), 
+                     font=font_small, anchor="mm")
+            
+            logger.info(f"✅ 圖片按鈕繪製成功: {image_key}")
+            
+        except Exception as e:
+            logger.error(f"❌ 繪製圖片按鈕失敗: {e}")
+            # 失敗時使用文字按鈕
+            self._draw_text_button(base_image, btn_pos, btn_text, None)
+    
+    def _draw_text_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, font_small):
+        """繪製文字按鈕 (備用方案)"""
+        try:
+            # 創建半透明背景
+            overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            
+            # 按鈕邊框
+            overlay_draw.rectangle([
+                btn_pos["x"], btn_pos["y"],
+                btn_pos["x"] + btn_pos["width"], btn_pos["y"] + btn_pos["height"]
+            ], outline=(0, 255, 100), width=3, fill=(0, 50, 20, 100))
+            
+            # 合併圖層
+            base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay).convert('RGB')
+            draw = ImageDraw.Draw(base_image)
+            
+            # 繪製按鈕文字
+            btn_center_x = btn_pos["x"] + btn_pos["width"] // 2
+            btn_center_y = btn_pos["y"] + btn_pos["height"] // 2
+            
+            # 使用預設字體如果沒有提供
+            if font_small is None:
+                try:
+                    font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 32)
+                except:
+                    font_small = ImageFont.load_default()
+            
+            draw.text((btn_center_x, btn_center_y), btn_text, 
+                     fill=(255, 255, 255), font=font_small, anchor="mm")
+            
+        except Exception as e:
+            logger.error(f"❌ 繪製文字按鈕失敗: {e}")
     
     def create_button_areas(self, active_tab: str) -> List[Dict]:
         """
