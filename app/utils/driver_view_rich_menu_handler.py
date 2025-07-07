@@ -222,9 +222,42 @@ class DriverViewRichMenuHandler:
             
             # 保存圖片
             output_path = f"rich_menu_images/driver_view_{active_tab}_tab.png"
-            base_image.save(output_path)
             
-            logger.info(f"✅ 創建高亮分頁圖片成功: {output_path}")
+            # 壓縮圖片以符合 LINE Rich Menu 1MB 限制
+            quality = 85
+            max_size = 1024 * 1024  # 1MB
+            
+            while quality > 10:
+                # 將 PIL Image 轉換為 RGB 模式以支援 JPEG 壓縮
+                if base_image.mode != 'RGB':
+                    base_image = base_image.convert('RGB')
+                
+                # 先嘗試用 PNG 格式
+                base_image.save(output_path, format='PNG', optimize=True)
+                
+                # 檢查文件大小
+                file_size = os.path.getsize(output_path)
+                if file_size <= max_size:
+                    break
+                
+                # 如果太大，改用 JPEG 格式並降低品質
+                output_path_jpg = output_path.replace('.png', '.jpg')
+                base_image.save(output_path_jpg, format='JPEG', quality=quality, optimize=True)
+                
+                file_size = os.path.getsize(output_path_jpg)
+                if file_size <= max_size:
+                    output_path = output_path_jpg
+                    break
+                
+                quality -= 10
+            
+            # 最終檢查文件大小
+            final_size = os.path.getsize(output_path)
+            logger.info(f"✅ 創建高亮分頁圖片成功: {output_path} ({final_size/1024:.1f} KB)")
+            
+            if final_size > max_size:
+                logger.warning(f"⚠️ 圖片大小 ({final_size/1024:.1f} KB) 仍超過 1MB 限制")
+            
             return output_path
             
         except Exception as e:
