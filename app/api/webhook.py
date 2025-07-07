@@ -827,16 +827,16 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks):
         logger.error(f"Webhook處理錯誤：{e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-def handle_line_event(event: dict, db: Optional[Session]):
+async def handle_line_event(event: dict, db: Optional[Session]):
     """處理LINE事件（支持可選數據庫）"""
     try:
         event_type = event.get("type")
-        user_id = event.get("source", {}).get("userId", "unknown")
+        user_id = event.get("source", {}).get("userId")
         
         logger.info(f"處理事件：{event_type}，用戶：{user_id}，數據庫：{'有' if db else '無'}")
         
         if event_type == "message":
-            handle_message_event(event, db)
+            await handle_message_event(event, db)
         elif event_type == "follow":
             handle_follow_event(event, db)
         elif event_type == "unfollow":
