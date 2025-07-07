@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式邊界樣式比較</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #f0f0f0;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .instructions {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+        
+        .instructions h3 {
+            color: #2980b9;
+            margin-top: 0;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .comparison-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .comparison-item:hover {
+            border-color: #3498db;
+            transform: translateY(-5px);
+        }
+        
+        .image-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .image-header h3 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 1.3em;
+        }
+        
+        .file-size {
+            background: #27ae60;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .image-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .comparison-image {
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .comparison-image:hover {
+            transform: scale(1.02);
+        }
+        
+        .zoom-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        
+        .zoom-area {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border: 3px solid #e74c3c;
+            border-radius: 5px;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        
+        .zoom-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .description {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #9b59b6;
+        }
+        
+        .description p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .tip {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .tip h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 互動式邊界樣式比較</h1>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 觀察指南</h3>
+            <p>請特別注意每個圖片中<strong>紅色框標示的分頁標籤區域</strong>，這是主要的視覺差異所在。</p>
+            <p>將滑鼠懸停在圖片上可以放大查看，點擊圖片可以開啟原始大小。</p>
+        </div>
+        
+        <div class="comparison-grid">
+            
+        <div class="comparison-item">
+            <div class="image-header">
+                <h3>柔和發光</h3>
+                <span class="file-size">189.9 KB</span>
+            </div>
+            <div class="image-container">
+                <img src="tabbed_menu_basic_admin.png" alt="soft_glow" class="comparison-image">
+                <div class="zoom-overlay">
+                    <div class="zoom-area" style="top: 0; height: 150px;">
+                        <div class="zoom-label">👆 分頁標籤區域</div>
+                    </div>
+                </div>
+            </div>
+            <div class="description">
+                <p><strong>效果:</strong> 活躍分頁底部有白色發光效果，提供溫和的視覺層次</p>
+                <p><strong>觀察重點:</strong> 注意活躍分頁底部的白色發光線條</p>
+            </div>
+        </div>
+        
+        <div class="comparison-item">
+            <div class="image-header">
+                <h3>微妙分隔</h3>
+                <span class="file-size">189.9 KB</span>
+            </div>
+            <div class="image-container">
+                <img src="tabbed_menu_basic_admin.png" alt="subtle_separator" class="comparison-image">
+                <div class="zoom-overlay">
+                    <div class="zoom-area" style="top: 0; height: 150px;">
+                        <div class="zoom-label">👆 分頁標籤區域</div>
+                    </div>
+                </div>
+            </div>
+            <div class="description">
+                <p><strong>效果:</strong> 分頁間有垂直的漸變分隔線，提供清晰的分隔效果</p>
+                <p><strong>觀察重點:</strong> 注意分頁之間的垂直分隔線</p>
+            </div>
+        </div>
+        
+        <div class="comparison-item">
+            <div class="image-header">
+                <h3>漸變邊界</h3>
+                <span class="file-size">189.9 KB</span>
+            </div>
+            <div class="image-container">
+                <img src="tabbed_menu_basic_admin.png" alt="gradient" class="comparison-image">
+                <div class="zoom-overlay">
+                    <div class="zoom-area" style="top: 0; height: 150px;">
+                        <div class="zoom-label">👆 分頁標籤區域</div>
+                    </div>
+                </div>
+            </div>
+            <div class="description">
+                <p><strong>效果:</strong> 活躍分頁底部有漸變邊界效果，提供明顯的視覺焦點</p>
+                <p><strong>觀察重點:</strong> 注意活躍分頁底部的漸變邊界</p>
+            </div>
+        </div>
+        
+        <div class="comparison-item">
+            <div class="image-header">
+                <h3>無邊框</h3>
+                <span class="file-size">189.9 KB</span>
+            </div>
+            <div class="image-container">
+                <img src="tabbed_menu_basic_admin.png" alt="no_border" class="comparison-image">
+                <div class="zoom-overlay">
+                    <div class="zoom-area" style="top: 0; height: 150px;">
+                        <div class="zoom-label">👆 分頁標籤區域</div>
+                    </div>
+                </div>
+            </div>
+            <div class="description">
+                <p><strong>效果:</strong> 完全依靠背景亮度差異來區分分頁，最簡潔的設計</p>
+                <p><strong>觀察重點:</strong> 注意活躍分頁與非活躍分頁的亮度差異</p>
+            </div>
+        </div>
+        
+        </div>
+        
+        <div class="tip">
+            <h4>💡 選擇建議</h4>
+            <p>如果您覺得這些差異仍然不夠明顯，建議選擇 <strong>no_border</strong> 樣式。</p>
+            <p>這種樣式最簡潔，依靠亮度差異來區分分頁，視覺效果清晰且不會分散注意力。</p>
+        </div>
+    </div>
+</body>
+</html>

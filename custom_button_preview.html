@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自定義按鈕生成器 - 預覽</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .feature-list {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 30px 0;
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .section h2 {
+            color: #FFD700;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .button-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .button-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .button-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .button-item h3 {
+            margin: 15px 0 10px 0;
+            color: #FFD700;
+        }
+        
+        .rich-menu-preview {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .rich-menu-preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        
+        .usage-steps {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .usage-steps ol {
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+        
+        .usage-steps li {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #FFD700;
+        }
+        
+        .code-example {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+        
+        .highlight {
+            background: rgba(255, 215, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #FFD700;
+        }
+        
+        .benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .benefit-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .benefit-card h3 {
+            color: #FFD700;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .feature-list {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .button-gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 自定義按鈕生成器</h1>
+            <p>將您的圖片轉換為專業的 LINE Rich Menu 按鈕</p>
+            
+            <div class="feature-list">
+                <div class="feature">📸 支援多種圖片格式</div>
+                <div class="feature">🎯 自動調整大小</div>
+                <div class="feature">✨ 專業特效</div>
+                <div class="feature">🚀 批量處理</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">🖼️</span>示範圖片</h2>
+            <p>以下是自動生成的示範圖片，展示了生成器的基本功能：</p>
+            
+            <div class="button-gallery">
+                <div class="button-item">
+                    <img src="user_images/heart.png" alt="心形圖案">
+                    <h3>心形圖案</h3>
+                    <p>粉紅色愛心，適合情感相關功能</p>
+                </div>
+                <div class="button-item">
+                    <img src="user_images/star.png" alt="星形圖案">
+                    <h3>星形圖案</h3>
+                    <p>黃色五角星，適合評分或收藏功能</p>
+                </div>
+                <div class="button-item">
+                    <img src="user_images/diamond.png" alt="菱形圖案">
+                    <h3>菱形圖案</h3>
+                    <p>青色菱形，適合特殊功能標識</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">🔧</span>生成的按鈕</h2>
+            <p>原始圖片經過處理後，加入了星空背景、發光效果和文字標籤：</p>
+            
+            <div class="button-gallery">
+                <div class="button-item">
+                    <img src="demo_output/custom_button_1.png" alt="自定義按鈕1">
+                    <h3>按鈕1</h3>
+                    <p>加入星空背景和發光效果</p>
+                </div>
+                <div class="button-item">
+                    <img src="demo_output/custom_button_2.png" alt="自定義按鈕2">
+                    <h3>按鈕2</h3>
+                    <p>保持原圖特色，增強視覺效果</p>
+                </div>
+                <div class="button-item">
+                    <img src="demo_output/custom_button_3.png" alt="自定義按鈕3">
+                    <h3>按鈕3</h3>
+                    <p>專業的按鈕外觀，適合LINE Bot</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">📱</span>完整 Rich Menu</h2>
+            <p>所有按鈕整合到一個完整的 Rich Menu 中：</p>
+            
+            <div class="rich-menu-preview">
+                <img src="rich_menu_images/custom_user_custom_menu.png" alt="完整Rich Menu">
+                <p style="margin-top: 15px; opacity: 0.8;">
+                    <strong>尺寸:</strong> 2500x1686 像素 | 
+                    <strong>按鈕數量:</strong> 3個 | 
+                    <strong>格式:</strong> PNG
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">📋</span>使用方法</h2>
+            
+            <div class="usage-steps">
+                <ol>
+                    <li><strong>準備圖片</strong> - 將您的圖片放入 <span class="highlight">user_images</span> 資料夾</li>
+                    <li><strong>執行生成器</strong> - 運行 <span class="highlight">python demo_custom_buttons.py</span></li>
+                    <li><strong>配置按鈕</strong> - 自定義按鈕文字、顏色和特效</li>
+                    <li><strong>生成選單</strong> - 自動創建完整的 Rich Menu 圖片</li>
+                    <li><strong>上傳使用</strong> - 將生成的圖片上傳到 LINE Bot</li>
+                </ol>
+            </div>
+
+            <div class="code-example">
+# 基本使用範例
+from app.utils.custom_button_generator import CustomButtonGenerator
+
+generator = CustomButtonGenerator()
+
+# 配置按鈕
+configs = [
+    {
+        'image_path': 'user_images/my_icon.png',
+        'button_text': '我的功能',
+        'text_color': (255, 255, 255),
+        'add_background': True,
+        'add_shadow': True
+    }
+]
+
+# 生成按鈕
+button_paths = generator.create_button_set_from_images(configs)
+
+# 整合到 Rich Menu
+menu_path, button_areas = generator.integrate_with_rich_menu(
+    button_paths, button_configs, "custom_menu"
+)
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">🌟</span>功能特色</h2>
+            
+            <div class="benefits">
+                <div class="benefit-card">
+                    <h3>🎨 智能圖片處理</h3>
+                    <p>自動調整圖片大小，保持最佳比例，增強對比度和亮度，確保在 Rich Menu 中完美顯示。</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3>✨ 專業特效</h3>
+                    <p>添加星空背景、發光效果、邊框裝飾，讓您的按鈕看起來更加專業和吸引人。</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3>🎯 靈活配置</h3>
+                    <p>支援自定義按鈕大小、文字顏色、特效開關，滿足不同設計需求。</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3>🚀 批量處理</h3>
+                    <p>一次處理多張圖片，自動生成完整的 Rich Menu，大幅提升工作效率。</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3>📱 完美適配</h3>
+                    <p>生成的圖片完全符合 LINE Rich Menu 規格，可直接上傳使用。</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3>🔧 易於整合</h3>
+                    <p>與現有的 Rich Menu 系統無縫整合，支援權限控制和互動功能。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><span class="emoji">🎛️</span>進階配置</h2>
+            <p>支援更多自定義選項：</p>
+            
+            <div class="code-example">
+# 進階配置範例
+advanced_config = {
+    'image_path': 'user_images/special_icon.png',
+    'button_text': '特殊功能',
+    'button_size': (250, 250),          # 自定義尺寸
+    'text_color': (255, 215, 0),        # 金色文字
+    'add_background': True,              # 星空背景
+    'add_border': True,                  # 邊框效果
+    'add_shadow': True                   # 發光陰影
+}
+
+# 不同風格的按鈕
+minimal_config = {
+    'image_path': 'user_images/simple_icon.png',
+    'button_text': '簡約風格',
+    'add_background': False,             # 無背景
+    'add_border': False,                 # 無邊框
+    'add_shadow': False                  # 無特效
+}
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>🎉 恭喜！您已成功創建自定義按鈕 Rich Menu</strong></p>
+            <p>現在您可以將生成的圖片上傳到 LINE Bot，為用戶提供更個性化的體驗。</p>
+            <p style="margin-top: 20px; opacity: 0.7;">
+                支援格式: PNG, JPG, JPEG, GIF | 最大按鈕數: 9個 | 自動優化: ✓
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

@@ -36,6 +36,9 @@ class TabbedRichMenuGenerator:
         
         # 按鈕配置
         self.button_configs = self._get_button_configs()
+        
+        # 初始化圖片生成器
+        self.image_generator = ImageBasedRichMenuGenerator()
     
     def _get_button_configs(self) -> Dict[str, List[Dict]]:
         """獲取各分頁的按鈕配置"""
@@ -428,11 +431,11 @@ class TabbedRichMenuGenerator:
         if not buttons:
             return []
         
+        # 計算最佳按鈕大小
+        optimal_button_size = self._calculate_optimal_button_size(buttons, content_y_start)
+        
         # 計算按鈕位置（三個按鈕水平並排在中央）
         button_positions = self._calculate_horizontal_button_positions(buttons, content_y_start)
-        
-        # 創建圖片資源生成器
-        image_generator = ImageBasedRichMenuGenerator()
         
         # 繪製按鈕
         button_areas = []
@@ -440,23 +443,16 @@ class TabbedRichMenuGenerator:
             if i < len(button_positions):
                 x, y = button_positions[i]
                 
-                # 使用圖片資源生成器創建按鈕
-                button_img = image_generator.create_image_button(button_config["name"], button_config)
+                self._draw_enhanced_planet_button(background, x, y, button_config, optimal_button_size)
                 
-                # 計算按鈕位置
-                button_x = x - button_img.width // 2
-                button_y = y - button_img.height // 2
-                
-                # 將按鈕貼到背景上
-                background.paste(button_img, (button_x, button_y), button_img)
-                
-                # 添加按鈕區域配置
+                # 添加按鈕區域配置，使用圖片按鈕的實際尺寸
+                actual_button_size = optimal_button_size * 2  # 實際按鈕尺寸
                 button_areas.append({
                     "bounds": {
-                        "x": max(0, x - 120),
-                        "y": max(0, y - 120),
-                        "width": 240,
-                        "height": 240
+                        "x": max(0, x - actual_button_size // 2),
+                        "y": max(0, y - actual_button_size // 2),
+                        "width": actual_button_size,
+                        "height": actual_button_size
                     },
                     "action": {
                         "type": "message",
@@ -469,50 +465,135 @@ class TabbedRichMenuGenerator:
         
         return button_areas
     
+    def _calculate_optimal_button_size(self, buttons: List[Dict], content_y_start: int) -> int:
+        """計算最佳按鈕大小"""
+        num_buttons = len(buttons)
+        content_height = self.content_height
+        content_width = self.width
+        
+        # 設定邊距和間距
+        margin = 100  # 邊距
+        min_spacing = 50  # 按鈕間最小間距
+        
+        if num_buttons <= 3:
+            # 水平排列：計算基於寬度的最大按鈕尺寸
+            available_width = content_width - 2 * margin
+            max_button_width = (available_width - (num_buttons - 1) * min_spacing) // num_buttons
+            
+            # 計算基於高度的最大按鈕尺寸
+            available_height = content_height - 2 * margin
+            max_button_height = available_height
+            
+            # 取較小值，確保按鈕不會超出範圍
+            max_button_size = min(max_button_width, max_button_height)
+            
+            # 限制按鈕大小範圍（考慮到ImageBasedRichMenuGenerator會放大2倍）
+            min_size = 80   # 最小80像素
+            max_size = 200  # 最大200像素（實際顯示400像素）
+            
+            optimal_size = max(min_size, min(max_size, max_button_size))
+            
+        else:
+            # 多於3個按鈕：使用兩行佈局
+            buttons_per_row = (num_buttons + 1) // 2
+            
+            # 計算每行的最大按鈕尺寸
+            available_width = content_width - 2 * margin
+            max_button_width = (available_width - (buttons_per_row - 1) * min_spacing) // buttons_per_row
+            
+            # 計算兩行的最大按鈕尺寸
+            available_height = content_height - 2 * margin
+            max_button_height = (available_height - min_spacing) // 2  # 兩行之間的間距
+            
+            max_button_size = min(max_button_width, max_button_height)
+            
+            # 限制按鈕大小範圍
+            min_size = 60   # 多按鈕時稍微小一些
+            max_size = 150  # 多按鈕時最大150像素
+            
+            optimal_size = max(min_size, min(max_size, max_button_size))
+        
+        print(f"🎯 按鈕數量: {num_buttons}, 計算出的最佳按鈕大小: {optimal_size}px (實際顯示: {optimal_size * 2}px)")
+        return optimal_size
+
     def _calculate_horizontal_button_positions(self, buttons: List[Dict], content_y_start: int) -> List[Tuple[int, int]]:
         """計算水平並排按鈕位置"""
         num_buttons = len(buttons)
         content_center_y = content_y_start + self.content_height // 2
         
+        # 設定更智能的間距
+        margin = 150  # 增加邊距
+        
         if num_buttons == 1:
             # 單個按鈕：置中
             return [(self.width // 2, content_center_y)]
         elif num_buttons == 2:
-            # 兩個按鈕：左右對稱
+            # 兩個按鈕：左右對稱，增加間距
             spacing = self.width // 3
             return [
                 (spacing, content_center_y),
                 (self.width - spacing, content_center_y)
             ]
         elif num_buttons == 3:
-            # 三個按鈕：左中右，有適當間距
-            spacing = self.width // 5  # 增加間距以方便操作
+            # 三個按鈕：左中右，優化間距
+            left_x = margin + 200  # 左側位置
+            right_x = self.width - margin - 200  # 右側位置
+            center_x = self.width // 2  # 中央位置
+            
             return [
-                (spacing, content_center_y),           # 左
-                (self.width // 2, content_center_y),   # 中
-                (self.width - spacing, content_center_y)  # 右
+                (left_x, content_center_y),    # 左
+                (center_x, content_center_y),  # 中
+                (right_x, content_center_y)    # 右
             ]
         else:
-            # 超過三個按鈕：分兩行
-            row1_y = content_y_start + self.content_height // 3
-            row2_y = content_y_start + 2 * self.content_height // 3
+            # 超過三個按鈕：分兩行，優化垂直間距
+            row_spacing = self.content_height // 4  # 行間距
+            row1_y = content_y_start + row_spacing
+            row2_y = content_y_start + self.content_height - row_spacing
             
             positions = []
             buttons_per_row = (num_buttons + 1) // 2
             
             for i in range(num_buttons):
                 if i < buttons_per_row:
-                    # 第一行
-                    x = (i + 1) * self.width // (buttons_per_row + 1)
+                    # 第一行：均勻分佈
+                    x = margin + (i + 1) * (self.width - 2 * margin) // (buttons_per_row + 1)
                     positions.append((x, row1_y))
                 else:
-                    # 第二行
+                    # 第二行：均勻分佈
                     row_index = i - buttons_per_row
                     remaining_buttons = num_buttons - buttons_per_row
-                    x = (row_index + 1) * self.width // (remaining_buttons + 1)
+                    x = margin + (row_index + 1) * (self.width - 2 * margin) // (remaining_buttons + 1)
                     positions.append((x, row2_y))
             
             return positions
+    
+    def _draw_enhanced_planet_button(self, background: Image.Image, x: int, y: int, button_config: Dict, button_size: int):
+        """繪製增強版星球按鈕，使用用戶自定義圖片"""
+        # 使用ImageBasedRichMenuGenerator創建按鈕
+        button_name = button_config.get("name", "")
+        
+        # 創建按鈕圖片
+        button_img = self.image_generator.create_image_button(button_name, button_config)
+        
+        # 調整按鈕大小以適應分頁選單
+        target_size = button_size * 2  # 因為ImageBasedRichMenuGenerator創建的是較大的按鈕
+        if button_img.width != target_size or button_img.height != target_size:
+            button_img = button_img.resize((target_size, target_size), Image.Resampling.LANCZOS)
+        
+        # 計算按鈕位置（居中）
+        paste_x = x - button_img.width // 2
+        paste_y = y - button_img.height // 2
+        
+        # 確保按鈕不會超出背景範圍
+        paste_x = max(0, min(paste_x, background.width - button_img.width))
+        paste_y = max(0, min(paste_y, background.height - button_img.height))
+        
+        # 將按鈕貼到背景上
+        if button_img.mode == 'RGBA':
+            background.paste(button_img, (paste_x, paste_y), button_img)
+        else:
+            background.paste(button_img, (paste_x, paste_y))
     
     def _add_tab_switch_areas(self, button_areas: List[Dict], user_level: str):
         """添加分頁切換區域"""

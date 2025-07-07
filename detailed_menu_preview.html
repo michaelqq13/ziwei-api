@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>詳細樣式星空紫微選單預覽 - 管理員版</title>
+    <style>
+        body {
+            font-family: 'Hiragino Sans GB', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.8em;
+            margin: 0;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+            background: linear-gradient(45deg, #FFD700, #FF6B6B, #4ECDC4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header p {
+            font-size: 1.3em;
+            margin: 15px 0;
+            opacity: 0.9;
+        }
+        
+        .upgrade-highlight {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #FFD700);
+            padding: 25px;
+            border-radius: 20px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
+            to { box-shadow: 0 20px 40px rgba(255,215,0,0.3); }
+        }
+        
+        .upgrade-highlight h3 {
+            color: white;
+            margin: 0 0 10px 0;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .upgrade-highlight p {
+            color: white;
+            margin: 0;
+            font-size: 1.2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .menu-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+            max-width: 95%;
+            overflow: hidden;
+            margin-bottom: 30px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        
+        .menu-image {
+            width: 100%;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        
+        .features {
+            color: white;
+            text-align: center;
+            margin-top: 40px;
+            max-width: 1000px;
+        }
+        
+        .features h2 {
+            font-size: 2.2em;
+            margin-bottom: 25px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            color: #FFD700;
+        }
+        
+        .planet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .planet-card {
+            background: rgba(255,255,255,0.1);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .planet-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+        }
+        
+        .planet-card.sun { 
+            border-left: 5px solid #FFD700;
+            background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,140,0,0.1));
+        }
+        .planet-card.earth { 
+            border-left: 5px solid #4682B4;
+            background: linear-gradient(135deg, rgba(70,130,180,0.1), rgba(34,139,34,0.1));
+        }
+        .planet-card.moon { 
+            border-left: 5px solid #C0C0C0;
+            background: linear-gradient(135deg, rgba(192,192,192,0.1), rgba(169,169,169,0.1));
+        }
+        .planet-card.saturn { 
+            border-left: 5px solid #DAA520;
+            background: linear-gradient(135deg, rgba(218,165,32,0.1), rgba(255,215,0,0.1));
+        }
+        .planet-card.rocket { 
+            border-left: 5px solid #FF4500;
+            background: linear-gradient(135deg, rgba(255,69,0,0.1), rgba(255,140,0,0.1));
+        }
+        .planet-card.ufo { 
+            border-left: 5px solid #00CED1;
+            background: linear-gradient(135deg, rgba(0,206,209,0.1), rgba(135,206,235,0.1));
+        }
+        .planet-card.meteor { 
+            border-left: 5px solid #FF6347;
+            background: linear-gradient(135deg, rgba(255,99,71,0.1), rgba(255,140,0,0.1));
+        }
+        
+        .planet-card h3 {
+            color: #FFD700;
+            margin: 0 0 15px 0;
+            font-size: 1.4em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .planet-card p {
+            margin: 0;
+            font-size: 1em;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.1);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-3px);
+        }
+        
+        .feature-card h3 {
+            color: #4ECDC4;
+            margin-top: 0;
+            font-size: 1.4em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .feature-card p {
+            line-height: 1.7;
+            opacity: 0.9;
+        }
+        
+        .admin-badge {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            display: inline-block;
+            margin: 10px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.2em;
+            }
+            
+            .menu-container {
+                padding: 20px;
+            }
+            
+            .planet-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌟 詳細樣式星空紫微選單 🌟</h1>
+        <p>管理員專用 - 7種獨特宇宙元素設計</p>
+        <div class="admin-badge">👑 管理員專用版本</div>
+    </div>
+    
+    <div class="upgrade-highlight">
+        <h3>🚀 全新升級！</h3>
+        <p>每個按鈕都有超詳細的宇宙元素設計，包含豐富的視覺效果和動畫</p>
+    </div>
+    
+    <div class="menu-container">
+        <img src="rich_menu_images/detailed_admin_menu.png" alt="詳細樣式管理員選單" class="menu-image">
+    </div>
+    
+    <div class="features">
+        <h2>🌌 7種宇宙元素詳細設計</h2>
+        
+        <div class="planet-grid">
+            <div class="planet-card sun">
+                <h3>☀️ 太陽樣式 - 本週占卜</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 多層日冕光芒效果<br>
+                    • 動態太陽黑子紋理<br>
+                    • 隨機太陽耀斑<br>
+                    • 20道放射狀光束<br>
+                    • 漸變亮度核心
+                </p>
+            </div>
+            
+            <div class="planet-card earth">
+                <h3>🌍 地球樣式 - 流年運勢</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 真實的海洋藍色漸變<br>
+                    • 3個不同形狀的大陸<br>
+                    • 動態雲層效果<br>
+                    • 大氣層光暈<br>
+                    • 北極光效果
+                </p>
+            </div>
+            
+            <div class="planet-card moon">
+                <h3>🌙 月球樣式 - 流月運勢</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 多層灰色月球表面<br>
+                    • 深色月海區域<br>
+                    • 大型和小型隕石坑<br>
+                    • 地形陰影效果<br>
+                    • 25個隨機小隕石坑
+                </p>
+            </div>
+            
+            <div class="planet-card saturn">
+                <h3>🪐 土星樣式 - 流日運勢</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 3層金色環帶系統<br>
+                    • 8條大氣條紋<br>
+                    • 大氣漩渦效果<br>
+                    • 2顆環繞衛星<br>
+                    • 扁平化橢圓環帶
+                </p>
+            </div>
+            
+            <div class="planet-card rocket">
+                <h3>🚀 火箭樣式 - 命盤綁定</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 銀色圓錐頭部<br>
+                    • 紅色條紋裝飾<br>
+                    • 藍色觀察窗<br>
+                    • 3層漸變火焰尾巴<br>
+                    • 煙霧粒子效果和星星裝飾
+                </p>
+            </div>
+            
+            <div class="planet-card ufo">
+                <h3>🛸 幽浮樣式 - 會員資訊</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 橢圓形艙體設計<br>
+                    • 半透明藍色駕駛艙<br>
+                    • 8個多彩環繞燈光<br>
+                    • 黃色光束投射<br>
+                    • 光束中的白色粒子效果
+                </p>
+            </div>
+            
+            <div class="planet-card meteor">
+                <h3>💫 流星樣式 - 指定時間占卜</h3>
+                <p>
+                    <strong>設計特色：</strong><br>
+                    • 4層漸變流星尾巴<br>
+                    • 表面紋理效果<br>
+                    • 15個隨機火花<br>
+                    • 20個星塵軌跡<br>
+                    • 發光光暈效果
+                </p>
+            </div>
+        </div>
+        
+        <h2>✨ 技術特色</h2>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>🎨 超詳細視覺效果</h3>
+                <p>每個按鈕都包含多層次的視覺元素，從基礎形狀到細節紋理，再到光影效果，創造出豐富的視覺層次感。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🌟 動態隨機元素</h3>
+                <p>許多元素採用隨機生成，如星星位置、隕石坑分佈、火花效果等，讓每次生成的圖片都略有不同。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🎯 功能對應設計</h3>
+                <p>每個按鈕的設計都與其功能相呼應，如太陽對應本週占卜的光明指引，地球對應流年的宏觀視角。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🔧 管理員專用</h3>
+                <p>此版本包含7個按鈕，比一般用戶多了「指定時間占卜」功能，採用流星設計象徵時間的流逝。</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

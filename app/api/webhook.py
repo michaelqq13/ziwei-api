@@ -42,16 +42,21 @@ TAIPEI_TZ = timezone(timedelta(hours=8))
 # 在文件頂部添加速率限制器
 limiter = Limiter(key_func=get_remote_address)
 
-def get_optional_db() -> Session:
-    """獲取數據庫會話"""
-    # 嘗試創建數據庫會話
-    database_url = DatabaseConfig.get_database_url()
-    engine = create_engine(database_url)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
-    # 測試數據庫連接
-    db.execute(text("SELECT 1"))
-    return db
+def get_optional_db() -> Optional[Session]:
+    """獲取可選的數據庫會話"""
+    try:
+        # 嘗試創建數據庫會話
+        database_url = DatabaseConfig.get_database_url()
+        engine = create_engine(database_url)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        db = SessionLocal()
+        # 測試數據庫連接
+        db.execute(text("SELECT 1"))
+        logger.info("數據庫連接成功")
+        return db
+    except Exception as e:
+        logger.warning(f"數據庫連接失敗，使用簡化模式: {e}")
+        return None
 
 def get_current_taipei_time() -> datetime:
     """獲取當前台北時間"""
@@ -811,9 +816,12 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks):
             return {"status": "ok"}
             
         finally:
-            # 清理數據庫會話
+            # 清理數據庫會話（如果存在）
             if db:
-                db.close()
+                try:
+                    db.close()
+                except Exception as e:
+                    logger.warning(f"關閉數據庫會話時發生錯誤: {e}")
         
     except Exception as e:
         logger.error(f"Webhook處理錯誤：{e}")
@@ -971,30 +979,24 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     if response:
                         send_line_message(user_id, response)
                 
-                # 處理分頁切換請求
+                # 處理分頁切換請求 - 靜默切換，不發送訊息
                 elif text in ["切換到基本功能", "基本功能"]:
                     from app.utils.dynamic_rich_menu import handle_tab_switch_request
                     success = handle_tab_switch_request(user_id, "basic")
-                    if success:
-                        send_line_message(user_id, "✅ 已切換到基本功能分頁")
-                    else:
-                        send_line_message(user_id, "❌ 切換分頁失敗，請稍後再試")
+                    # 靜默切換，不發送訊息
+                    logger.info(f"用戶 {user_id} 切換到基本功能分頁: {'成功' if success else '失敗'}")
                 
                 elif text in ["切換到運勢", "運勢"]:
                     from app.utils.dynamic_rich_menu import handle_tab_switch_request
                     success = handle_tab_switch_request(user_id, "fortune")
-                    if success:
-                        send_line_message(user_id, "✅ 已切換到運勢分頁")
-                    else:
-                        send_line_message(user_id, "❌ 切換分頁失敗，可能是權限不足或系統錯誤")
+                    # 靜默切換，不發送訊息
+                    logger.info(f"用戶 {user_id} 切換到運勢分頁: {'成功' if success else '失敗'}")
                 
                 elif text in ["切換到進階選項", "進階選項", "管理員選項"]:
                     from app.utils.dynamic_rich_menu import handle_tab_switch_request
                     success = handle_tab_switch_request(user_id, "admin")
-                    if success:
-                        send_line_message(user_id, "✅ 已切換到進階選項分頁")
-                    else:
-                        send_line_message(user_id, "❌ 切換分頁失敗，可能是權限不足或系統錯誤")
+                    # 靜默切換，不發送訊息
+                    logger.info(f"用戶 {user_id} 切換到進階選項分頁: {'成功' if success else '失敗'}")
                 
                 elif session.state == "waiting_for_time_divination_gender":
                     response = handle_time_divination_gender_input(db, user, session, text)
@@ -1091,6 +1093,41 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                             send_line_message(user_id, "獲取解釋時發生錯誤，請稍後再試。")
                             return
 
+                # 管理員功能
+                if "更新選單" in text or "refresh menu" in text.lower():
+                    try:
+                        from app.utils.dynamic_rich_menu import initialize_user_menu
+                        user_stats = permission_manager.get_user_stats(db, user)
+                        success = initialize_user_menu(user_id, user_stats)
+                        
+                        if success:
+                            user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
+                            send_line_message(user_id, f"✅ Rich Menu 更新成功！\n\n用戶等級: {user_level}\n\n如果選單沒有立即更新，請：\n1. 關閉並重新開啟 LINE 應用\n2. 或者重新進入本聊天室")
+                        else:
+                            send_line_message(user_id, "❌ Rich Menu 更新失敗，請稍後再試")
+                    except Exception as e:
+                        logger.error(f"更新 Rich Menu 失敗: {e}")
+                        send_line_message(user_id, "❌ 更新選單時發生錯誤")
+                    return
+                
+                # 管理員功能
+                if "創建選單" in text or "create menu" in text.lower():
+                    try:
+                        from app.utils.rich_menu_manager import RichMenuManager
+                        manager = RichMenuManager()
+                        
+                        # 強制創建新的預設選單
+                        new_menu_id = manager.setup_complete_rich_menu(force_recreate=True)
+                        
+                        if new_menu_id:
+                            send_line_message(user_id, f"✅ 新的預設 Rich Menu 創建成功！\n\nMenu ID: {new_menu_id}\n\n所有新用戶將使用此選單")
+                        else:
+                            send_line_message(user_id, "❌ 創建預設選單失敗")
+                    except Exception as e:
+                        logger.error(f"創建預設選單失敗: {e}")
+                        send_line_message(user_id, "❌ 創建選單時發生錯誤")
+                    return
+                
                 else:
                     # 默認回覆
                     # 檢查是否為管理員用戶
@@ -1278,10 +1315,10 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
         import hashlib
         import base64
         
-        # 獲取 LINE Channel Secret
-        channel_secret = os.getenv("LINE_CHANNEL_SECRET")
-        if not channel_secret:
-            logger.error("LINE_CHANNEL_SECRET 環境變數未設定")
+        # 使用配置中的 LINE Channel Secret
+        channel_secret = LineBotConfig.CHANNEL_SECRET
+        if not channel_secret or channel_secret == "your_channel_secret_here":
+            logger.error("LINE_CHANNEL_SECRET 環境變數未設定或為預設值")
             return False
         
         # 計算預期的簽名

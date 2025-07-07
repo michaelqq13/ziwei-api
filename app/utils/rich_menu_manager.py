@@ -536,29 +536,47 @@ class RichMenuManager:
     
     def set_user_rich_menu(self, user_id: str, rich_menu_id: str) -> bool:
         """
-        為特定用戶設置 Rich Menu
+        設定用戶的 Rich Menu
         
         Args:
-            user_id: LINE 用戶 ID
+            user_id: 用戶 ID
             rich_menu_id: Rich Menu ID
             
         Returns:
-            bool: 是否成功設置
+            bool: 是否成功設定
         """
-        url = f"{self.base_url}/user/{user_id}/richmenu/{rich_menu_id}"
-        
         try:
-            response = requests.post(url, headers=self.headers)
-            response.raise_for_status()
+            url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu/{rich_menu_id}"
+            headers = {
+                "Authorization": f"Bearer {LineBotConfig.CHANNEL_ACCESS_TOKEN}",
+                "Content-Type": "application/json"
+            }
             
-            logger.info(f"成功為用戶 {user_id} 設置 Rich Menu: {rich_menu_id}")
-            return True
+            response = requests.post(url, headers=headers, timeout=30)
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"為用戶 {user_id} 設置 Rich Menu 失敗: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                logger.error(f"回應內容: {e.response.text}")
+            if response.status_code == 200:
+                logger.info(f"✅ 用戶 {user_id} Rich Menu 設定成功")
+                return True
+            else:
+                logger.error(f"❌ 用戶 {user_id} Rich Menu 設定失敗: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"設定用戶 Rich Menu 時發生錯誤: {e}")
             return False
+    
+    def link_user_rich_menu(self, user_id: str, rich_menu_id: str) -> bool:
+        """
+        連結用戶的 Rich Menu（set_user_rich_menu 的別名）
+        
+        Args:
+            user_id: 用戶 ID
+            rich_menu_id: Rich Menu ID
+            
+        Returns:
+            bool: 是否成功連結
+        """
+        return self.set_user_rich_menu(user_id, rich_menu_id)
     
     def get_user_rich_menu_id(self, user_id: str) -> Optional[str]:
         """
@@ -796,38 +814,32 @@ class RichMenuManager:
             logger.error(f"設定用戶 {user_id} 分頁選單過程中發生錯誤: {e}")
             return None
     
-    def switch_user_tab(self, user_id: str, user_level: str, new_tab: str) -> bool:
+    def switch_user_tab(self, user_id: str, target_tab: str, user_level: str) -> bool:
         """
         切換用戶的分頁
         
         Args:
             user_id: LINE 用戶 ID
-            user_level: 用戶等級
-            new_tab: 新分頁 ("basic", "fortune", "admin")
+            target_tab: 目標分頁 ("basic", "fortune", "admin")
+            user_level: 用戶等級 ("free", "premium", "admin")
             
         Returns:
             bool: 是否成功切換
         """
         try:
-            # 檢查分頁權限
-            from app.utils.tabbed_rich_menu_generator import TabbedRichMenuGenerator
-            generator = TabbedRichMenuGenerator()
-            
-            if not generator._check_tab_permission(
-                generator._get_tab_configs(user_level)[0]["required_level"] if generator._get_tab_configs(user_level) else "admin",
-                user_level
-            ):
-                logger.warning(f"用戶 {user_id} 沒有權限訪問分頁 {new_tab}")
+            # 檢查用戶是否有權限訪問目標分頁
+            if not can_access_tab(target_tab, user_level):
+                logger.warning(f"用戶 {user_id} (等級: {user_level}) 無權限訪問分頁: {target_tab}")
                 return False
             
             # 設定新分頁選單
-            rich_menu_id = self.setup_user_tabbed_rich_menu(user_id, user_level, new_tab)
+            rich_menu_id = self.setup_user_tabbed_rich_menu(user_id, user_level, target_tab)
             
             if rich_menu_id:
-                logger.info(f"✅ 成功切換用戶 {user_id} 到分頁 {new_tab}")
+                logger.info(f"✅ 成功切換用戶 {user_id} 到分頁 {target_tab}")
                 return True
             else:
-                logger.error(f"切換用戶 {user_id} 到分頁 {new_tab} 失敗")
+                logger.error(f"切換用戶 {user_id} 到分頁 {target_tab} 失敗")
                 return False
                 
         except Exception as e:
@@ -968,13 +980,25 @@ def switch_user_tab(user_id: str, target_tab: str, user_level: str) -> bool:
     Returns:
         bool: 是否成功切換
     """
-    # 檢查用戶是否有權限訪問目標分頁
-    if not can_access_tab(target_tab, user_level):
-        logger.warning(f"用戶 {user_id} (等級: {user_level}) 無權限訪問分頁: {target_tab}")
+    try:
+        # 檢查用戶是否有權限訪問目標分頁
+        if not can_access_tab(target_tab, user_level):
+            logger.warning(f"用戶 {user_id} (等級: {user_level}) 無權限訪問分頁: {target_tab}")
+            return False
+        
+        # 設定新分頁選單
+        rich_menu_id = rich_menu_manager.setup_user_tabbed_rich_menu(user_id, user_level, target_tab)
+        
+        if rich_menu_id:
+            logger.info(f"✅ 成功切換用戶 {user_id} 到分頁 {target_tab}")
+            return True
+        else:
+            logger.error(f"切換用戶 {user_id} 到分頁 {target_tab} 失敗")
+            return False
+            
+    except Exception as e:
+        logger.error(f"切換用戶 {user_id} 分頁時發生錯誤: {e}")
         return False
-    
-    # 切換到目標分頁
-    return set_user_tabbed_menu(user_id, target_tab, user_level)
 
 def can_access_tab(tab_name: str, user_level: str) -> bool:
     """

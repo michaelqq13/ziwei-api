@@ -1,0 +1,189 @@
+{
+  "timestamp": "2025-07-06T00:14:01.363632",
+  "summary": {
+    "total_tests": 13,
+    "successful_tests": 13,
+    "success_rate": 100.0
+  },
+  "results": {
+    "圖片生成": [
+      {
+        "test": "basic_free",
+        "status": "success",
+        "image_path": "rich_menu_images/tabbed_menu_basic_free.png",
+        "file_size": 32974,
+        "button_count": 4
+      },
+      {
+        "test": "basic_premium",
+        "status": "success",
+        "image_path": "rich_menu_images/tabbed_menu_basic_premium.png",
+        "file_size": 32813,
+        "button_count": 5
+      },
+      {
+        "test": "basic_admin",
+        "status": "success",
+        "image_path": "rich_menu_images/tabbed_menu_basic_admin.png",
+        "file_size": 32893,
+        "button_count": 6
+      },
+      {
+        "test": "fortune_premium",
+        "status": "success",
+        "image_path": "rich_menu_images/tabbed_menu_fortune_premium.png",
+        "file_size": 33248,
+        "button_count": 5
+      },
+      {
+        "test": "fortune_admin",
+        "status": "success",
+        "image_path": "rich_menu_images/tabbed_menu_fortune_admin.png",
+        "file_size": 32545,
+        "button_count": 6
+      },
+      {
+        "test": "admin_admin",
+        "status": "success",
+        "image_path": "rich_menu_images/tabbed_menu_admin_admin.png",
+        "file_size": 30679,
+        "button_count": 4
+      }
+    ],
+    "Rich Menu 管理器": [
+      {
+        "test": "get_menu_list",
+        "status": "success",
+        "count": 5
+      },
+      {
+        "test": "setup_basic_free",
+        "status": "success",
+        "menu_id": "richmenu-2e6e1273f55906922a0a00cd0b2b6286"
+      },
+      {
+        "test": "setup_fortune_premium",
+        "status": "success",
+        "menu_id": "richmenu-5b0ff826338fa7adf1ba450298895ace"
+      },
+      {
+        "test": "setup_admin_admin",
+        "status": "success",
+        "menu_id": "richmenu-b6f6111316a23839118416fc4fcfd40e"
+      }
+    ],
+    "權限邏輯": {
+      "test": "permission_logic",
+      "status": "success"
+    },
+    "動態選單管理器": [
+      {
+        "test": "set_tabbed_mode",
+        "status": "success"
+      }
+    ],
+    "按鈕配置": {
+      "test": "button_configurations",
+      "status": "success",
+      "configs": {
+        "basic": [
+          {
+            "name": "member_info",
+            "text": "會員資訊",
+            "action_text": "會員資訊",
+            "color": [
+              200,
+              200,
+              200
+            ],
+            "planet": "月球",
+            "moon_style": "classic",
+            "icon": "🌙"
+          },
+          {
+            "name": "weekly_divination",
+            "text": "本週占卜",
+            "action_text": "本週占卜",
+            "color": [
+              255,
+              215,
+              0
+            ],
+            "planet": "太陽",
+            "sun_style": "classic",
+            "icon": "☀️"
+          },
+          {
+            "name": "chart_binding",
+            "text": "命盤綁定",
+            "action_text": "命盤綁定",
+            "color": [
+              150,
+              200,
+              255
+            ],
+            "planet": "地球",
+            "earth_style": "classic",
+            "icon": "🌍"
+          }
+        ],
+        "fortune": [
+          {
+            "name": "yearly_fortune",
+            "text": "流年",
+            "action_text": "流年運勢",
+            "color": [
+              255,
+              140,
+              60
+            ],
+            "planet": "火箭",
+            "rocket_style": "classic",
+            "icon": "🚀"
+          },
+          {
+            "name": "monthly_fortune",
+            "text": "流月",
+            "action_text": "流月運勢",
+            "color": [
+              255,
+              215,
+              100
+            ],
+            "planet": "土星",
+            "saturn_style": "classic",
+            "icon": "🪐"
+          },
+          {
+            "name": "daily_fortune",
+            "text": "流日",
+            "action_text": "流日運勢",
+            "color": [
+              180,
+              180,
+              180
+            ],
+            "planet": "幽浮",
+            "ufo_style": "classic_with_beam",
+            "icon": "🛸"
+          }
+        ],
+        "admin": [
+          {
+            "name": "scheduled_divination",
+            "text": "指定時間",
+            "action_text": "指定時間占卜",
+            "color": [
+              255,
+              100,
+              255
+            ],
+            "planet": "時鐘",
+            "clock_style": "classic",
+            "icon": "⏰"
+          }
+        ]
+      }
+    }
+  }
+}

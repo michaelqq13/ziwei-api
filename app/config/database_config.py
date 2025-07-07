@@ -10,9 +10,9 @@ class DatabaseConfig:
     # 獲取數據庫 URL
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     
-    # 如果沒有設置 DATABASE_URL，使用默認的本地 PostgreSQL
+    # 如果沒有設置 DATABASE_URL，使用默認的本地 SQLite
     if not DATABASE_URL:
-        DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/ziwei"
+        DATABASE_URL = "sqlite:///./ziwei.db"
     
     # 如果是 Railway 提供的 DATABASE_URL，需要替換掉 "postgres://" 為 "postgresql://"
     if DATABASE_URL.startswith("postgres://"):
@@ -32,7 +32,7 @@ class DatabaseConfig:
         """動態獲取數據庫 URL（用於調試）"""
         url = os.getenv("DATABASE_URL")
         if not url:
-            return "postgresql://postgres:postgres@localhost:5432/ziwei"
+            return "sqlite:///./ziwei.db"
         
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)

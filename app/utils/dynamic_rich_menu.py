@@ -110,8 +110,20 @@ class DynamicRichMenuManager:
         """
         try:
             # 獲取用戶權限
-            with get_db() as db:
-                from app.models.linebot_user import LineBotUser
+            db = None
+            try:
+                from app.db.database import get_db
+                from app.models.linebot_models import LineBotUser
+                from sqlalchemy.orm import sessionmaker
+                from sqlalchemy import create_engine
+                from app.config.database_config import DatabaseConfig
+                
+                # 創建數據庫會話
+                database_url = DatabaseConfig.get_database_url()
+                engine = create_engine(database_url)
+                SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+                db = SessionLocal()
+                
                 user = db.query(LineBotUser).filter(LineBotUser.line_user_id == user_id).first()
                 if not user:
                     logger.warning(f"用戶 {user_id} 不存在於數據庫中")
@@ -119,6 +131,14 @@ class DynamicRichMenuManager:
                 
                 user_permissions = permission_manager.get_user_stats(db, user)
                 user_level = determine_user_level(user_permissions)
+                
+            except Exception as db_error:
+                logger.warning(f"數據庫連接失敗，使用預設權限: {db_error}")
+                # 如果數據庫連接失敗，使用預設權限
+                user_level = "free"
+            finally:
+                if db:
+                    db.close()
             
             # 檢查權限
             if not can_access_tab(target_tab, user_level):
@@ -152,7 +172,7 @@ class DynamicRichMenuManager:
         try:
             # 獲取用戶權限
             with get_db() as db:
-                from app.models.linebot_user import LineBotUser
+                from app.models.linebot_models import LineBotUser
                 user = db.query(LineBotUser).filter(LineBotUser.line_user_id == user_id).first()
                 if not user:
                     return {"error": "用戶不存在"}

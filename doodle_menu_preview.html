@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塗鴉風格星空紫微選單預覽 - 管理員版</title>
+    <style>
+        body {
+            font-family: 'Hiragino Sans GB', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #FFE5F1 0%, #E8F4FD 50%, #FFF2E8 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.8em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            background: linear-gradient(45deg, #FF6B9D, #4ECDC4, #FFE66D);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: rainbow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(30deg); }
+        }
+        
+        .header p {
+            font-size: 1.3em;
+            margin: 15px 0;
+            color: #666;
+        }
+        
+        .upgrade-highlight {
+            background: linear-gradient(45deg, #FF6B9D, #4ECDC4, #FFE66D);
+            padding: 25px;
+            border-radius: 25px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        .upgrade-highlight h3 {
+            color: white;
+            margin: 0 0 10px 0;
+            font-size: 1.8em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .upgrade-highlight p {
+            color: white;
+            margin: 0;
+            font-size: 1.2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .menu-container {
+            background: rgba(255,255,255,0.8);
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 95%;
+            overflow: hidden;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 3px solid rgba(255,182,193,0.3);
+        }
+        
+        .menu-image {
+            width: 100%;
+            height: auto;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .features {
+            color: #333;
+            text-align: center;
+            margin-top: 40px;
+            max-width: 1000px;
+        }
+        
+        .features h2 {
+            font-size: 2.2em;
+            margin-bottom: 25px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            color: #FF6B9D;
+        }
+        
+        .planet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .planet-card {
+            background: rgba(255,255,255,0.9);
+            padding: 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,182,193,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .planet-card:hover {
+            transform: translateY(-8px) rotate(2deg);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+        
+        .planet-card.sun { 
+            border-left: 5px solid #FFD700;
+            background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,220,100,0.1));
+        }
+        .planet-card.earth { 
+            border-left: 5px solid #4682B4;
+            background: linear-gradient(135deg, rgba(100,180,255,0.1), rgba(80,200,80,0.1));
+        }
+        .planet-card.moon { 
+            border-left: 5px solid #C0C0C0;
+            background: linear-gradient(135deg, rgba(220,220,220,0.1), rgba(200,200,200,0.1));
+        }
+        .planet-card.saturn { 
+            border-left: 5px solid #DAA520;
+            background: linear-gradient(135deg, rgba(255,215,100,0.1), rgba(255,180,50,0.1));
+        }
+        .planet-card.rocket { 
+            border-left: 5px solid #FF4500;
+            background: linear-gradient(135deg, rgba(255,100,100,0.1), rgba(255,150,100,0.1));
+        }
+        .planet-card.ufo { 
+            border-left: 5px solid #00CED1;
+            background: linear-gradient(135deg, rgba(150,200,255,0.1), rgba(100,255,100,0.1));
+        }
+        .planet-card.meteor { 
+            border-left: 5px solid #FF6347;
+            background: linear-gradient(135deg, rgba(255,200,100,0.1), rgba(255,150,100,0.1));
+        }
+        
+        .planet-card h3 {
+            color: #FF6B9D;
+            margin: 0 0 15px 0;
+            font-size: 1.4em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .planet-card p {
+            margin: 0;
+            font-size: 1em;
+            line-height: 1.6;
+            color: #666;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.9);
+            padding: 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,182,193,0.3);
+            transition: transform 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px) rotate(-1deg);
+        }
+        
+        .feature-card h3 {
+            color: #4ECDC4;
+            margin-top: 0;
+            font-size: 1.4em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .feature-card p {
+            line-height: 1.7;
+            color: #666;
+        }
+        
+        .admin-badge {
+            background: linear-gradient(45deg, #FF6B9D, #4ECDC4);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            font-weight: bold;
+            display: inline-block;
+            margin: 10px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            animation: wiggle 1s ease-in-out infinite;
+        }
+        
+        @keyframes wiggle {
+            0%, 7% { transform: rotateZ(0); }
+            15% { transform: rotateZ(-15deg); }
+            20% { transform: rotateZ(10deg); }
+            25% { transform: rotateZ(-10deg); }
+            30% { transform: rotateZ(6deg); }
+            35% { transform: rotateZ(-4deg); }
+            40%, 100% { transform: rotateZ(0); }
+        }
+        
+        .cute-emoji {
+            font-size: 1.5em;
+            display: inline-block;
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .comparison-section {
+            background: rgba(255,255,255,0.9);
+            border-radius: 25px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 3px solid rgba(255,182,193,0.3);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .comparison-section h2 {
+            color: #FF6B9D;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .comparison-item {
+            text-align: center;
+        }
+        
+        .comparison-item h3 {
+            color: #4ECDC4;
+            margin-bottom: 15px;
+        }
+        
+        .comparison-item ul {
+            text-align: left;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.2em;
+            }
+            
+            .menu-container {
+                padding: 20px;
+            }
+            
+            .planet-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span class="cute-emoji">🎨</span> 塗鴉風格星空紫微選單 <span class="cute-emoji">✨</span></h1>
+        <p>管理員專用 - 可愛手繪風格設計</p>
+        <div class="admin-badge">👑 管理員專用版本</div>
+    </div>
+    
+    <div class="upgrade-highlight">
+        <h3><span class="cute-emoji">🌟</span> 全新塗鴉風格！</h3>
+        <p>每個按鈕都有可愛的表情和手繪風格，讓占卜變得更親切有趣！</p>
+    </div>
+    
+    <div class="menu-container">
+        <img src="rich_menu_images/doodle_admin_menu.png" alt="塗鴉風格管理員選單" class="menu-image">
+    </div>
+    
+    <div class="comparison-section">
+        <h2><span class="cute-emoji">🎭</span> 設計風格對比</h2>
+        <div class="comparison-grid">
+            <div class="comparison-item">
+                <h3>🔥 寫實風格（舊版）</h3>
+                <ul>
+                    <li>精細的宇宙元素細節</li>
+                    <li>真實的物理效果</li>
+                    <li>專業但較為生硬</li>
+                    <li>視覺效果震撼</li>
+                    <li>距離感較強</li>
+                </ul>
+            </div>
+            <div class="comparison-item">
+                <h3>🎨 塗鴉風格（新版）</h3>
+                <ul>
+                    <li>可愛的手繪風格</li>
+                    <li>每個按鈕都有表情</li>
+                    <li>親切友善的視覺感受</li>
+                    <li>充滿趣味性</li>
+                    <li>容易親近</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="features">
+        <h2><span class="cute-emoji">🌈</span> 7種可愛宇宙夥伴</h2>
+        
+        <div class="planet-grid">
+            <div class="planet-card sun">
+                <h3>☀️ 太陽寶寶 - 本週占卜</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 溫暖的微笑表情 <span class="cute-emoji">😊</span><br>
+                    • 手繪風格的光芒<br>
+                    • 粉嫩的腮紅<br>
+                    • 不規則的可愛圓形<br>
+                    • 充滿活力的色彩
+                </p>
+            </div>
+            
+            <div class="planet-card earth">
+                <h3>🌍 地球小姐 - 流年運勢</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 溫柔的眼神 <span class="cute-emoji">🥰</span><br>
+                    • 手繪風格的大陸<br>
+                    • 蓬鬆的白雲朵<br>
+                    • 清新的藍綠配色<br>
+                    • 親切的小嘴巴
+                </p>
+            </div>
+            
+            <div class="planet-card moon">
+                <h3>🌙 月亮先生 - 流月運勢</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 睡覺的安詳表情 <span class="cute-emoji">😴</span><br>
+                    • 手繪風格的隕石坑<br>
+                    • 飄浮的ZZZ睡眠符號<br>
+                    • 溫柔的灰色調<br>
+                    • 寧靜的微笑
+                </p>
+            </div>
+            
+            <div class="planet-card saturn">
+                <h3>🪐 土星公主 - 流日運勢</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 戴帽子的優雅感 <span class="cute-emoji">👑</span><br>
+                    • 手繪風格的環帶<br>
+                    • 得意的笑容<br>
+                    • 金黃色的溫暖色調<br>
+                    • 周圍的小星星裝飾
+                </p>
+            </div>
+            
+            <div class="planet-card rocket">
+                <h3>🚀 火箭小子 - 命盤綁定</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 窗戶裡的可愛臉蛋 <span class="cute-emoji">🤗</span><br>
+                    • 手繪風格的火焰<br>
+                    • 彩色的條紋裝飾<br>
+                    • 活潑的橙紅配色<br>
+                    • 充滿冒險精神
+                </p>
+            </div>
+            
+            <div class="planet-card ufo">
+                <h3>🛸 幽浮朋友 - 會員資訊</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 驚訝的大眼睛 <span class="cute-emoji">😮</span><br>
+                    • 彩色的環繞燈光<br>
+                    • 神秘的光束<br>
+                    • 友善的銀色外觀<br>
+                    • 小天線裝飾
+                </p>
+            </div>
+            
+            <div class="planet-card meteor">
+                <h3>💫 流星精靈 - 指定時間占卜</h3>
+                <p>
+                    <strong>可愛特色：</strong><br>
+                    • 興奮的笑容 <span class="cute-emoji">😄</span><br>
+                    • 手繪風格的尾巴<br>
+                    • 閃亮的火花效果<br>
+                    • 溫暖的金色調<br>
+                    • 充滿動感的軌跡
+                </p>
+            </div>
+        </div>
+        
+        <h2><span class="cute-emoji">✨</span> 塗鴉風格特色</h2>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3><span class="cute-emoji">🎨</span> 手繪風格設計</h3>
+                <p>每個按鈕都採用手繪風格，線條不規則但充滿溫度，讓科技產品也能有人情味。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3><span class="cute-emoji">😊</span> 可愛表情系統</h3>
+                <p>每個宇宙夥伴都有自己的表情和個性，讓占卜過程更加有趣和親切。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3><span class="cute-emoji">🌈</span> 溫暖色彩搭配</h3>
+                <p>使用溫暖柔和的色彩，避免過於鮮豔或刺眼，營造舒適的視覺體驗。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3><span class="cute-emoji">🎯</span> 功能個性化</h3>
+                <p>每個按鈕的設計都反映其功能特色，如太陽的活力對應本週占卜的積極指引。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3><span class="cute-emoji">📱</span> 親近感提升</h3>
+                <p>塗鴉風格大幅降低了使用門檻，讓用戶更容易親近和使用占卜功能。</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3><span class="cute-emoji">🎪</span> 平均分佈設計</h3>
+                <p>按鈕位置經過精心調整，平均分佈但不制式化，視覺上更加和諧自然。</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

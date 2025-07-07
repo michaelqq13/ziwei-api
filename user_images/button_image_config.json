@@ -1,0 +1,83 @@
+{
+  "button_images": {
+    "weekly_divination": {
+      "image_file": "crystal_ball.png",
+      "text": "本週占卜",
+      "fallback_color": [
+        200,
+        150,
+        200
+      ],
+      "description": "水晶球圖片 - 用於本週占卜功能"
+    },
+    "yearly_fortune": {
+      "image_file": "earth.png",
+      "text": "流年運勢",
+      "fallback_color": [
+        255,
+        140,
+        60
+      ],
+      "description": "地球圖片 - 用於流年運勢功能"
+    },
+    "monthly_fortune": {
+      "image_file": "saturn.png",
+      "text": "流月運勢",
+      "fallback_color": [
+        255,
+        215,
+        100
+      ],
+      "description": "土星圖片 - 用於流月運勢功能"
+    },
+    "daily_fortune": {
+      "image_file": "sun.png",
+      "text": "流日運勢",
+      "fallback_color": [
+        180,
+        180,
+        180
+      ],
+      "description": "太陽圖片 - 用於流日運勢功能"
+    },
+    "chart_binding": {
+      "image_file": "satellite.png",
+      "text": "命盤綁定",
+      "fallback_color": [
+        150,
+        200,
+        255
+      ],
+      "description": "衛星圖片 - 用於命盤綁定功能"
+    },
+    "member_info": {
+      "image_file": "moon.png",
+      "text": "會員資訊",
+      "fallback_color": [
+        200,
+        200,
+        200
+      ],
+      "description": "月球圖片 - 用於會員資訊功能"
+    },
+    "scheduled_divination": {
+      "image_file": "clock.png",
+      "text": "指定時間",
+      "fallback_color": [
+        255,
+        100,
+        255
+      ],
+      "description": "時鐘圖片 - 用於指定時間占卜功能（管理員專用）"
+    }
+  },
+  "image_settings": {
+    "button_size": 200,
+    "image_resize": true,
+    "maintain_aspect_ratio": true,
+    "add_background_circle": false,
+    "background_opacity": 0.0,
+    "add_text_shadow": true,
+    "text_position": "bottom"
+  }
+}

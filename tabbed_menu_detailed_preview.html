@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分頁式選單預覽 - 詳細版本</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #FFD700;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .update-info {
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #00FFFF;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .update-info h2 {
+            color: #00FFFF;
+            margin-top: 0;
+        }
+        
+        .improvement-list {
+            text-align: left;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        
+        .improvement-list li {
+            margin: 8px 0;
+            padding-left: 10px;
+        }
+        
+        .menu-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .menu-section h2 {
+            color: #FFD700;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .menu-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .menu-item h3 {
+            color: #FFD700;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .menu-item img {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .menu-item img:hover {
+            transform: scale(1.05);
+        }
+        
+        .menu-info {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #CCCCCC;
+        }
+        
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #AAAAAA;
+        }
+        
+        .highlight {
+            color: #00FF00;
+            font-weight: bold;
+        }
+        
+        .comparison-section {
+            background: rgba(255, 165, 0, 0.1);
+            border: 2px solid #FFA500;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .comparison-section h2 {
+            color: #FFA500;
+            margin-top: 0;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .comparison-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .comparison-item h4 {
+            margin-top: 0;
+            color: #FFD700;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .feature-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .feature-card h3 {
+            color: #FFD700;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            color: #CCCCCC;
+        }
+        
+        @media (max-width: 768px) {
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 分頁式選單預覽 - 詳細版本 🌟</h1>
+        
+        <div class="update-info">
+            <h2>🎨 最新更新內容</h2>
+            <div class="improvement-list">
+                <ul>
+                    <li>✨ <strong>太陽表情升級</strong>：太陽寶寶現在有完整的可愛表情，包括大眼睛、微笑和腮紅</li>
+                    <li>🛸 <strong>幽浮光束特效</strong>：幽浮下方新增漸變光束效果，包含光束顆粒和能量波紋</li>
+                    <li>🎭 <strong>外星人駕駛員</strong>：幽浮駕駛艙內可以看到外星人的剪影和大眼睛</li>
+                    <li>💫 <strong>彩色燈光</strong>：幽浮底部有紅、綠、藍、黃、紫五色燈光效果</li>
+                    <li>🌟 <strong>反光質感</strong>：所有星球都有更真實的光澤和反光效果</li>
+                    <li>📈 <strong>圖片品質提升</strong>：圖片大小從30KB提升到50-70KB，包含更多細節</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="comparison-section">
+            <h2>🔍 改進對比說明</h2>
+            <div class="comparison-grid">
+                <div class="comparison-item">
+                    <h4>🌞 太陽寶寶改進</h4>
+                    <p><strong>之前：</strong>簡單的圓形加光芒</p>
+                    <p><strong>現在：</strong>可愛表情 + 腮紅 + 漸變光芒 + 手繪質感</p>
+                </div>
+                <div class="comparison-item">
+                    <h4>🛸 幽浮特效升級</h4>
+                    <p><strong>之前：</strong>基本飛碟造型</p>
+                    <p><strong>現在：</strong>光束特效 + 外星人駕駛員 + 彩色燈光 + 能量波紋</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-section">
+            <h2>📱 基本功能分頁</h2>
+            <p>適用於：<span class="highlight">所有會員等級</span></p>
+            <div class="menu-grid">
+                <div class="menu-item">
+                    <h3>免費會員版本</h3>
+                    <img src="rich_menu_images/tabbed_menu_basic_free.png" alt="基本功能 - 免費會員" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcluWDj+acrOaJvuS4jeWIsDwvdGV4dD48L3N2Zz4='">
+                    <div class="menu-info">
+                        <p>包含：會員資訊、本週占卜、命盤綁定</p>
+                        <p>特色：<span class="highlight">太陽寶寶有可愛表情</span></p>
+                    </div>
+                    <div class="file-info">
+                        <span>檔案大小：約 65-70KB</span>
+                        <span>按鈕數量：3個</span>
+                    </div>
+                </div>
+                
+                <div class="menu-item">
+                    <h3>付費會員版本</h3>
+                    <img src="rich_menu_images/tabbed_menu_basic_premium.png" alt="基本功能 - 付費會員" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcluWDj+acrOaJvuS4jeWIsDwvdGV4dD48L3N2Zz4='">
+                    <div class="menu-info">
+                        <p>包含：會員資訊、本週占卜、命盤綁定</p>
+                        <p>特色：<span class="highlight">可訪問運勢分頁</span></p>
+                    </div>
+                    <div class="file-info">
+                        <span>檔案大小：約 65-70KB</span>
+                        <span>按鈕數量：3個</span>
+                    </div>
+                </div>
+                
+                <div class="menu-item">
+                    <h3>管理員版本</h3>
+                    <img src="rich_menu_images/tabbed_menu_basic_admin.png" alt="基本功能 - 管理員" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcluWDj+acrOaJvuS4jeWIsDwvdGV4dD48L3N2Zz4='">
+                    <div class="menu-info">
+                        <p>包含：會員資訊、本週占卜、命盤綁定</p>
+                        <p>特色：<span class="highlight">可訪問所有分頁</span></p>
+                    </div>
+                    <div class="file-info">
+                        <span>檔案大小：約 65-70KB</span>
+                        <span>按鈕數量：3個</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-section">
+            <h2>🔮 運勢分頁</h2>
+            <p>適用於：<span class="highlight">付費會員 + 管理員</span></p>
+            <div class="menu-grid">
+                <div class="menu-item">
+                    <h3>付費會員版本</h3>
+                    <img src="rich_menu_images/tabbed_menu_fortune_premium.png" alt="運勢 - 付費會員" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcluWDj+acrOaJvuS4jeWIsDwvdGV4dD48L3N2Zz4='">
+                    <div class="menu-info">
+                        <p>包含：流年、流月、流日</p>
+                        <p>特色：<span class="highlight">幽浮有光束特效和外星人駕駛員</span></p>
+                    </div>
+                    <div class="file-info">
+                        <span>檔案大小：約 50-55KB</span>
+                        <span>按鈕數量：3個</span>
+                    </div>
+                </div>
+                
+                <div class="menu-item">
+                    <h3>管理員版本</h3>
+                    <img src="rich_menu_images/tabbed_menu_fortune_admin.png" alt="運勢 - 管理員" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcluWDj+acrOaJvuS4jeWIsDwvdGV4dD48L3N2Zz4='">
+                    <div class="menu-info">
+                        <p>包含：流年、流月、流日</p>
+                        <p>特色：<span class="highlight">可訪問進階選項分頁</span></p>
+                    </div>
+                    <div class="file-info">
+                        <span>檔案大小：約 50-55KB</span>
+                        <span>按鈕數量：3個</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-section">
+            <h2>⚙️ 進階選項分頁</h2>
+            <p>適用於：<span class="highlight">僅限管理員</span></p>
+            <div class="menu-grid">
+                <div class="menu-item">
+                    <h3>管理員專用</h3>
+                    <img src="rich_menu_images/tabbed_menu_admin_admin.png" alt="進階選項 - 管理員" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWcluWDj+acrOaJvuS4jeWIsDwvdGV4dD48L3N2Zz4='">
+                    <div class="menu-info">
+                        <p>包含：指定時間（時鐘精靈）</p>
+                        <p>特色：<span class="highlight">管理員專屬功能</span></p>
+                    </div>
+                    <div class="file-info">
+                        <span>檔案大小：約 45-50KB</span>
+                        <span>按鈕數量：1個</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-section">
+            <h2>🌟 新增特色功能</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon">🌞</div>
+                    <h3>太陽寶寶表情</h3>
+                    <p>大眼睛、微笑、腮紅，讓本週占卜更有親和力</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="icon">🛸</div>
+                    <h3>幽浮光束特效</h3>
+                    <p>漸變光束、光束顆粒、能量波紋，科幻感十足</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="icon">👽</div>
+                    <h3>外星人駕駛員</h3>
+                    <p>駕駛艙內的外星人剪影，增加趣味性</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="icon">🎨</div>
+                    <h3>彩色燈光效果</h3>
+                    <p>紅、綠、藍、黃、紫五色燈光，視覺更豐富</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="icon">✨</div>
+                    <h3>質感提升</h3>
+                    <p>反光效果、漸變色彩、手繪質感</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="icon">🎯</div>
+                    <h3>權限控制</h3>
+                    <p>根據會員等級顯示不同分頁和功能</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🌟 分頁式選單系統 - 詳細版本 🌟</p>
+            <p>最後更新：2024年 | 包含完整的太陽表情和幽浮光束特效</p>
+            <p>圖片品質：高清版本（50-70KB）| 支援所有會員等級</p>
+        </div>
+    </div>
+</body>
+</html> 

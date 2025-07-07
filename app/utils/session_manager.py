@@ -1,5 +1,6 @@
 from typing import Dict, Optional
-from app.models.linebot_models import UserSession, UserBirthInfo
+from app.models.linebot_models import UserSession
+from app.models.user_birth_info import UserBirthInfo
 
 class SessionManager:
     """用戶會話管理器"""

@@ -1,0 +1,325 @@
+
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>完整樣式選擇預覽</title>
+        <style>
+            body {
+                font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                color: white;
+                margin: 0;
+                padding: 20px;
+            }
+            .container {
+                max-width: 1600px;
+                margin: 0 auto;
+                text-align: center;
+            }
+            h1 {
+                font-size: 2.5em;
+                margin-bottom: 30px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            }
+            .preview-image {
+                max-width: 100%;
+                height: auto;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                margin-bottom: 30px;
+            }
+            .category-section {
+                margin-bottom: 40px;
+                background: rgba(255,255,255,0.05);
+                border-radius: 15px;
+                padding: 20px;
+                backdrop-filter: blur(10px);
+            }
+            .category-title {
+                font-size: 1.8em;
+                color: #FFD700;
+                margin-bottom: 20px;
+                text-align: left;
+            }
+            .styles-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            .style-card {
+                background: rgba(255,255,255,0.1);
+                border-radius: 12px;
+                padding: 15px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.2);
+                transition: transform 0.3s ease;
+            }
+            .style-card:hover {
+                transform: translateY(-3px);
+            }
+            .style-number {
+                font-size: 1.5em;
+                font-weight: bold;
+                color: #FFD700;
+                margin-bottom: 8px;
+            }
+            .style-title {
+                font-size: 1.2em;
+                font-weight: bold;
+                margin-bottom: 8px;
+                color: #FFFFFF;
+            }
+            .style-description {
+                font-size: 0.9em;
+                line-height: 1.4;
+                color: #CCCCCC;
+            }
+            .instructions {
+                background: rgba(255,255,255,0.1);
+                border-radius: 15px;
+                padding: 25px;
+                margin-top: 30px;
+                text-align: left;
+                backdrop-filter: blur(10px);
+            }
+            .instructions h3 {
+                color: #FFD700;
+                margin-bottom: 15px;
+            }
+            .instructions ol, .instructions ul {
+                line-height: 1.8;
+            }
+            .instructions li {
+                margin-bottom: 8px;
+            }
+            .code-example {
+                background: rgba(0,0,0,0.3);
+                border-radius: 8px;
+                padding: 15px;
+                margin: 15px 0;
+                font-family: 'Courier New', monospace;
+                font-size: 0.9em;
+                color: #00FF00;
+            }
+            .selection-guide {
+                background: rgba(255,215,0,0.1);
+                border: 2px solid #FFD700;
+                border-radius: 12px;
+                padding: 20px;
+                margin: 20px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🎨 完整樣式選擇預覽</h1>
+            
+            <img src="complete_styles_preview.png" alt="完整樣式預覽" class="preview-image">
+    
+            <div class="category-section">
+                <h2 class="category-title">太陽樣式</h2>
+                <div class="styles-grid">
+        
+                    <div class="style-card">
+                        <div class="style-number">S1</div>
+                        <div class="style-title">經典太陽</div>
+                        <div class="style-description">傳統太陽光芒四射</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">S2</div>
+                        <div class="style-title">可愛太陽</div>
+                        <div class="style-description">萌萌的太陽表情</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">S3</div>
+                        <div class="style-title">卡通太陽</div>
+                        <div class="style-description">活潑卡通風格</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">S4</div>
+                        <div class="style-title">現代太陽</div>
+                        <div class="style-description">簡潔現代設計</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">S5</div>
+                        <div class="style-title">日系太陽</div>
+                        <div class="style-description">日式可愛風格</div>
+                    </div>
+            
+                </div>
+            </div>
+        
+            <div class="category-section">
+                <h2 class="category-title">地球樣式</h2>
+                <div class="styles-grid">
+        
+                    <div class="style-card">
+                        <div class="style-number">E1</div>
+                        <div class="style-title">經典地球</div>
+                        <div class="style-description">傳統地球大陸板塊</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">E2</div>
+                        <div class="style-title">詳細地球</div>
+                        <div class="style-description">豐富細節地球</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">E3</div>
+                        <div class="style-title">手臂地球</div>
+                        <div class="style-description">有可愛手臂的地球</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">E4</div>
+                        <div class="style-title">眼睛地球</div>
+                        <div class="style-description">只有眼睛的地球</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">E5</div>
+                        <div class="style-title">日系地球</div>
+                        <div class="style-description">日式可愛地球</div>
+                    </div>
+            
+                </div>
+            </div>
+        
+            <div class="category-section">
+                <h2 class="category-title">月球樣式</h2>
+                <div class="styles-grid">
+        
+                    <div class="style-card">
+                        <div class="style-number">M1</div>
+                        <div class="style-title">經典月球</div>
+                        <div class="style-description">傳統月球隕石坑</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">M2</div>
+                        <div class="style-title">睡覺月球</div>
+                        <div class="style-description">閉眼睡覺月球</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">M3</div>
+                        <div class="style-title">月牙樣式</div>
+                        <div class="style-description">彎月造型</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">M4</div>
+                        <div class="style-title">可愛月球</div>
+                        <div class="style-description">日系可愛月球</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">M5</div>
+                        <div class="style-title">神秘月球</div>
+                        <div class="style-description">神秘深色月球</div>
+                    </div>
+            
+                </div>
+            </div>
+        
+            <div class="category-section">
+                <h2 class="category-title">火箭樣式</h2>
+                <div class="styles-grid">
+        
+                    <div class="style-card">
+                        <div class="style-number">R1</div>
+                        <div class="style-title">經典火箭</div>
+                        <div class="style-description">傳統火箭設計</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">R2</div>
+                        <div class="style-title">卡通火箭</div>
+                        <div class="style-description">活潑卡通火箭</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">R3</div>
+                        <div class="style-title">復古火箭</div>
+                        <div class="style-description">復古風格火箭</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">R4</div>
+                        <div class="style-title">現代火箭</div>
+                        <div class="style-description">流線現代火箭</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">R5</div>
+                        <div class="style-title">太空梭</div>
+                        <div class="style-description">太空梭造型</div>
+                    </div>
+            
+                    <div class="style-card">
+                        <div class="style-number">R6</div>
+                        <div class="style-title">迷你火箭</div>
+                        <div class="style-description">小巧可愛火箭</div>
+                    </div>
+            
+                </div>
+            </div>
+        
+            <div class="instructions">
+                <h3>📋 選擇指南</h3>
+                
+                <div class="selection-guide">
+                    <h4>🎯 如何選擇樣式</h4>
+                    <ol>
+                        <li><strong>查看預覽圖片</strong>：上方圖片展示了所有樣式的視覺效果</li>
+                        <li><strong>按類別選擇</strong>：每個類別（太陽、地球、月球、火箭）選擇您喜歡的樣式</li>
+                        <li><strong>記住編號</strong>：每個樣式都有編號（如 S1、E2、M3、R4）</li>
+                        <li><strong>告訴我選擇</strong>：列出您要保留的樣式編號</li>
+                    </ol>
+                </div>
+                
+                <h3>🎨 樣式編號說明</h3>
+                <ul>
+                    <li><strong>S1-S5</strong>：太陽樣式（Sun 1-5）</li>
+                    <li><strong>E1-E5</strong>：地球樣式（Earth 1-5）</li>
+                    <li><strong>M1-M5</strong>：月球樣式（Moon 1-5）</li>
+                    <li><strong>R1-R6</strong>：火箭樣式（Rocket 1-6）</li>
+                </ul>
+                
+                <h3>💡 建議選擇</h3>
+                <ul>
+                    <li><strong>占卜應用</strong>：建議保留神秘、優雅的樣式</li>
+                    <li><strong>年輕用戶</strong>：建議保留可愛、卡通的樣式</li>
+                    <li><strong>簡潔設計</strong>：建議保留經典、現代的樣式</li>
+                    <li><strong>多樣化</strong>：每個類別保留2-3個不同風格的樣式</li>
+                </ul>
+                
+                <div class="code-example">
+                    範例回覆：
+                    「太陽保留 S1、S4，地球保留 E1、E5，月球保留 M1、M4，火箭保留 R2、R5」
+                    
+                    或簡化版：
+                    「S1,S4 E1,E5 M1,M4 R2,R5」
+                </div>
+                
+                <h3>⚡ 自動清理</h3>
+                <p>選擇完成後，我會自動：</p>
+                <ul>
+                    <li>移除您不需要的樣式函數</li>
+                    <li>更新樣式選擇邏輯</li>
+                    <li>優化代碼結構</li>
+                    <li>生成最終預覽確認</li>
+                </ul>
+            </div>
+        </div>
+    </body>
+    </html>
+    
