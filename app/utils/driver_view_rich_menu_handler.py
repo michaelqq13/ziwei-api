@@ -31,14 +31,14 @@ class DriverViewRichMenuHandler:
                 "buttons": [
                     {"text": "🔮 本週占卜", "action": {"type": "message", "text": "本週占卜"}, "image_key": "weekly_divination"},
                     {"text": "📊 會員資訊", "action": {"type": "message", "text": "會員資訊"}, "image_key": "member_info"},
-                    {"text": "⚙️ 設定", "action": {"type": "message", "text": "設定"}, "image_key": None}  # 設定功能暫時沒有對應圖片
+                    {"text": "🛰️ 命盤綁定", "action": {"type": "message", "text": "命盤綁定"}, "image_key": "chart_binding"}
                 ]
             },
             "fortune": {
                 "name": "運勢",
                 "buttons": [
-                    {"text": "🎯 流年運勢", "action": {"type": "message", "text": "流年運勢"}, "image_key": "yearly_fortune"},
-                    {"text": "🌙 流月運勢", "action": {"type": "message", "text": "流月運勢"}, "image_key": "monthly_fortune"},
+                    {"text": "🌍 流年運勢", "action": {"type": "message", "text": "流年運勢"}, "image_key": "yearly_fortune"},
+                    {"text": "🪐 流月運勢", "action": {"type": "message", "text": "流月運勢"}, "image_key": "monthly_fortune"},
                     {"text": "☀️ 流日運勢", "action": {"type": "message", "text": "流日運勢"}, "image_key": "daily_fortune"}
                 ]
             },
