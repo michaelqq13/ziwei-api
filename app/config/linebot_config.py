@@ -3,11 +3,37 @@ LINE Bot 配置文件
 包含所有 LINE Bot 相關的設定和常數
 """
 import os
+import logging
 from typing import Dict, List
 from dotenv import load_dotenv
 
+# 設置日誌記錄器
+logger = logging.getLogger(__name__)
+
+# 改進的環境變數載入機制
+def load_environment_variables():
+    """載入環境變數，支援本地開發和生產環境"""
+    # 1. 首先嘗試載入 .env 檔案（如果存在）
+    if os.path.exists(".env"):
+        load_dotenv(".env")
+        logger.info("已載入 .env 檔案")
+    
+    # 2. 嘗試載入 config.env 檔案（如果存在）
+    if os.path.exists("config.env"):
+        load_dotenv("config.env")
+        logger.info("已載入 config.env 檔案")
+    
+    # 3. 記錄環境變數載入狀態
+    line_secret = os.getenv("LINE_CHANNEL_SECRET")
+    line_token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+    
+    logger.info(f"LINE_CHANNEL_SECRET 狀態: {'已設定' if line_secret and line_secret != 'your_channel_secret_here' else '未設定或為預設值'}")
+    logger.info(f"LINE_CHANNEL_ACCESS_TOKEN 狀態: {'已設定' if line_token and line_token != 'your_channel_access_token_here' else '未設定或為預設值'}")
+    
+    return line_secret, line_token
+
 # 載入環境變數
-load_dotenv("config.env")
+load_environment_variables()
 
 class LineBotConfig:
     """LINE Bot 配置類"""
@@ -15,6 +41,29 @@ class LineBotConfig:
     # ========== LINE Platform 設定 ==========
     CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "your_channel_access_token_here")
     CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "your_channel_secret_here")
+    
+    # 在類初始化時進行驗證和日誌記錄
+    @classmethod
+    def _validate_line_config(cls):
+        """驗證 LINE 配置並記錄詳細信息"""
+        logger.info("=== LINE Bot 配置驗證 ===")
+        
+        # 檢查 Channel Secret
+        if cls.CHANNEL_SECRET == "your_channel_secret_here":
+            logger.error("❌ LINE_CHANNEL_SECRET 未正確設定，使用預設值")
+            logger.error("請在生產環境中設定正確的 LINE_CHANNEL_SECRET 環境變數")
+        else:
+            logger.info(f"✅ LINE_CHANNEL_SECRET 已設定: {cls.CHANNEL_SECRET[:8]}...")
+        
+        # 檢查 Channel Access Token
+        if cls.CHANNEL_ACCESS_TOKEN == "your_channel_access_token_here":
+            logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN 未正確設定，使用預設值")
+        else:
+            logger.info(f"✅ LINE_CHANNEL_ACCESS_TOKEN 已設定: {cls.CHANNEL_ACCESS_TOKEN[:20]}...")
+        
+        logger.info("========================")
+        
+        return cls.CHANNEL_SECRET != "your_channel_secret_here"
     
     # ========== 管理員設定 ==========
     ADMIN_SECRET_PHRASE = "星空紫微"  # 管理員密語

@@ -1315,10 +1315,24 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
         import hashlib
         import base64
         
+        # 驗證配置是否正確載入
+        LineBotConfig._validate_line_config()
+        
         # 使用配置中的 LINE Channel Secret
         channel_secret = LineBotConfig.CHANNEL_SECRET
-        if not channel_secret or channel_secret == "your_channel_secret_here":
-            logger.error("LINE_CHANNEL_SECRET 環境變數未設定或為預設值")
+        
+        # 詳細的配置檢查
+        if not channel_secret:
+            logger.error("❌ LINE_CHANNEL_SECRET 環境變數為空")
+            logger.error("請確認在 Railway 環境變數中設定了 LINE_CHANNEL_SECRET")
+            return False
+            
+        if channel_secret == "your_channel_secret_here":
+            logger.error("❌ LINE_CHANNEL_SECRET 仍為預設值，簽名驗證將失敗")
+            logger.error("正確的 Channel Secret 應為: 611969a2b460d46e71648a2c3a6d54fb")
+            logger.error("請在 Railway 專案設定中添加環境變數：")
+            logger.error("變數名: LINE_CHANNEL_SECRET")
+            logger.error("變數值: 611969a2b460d46e71648a2c3a6d54fb")
             return False
         
         # 計算預期的簽名
@@ -1332,14 +1346,29 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
         
         # 比較簽名
         if signature == expected_signature:
-            logger.info("LINE 簽名驗證成功")
+            logger.info("✅ LINE 簽名驗證成功")
             return True
         else:
-            logger.warning(f"LINE 簽名驗證失敗 - 預期: {expected_signature[:10]}..., 實際: {signature[:10]}...")
+            logger.error("❌ LINE 簽名驗證失敗")
+            logger.error(f"預期簽名: {expected_signature[:20]}...")
+            logger.error(f"實際簽名: {signature[:20]}...")
+            logger.error(f"使用的 Channel Secret: {channel_secret[:8]}...")
+            logger.error(f"請求主體長度: {len(body)} bytes")
+            
+            # 如果是預期的 Channel Secret，提供詳細的除錯資訊
+            if channel_secret == "611969a2b460d46e71648a2c3a6d54fb":
+                logger.info("Channel Secret 正確，但簽名不匹配 - 可能是請求主體差異")
+                logger.debug(f"請求主體內容: {body.decode('utf-8', errors='replace')[:200]}...")
+            else:
+                logger.error("Channel Secret 不正確，請檢查環境變數設定")
+            
             return False
             
     except Exception as e:
-        logger.error(f"LINE 簽名驗證過程發生錯誤: {e}")
+        logger.error(f"❌ LINE 簽名驗證過程發生錯誤: {e}")
+        logger.error(f"錯誤詳情: {type(e).__name__}: {str(e)}")
+        import traceback
+        logger.error(f"完整錯誤追蹤: {traceback.format_exc()}")
         return False
 
 # 健康檢查端點
