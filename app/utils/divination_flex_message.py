@@ -525,14 +525,14 @@ class DivinationFlexMessageGenerator:
                                 contents=[
                                     FlexText(
                                         text=star_line[0][:10],  # 適當字數限制
-                                        size="sm",  # 加大主星字體
+                                        size="md",  # 加大主星字體從sm改為md
                                         color="#444444",
                                         weight="bold",
                                         flex=1
                                     ),
                                     FlexText(
                                         text=star_line[1][:10],
-                                        size="sm",
+                                        size="md",  # 加大主星字體從sm改為md
                                         color="#444444",
                                         weight="bold",
                                         flex=1,
@@ -546,7 +546,7 @@ class DivinationFlexMessageGenerator:
                         body_contents.append(
                             FlexText(
                                 text=star_line[0][:15],
-                                size="sm",
+                                size="md",  # 加大主星字體從sm改為md
                                 color="#444444",
                                 weight="bold",
                                 margin="sm"

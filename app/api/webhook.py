@@ -837,6 +837,8 @@ async def handle_line_event(event: dict, db: Optional[Session]):
         
         if event_type == "message":
             await handle_message_event(event, db)
+        elif event_type == "postback":
+            await handle_postback_event(event, db)
         elif event_type == "follow":
             handle_follow_event(event, db)
         elif event_type == "unfollow":
@@ -846,6 +848,66 @@ async def handle_line_event(event: dict, db: Optional[Session]):
         
     except Exception as e:
         logger.error(f"處理LINE事件錯誤：{e}")
+
+async def handle_postback_event(event: dict, db: Optional[Session]):
+    """處理PostBack事件（分頁切換等）"""
+    try:
+        postback = event.get("postback", {})
+        postback_data = postback.get("data", "")
+        user_id = event.get("source", {}).get("userId")
+        
+        logger.info(f"收到PostBack事件 - 用戶: {user_id}, 數據: {postback_data}")
+        
+        # 處理駕駛視窗分頁切換
+        if postback_data.startswith("tab_"):
+            try:
+                from app.utils.driver_view_rich_menu_handler import driver_view_handler
+                
+                # 使用駕駛視窗處理器處理分頁切換
+                success = driver_view_handler.handle_postback_event(user_id, postback_data)
+                
+                if success:
+                    # 靜默切換 - 不發送確認訊息，只記錄日誌
+                    tab_name = postback_data.replace("tab_", "")
+                    tab_info = driver_view_handler.get_tab_info(tab_name)
+                    tab_display_name = tab_info.get("name", tab_name)
+                    
+                    logger.info(f"✅ 用戶 {user_id} 靜默切換到分頁: {tab_display_name}")
+                else:
+                    logger.error(f"❌ 用戶 {user_id} 分頁切換失敗: {postback_data}")
+                    
+            except ImportError as e:
+                logger.warning(f"⚠️ 駕駛視窗處理器未找到，使用備用處理: {e}")
+                # 備用處理邏輯
+                await handle_legacy_tab_switch(user_id, postback_data, db)
+            except Exception as e:
+                logger.error(f"❌ 處理駕駛視窗分頁切換失敗: {e}")
+                # 分頁切換失敗時也不發送錯誤訊息，保持靜默
+                logger.warning(f"⚠️ 分頁切換失敗，但保持靜默: {user_id}")
+        
+        # 處理其他 PostBack 事件
+        else:
+            logger.info(f"📥 收到其他 PostBack 事件: {postback_data}")
+            # 這裡可以添加其他 PostBack 事件的處理邏輯
+            
+    except Exception as e:
+        logger.error(f"❌ 處理PostBack事件失敗: {e}")
+
+async def handle_legacy_tab_switch(user_id: str, postback_data: str, db: Optional[Session]):
+    """備用分頁切換處理（當駕駛視窗處理器不可用時）"""
+    try:
+        tab_mapping = {
+            "tab_basic": "基本功能",
+            "tab_fortune": "運勢", 
+            "tab_advanced": "進階選項"
+        }
+        
+        tab_name = tab_mapping.get(postback_data, "未知分頁")
+        # 備用處理也保持靜默，不發送訊息
+        logger.info(f"使用備用處理靜默切換分頁: {user_id} -> {tab_name}")
+        
+    except Exception as e:
+        logger.error(f"❌ 備用分頁切換處理失敗: {e}")
 
 async def handle_message_event(event: dict, db: Optional[Session]):
     """處理訊息事件（支持可選數據庫）"""
@@ -864,10 +926,22 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                 
                 # 處理不同的指令
                 if text in ["會員資訊", "個人資訊", "我的資訊"]:
-                    user_stats = permission_manager.get_user_stats(db, user)
-                    response = format_user_info(user_stats)
-                    if response:
-                        send_line_message(user_id, response)
+                    try:
+                        user_stats = permission_manager.get_user_stats(db, user)
+                        response = format_user_info(user_stats)
+                        if response:
+                            send_line_message(user_id, response)
+                        else:
+                            send_line_message(user_id, "⚠️ 無法獲取會員資訊，請稍後再試。")
+                    except Exception as member_error:
+                        logger.error(f"獲取會員資訊失敗 - 用戶: {user_id}, 錯誤: {member_error}")
+                        # 提供更具體的錯誤訊息
+                        if "database" in str(member_error).lower() or "connection" in str(member_error).lower():
+                            send_line_message(user_id, "🔧 資料庫連線問題，正在修復中\n\n請稍後再嘗試查看會員資訊。")
+                        elif "permission" in str(member_error).lower():
+                            send_line_message(user_id, "🔒 權限驗證失敗\n\n請重新加入好友或聯繫客服。")
+                        else:
+                            send_line_message(user_id, f"⚠️ 會員資訊暫時無法顯示\n\n錯誤類型: {type(member_error).__name__}\n請聯繫客服或稍後再試。")
                     return  # 重要：防止觸發默認歡迎訊息
                     
                 elif text in ["占卜", "算命", "紫微斗數", "開始占卜", "本週占卜"]:
@@ -1071,17 +1145,52 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     
                     if sihua_type:
                         # 處理四化完整解釋查看請求
-                        send_line_message(user_id, f"""🔮 {sihua_type}星完整解釋 ✨
-
-此功能正在開發中，將提供：
-
-📋 **詳細內容包含：**
-• 心理特質深度分析
-• 行為模式詳細說明
-• 可能發生的事件預測
-• 專業建議和注意事項
-
-💫 感謝您的耐心等待，我們正在為您準備更專業的四化解釋！""")
+                        try:
+                            # 獲取用戶最近的占卜結果
+                            from app.models.linebot_models import DivinationHistory
+                            from app.utils.divination_flex_message import DivinationFlexMessageGenerator
+                            
+                            # 查找用戶最近的占卜記錄
+                            recent_divination = db.query(DivinationHistory).filter(
+                                DivinationHistory.user_id == user.id
+                            ).order_by(DivinationHistory.divination_time.desc()).first()
+                            
+                            if not recent_divination:
+                                send_line_message(user_id, "🔮 請先進行占卜，才能查看四化完整解釋喔！\n\n💫 點擊「本週占卜」開始您的占卜之旅。")
+                                return
+                            
+                            # 解析占卜結果 - 從 sihua_results 字段解析
+                            import json
+                            if recent_divination.sihua_results:
+                                # 構建占卜結果數據結構
+                                divination_result = {
+                                    "sihua_results": json.loads(recent_divination.sihua_results),
+                                    "gender": recent_divination.gender,
+                                    "divination_time": recent_divination.divination_time.isoformat(),
+                                    "taichi_palace": recent_divination.taichi_palace,
+                                    "minute_dizhi": recent_divination.minute_dizhi
+                                }
+                            else:
+                                send_line_message(user_id, "🔮 找不到完整的占卜資料，請重新進行占卜。")
+                                return
+                            
+                            # 生成四化詳細解釋訊息
+                            message_generator = DivinationFlexMessageGenerator()
+                            detail_message = message_generator.generate_sihua_detail_message(
+                                divination_result, 
+                                sihua_type, 
+                                user_type
+                            )
+                            
+                            if detail_message:
+                                # 發送詳細解釋訊息
+                                send_line_flex_messages(user_id, [detail_message])
+                            else:
+                                send_line_message(user_id, f"🔮 {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
+                                
+                        except Exception as e:
+                            logger.error(f"獲取四化完整解釋失敗: {e}")
+                            send_line_message(user_id, f"🔮 {sihua_type}星完整解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
                         return  # 重要：防止觸發默認歡迎訊息
 
                 # 管理員功能
