@@ -868,11 +868,13 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     response = format_user_info(user_stats)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                     
                 elif text in ["占卜", "算命", "紫微斗數", "開始占卜", "本週占卜"]:
                     response = handle_divination_request(db, user, session)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 # 處理流年流月流日運勢按鈕
                 elif text in ["流年運勢"]:
@@ -905,6 +907,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 • 個人化建議指引
 
 ✨ 讓紫微斗數為您提供更深入的人生指引！""")
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 elif text in ["流月運勢"]:
                     # 檢查用戶權限
@@ -936,6 +939,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 • 注意事項提醒
 
 ✨ 讓紫微斗數為您提供更深入的人生指引！""")
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 elif text in ["流日運勢"]:
                     # 檢查用戶權限
@@ -967,51 +971,60 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 • 日常生活指引
 
 ✨ 讓紫微斗數為您提供更深入的人生指引！""")
+                    return  # 重要：防止觸發默認歡迎訊息
                     
                 elif session.state == "waiting_for_gender":
                     response = handle_gender_input(db, user, session, text)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 # 新增指定時間占卜指令（僅限管理員）
                 elif text in ["指定時間占卜", "時間占卜", "指定時間"]:
                     response = handle_time_divination_request(db, user, session)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 # 處理分頁切換請求 - 靜默切換，不發送訊息
-                elif text in ["切換到基本功能", "基本功能"]:
+                elif text in ["切換到基本功能", "基本功能", "切換到基本"]:
                     from app.utils.dynamic_rich_menu import handle_tab_switch_request
                     success = handle_tab_switch_request(user_id, "basic")
                     # 靜默切換，不發送訊息
                     logger.info(f"用戶 {user_id} 切換到基本功能分頁: {'成功' if success else '失敗'}")
+                    return  # 重要：防止觸發默認歡迎訊息
                 
-                elif text in ["切換到運勢", "運勢"]:
+                elif text in ["切換到運勢", "運勢", "切換到運勢分頁"]:
                     from app.utils.dynamic_rich_menu import handle_tab_switch_request
                     success = handle_tab_switch_request(user_id, "fortune")
                     # 靜默切換，不發送訊息
                     logger.info(f"用戶 {user_id} 切換到運勢分頁: {'成功' if success else '失敗'}")
+                    return  # 重要：防止觸發默認歡迎訊息
                 
-                elif text in ["切換到進階選項", "進階選項", "管理員選項"]:
+                elif text in ["切換到進階選項", "進階選項", "管理員選項", "切換到進階"]:
                     from app.utils.dynamic_rich_menu import handle_tab_switch_request
                     success = handle_tab_switch_request(user_id, "admin")
                     # 靜默切換，不發送訊息
                     logger.info(f"用戶 {user_id} 切換到進階選項分頁: {'成功' if success else '失敗'}")
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 elif session.state == "waiting_for_time_divination_gender":
                     response = handle_time_divination_gender_input(db, user, session, text)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 elif session.state == "waiting_for_time_selection":
                     response = handle_time_selection(db, user, session, text)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 elif session.state == "waiting_for_custom_time_input":
                     response = handle_custom_time_input(db, user, session, text)
                     if response:
                         send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
                 
                 elif session.state == "waiting_for_manual_time_input":
                     # 手動輸入時間，直接使用原來的解析邏輯
@@ -1031,6 +1044,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 • 30分鐘前
 
 請重新輸入目標時間：""")
+                    return  # 重要：防止觸發默認歡迎訊息
 
                 # 檢查是否為四化完整解釋請求
                 elif "查看" in text and "星完整解釋" in text:
@@ -1042,7 +1056,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     # 只有管理員和付費會員可以查看完整解釋
                     if user_type == "free":
                         send_line_message(user_id, "🔒 完整解釋功能僅限付費會員使用\n\n💎 升級為付費會員即可：\n• 查看四化完整解釋\n• 了解詳細心理特質\n• 獲得專業建議提示\n\n✨ 讓紫微斗數為您提供更深入的人生指引！")
-                        return
+                        return  # 重要：防止觸發默認歡迎訊息
                     
                     # 提取四化類型
                     sihua_type = None
@@ -1056,42 +1070,19 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                         sihua_type = "忌"
                     
                     if sihua_type:
-                        # 獲取用戶最近的占卜記錄
-                        try:
-                            from app.logic.divination import get_this_week_divination
-                            from app.models.divination import DivinationRecord
-                            
-                            # 先嘗試獲取本週占卜記錄
-                            divination_record = get_this_week_divination(user_id, db)
-                            
-                            # 如果沒有本週記錄，獲取最近的一次記錄
-                            if not divination_record:
-                                divination_record = db.query(DivinationRecord).filter(
-                                    DivinationRecord.user_id == user_id
-                                ).order_by(DivinationRecord.divination_time.desc()).first()
-                            
-                            if divination_record and divination_record.divination_result:
-                                generator = DivinationFlexMessageGenerator()
-                                detail_message = generator.generate_sihua_detail_message(
-                                    divination_record.divination_result, 
-                                    sihua_type,
-                                    user_type  # 傳遞用戶類型參數，確保權限控制
-                                )
-                                
-                                # 發送詳細解釋訊息
-                                if detail_message:
-                                    send_line_flex_messages(user_id, [detail_message])
-                                else:
-                                    send_line_message(user_id, f"未找到{sihua_type}星的詳細解釋。")
-                                return
-                            else:
-                                send_line_message(user_id, "您還沒有占卜記錄，請先進行占卜。")
-                                return
-                                
-                        except Exception as e:
-                            logger.error(f"獲取四化完整解釋失敗：{e}")
-                            send_line_message(user_id, "獲取解釋時發生錯誤，請稍後再試。")
-                            return
+                        # 處理四化完整解釋查看請求
+                        send_line_message(user_id, f"""🔮 {sihua_type}星完整解釋 ✨
+
+此功能正在開發中，將提供：
+
+📋 **詳細內容包含：**
+• 心理特質深度分析
+• 行為模式詳細說明
+• 可能發生的事件預測
+• 專業建議和注意事項
+
+💫 感謝您的耐心等待，我們正在為您準備更專業的四化解釋！""")
+                        return  # 重要：防止觸發默認歡迎訊息
 
                 # 管理員功能
                 if "更新選單" in text or "refresh menu" in text.lower():
