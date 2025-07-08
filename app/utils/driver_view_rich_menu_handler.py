@@ -8,7 +8,6 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 
-from app.utils.rich_menu_manager import RichMenuManager
 from app.config.linebot_config import LineBotConfig
 
 logger = logging.getLogger(__name__)
@@ -17,6 +16,8 @@ class DriverViewRichMenuHandler:
     """駕駛視窗 Rich Menu 處理器"""
     
     def __init__(self):
+        # 延遲導入以避免循環依賴
+        from app.utils.rich_menu_manager import RichMenuManager
         self.manager = RichMenuManager()
         self.base_image_path = "rich_menu_images/driver_view_richmenu.png"
         self.rich_menu_cache = {}  # 緩存不同分頁的 Rich Menu ID
@@ -553,6 +554,33 @@ class DriverViewRichMenuHandler:
             List[str]: 分頁名稱列表
         """
         return list(self.tab_configs.keys())
+    
+    def create_tabbed_rich_menu(self, active_tab: str, user_level: str) -> Tuple[str, List[Dict]]:
+        """
+        創建分頁式 Rich Menu（與 rich_menu_manager 兼容）
+        
+        Args:
+            active_tab: 當前活躍的分頁
+            user_level: 用戶等級（保持兼容性，但在駕駛視窗中不使用）
+            
+        Returns:
+            Tuple[str, List[Dict]]: (圖片路徑, 按鈕區域列表)
+        """
+        try:
+            # 創建分頁圖片
+            image_path = self.create_tab_image_with_highlight(active_tab)
+            
+            # 創建按鈕區域
+            button_areas = self.create_button_areas(active_tab)
+            
+            return image_path, button_areas
+            
+        except Exception as e:
+            logger.error(f"❌ 創建分頁式 Rich Menu 失敗: {e}")
+            # 返回基本配置作為備用
+            default_image = "rich_menu_images/driver_view_richmenu.png"
+            default_areas = self.create_button_areas("basic")
+            return default_image, default_areas
 
 # 全局實例
 driver_view_handler = DriverViewRichMenuHandler() 

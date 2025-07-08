@@ -24,11 +24,11 @@ def update_default_rich_menu():
     
     manager = RichMenuManager()
     
-    # 創建管理員級別的分頁式 Rich Menu（包含所有分頁）
-    admin_menu_id = manager.setup_default_tabbed_rich_menu("admin", force_recreate=True)
+    # 創建管理員級別的駕駛視窗 Rich Menu
+    admin_menu_id = manager.setup_admin_rich_menu(force_recreate=True)
     
     if admin_menu_id:
-        print(f"✅ 成功創建新的管理員分頁式 Rich Menu: {admin_menu_id}")
+        print(f"✅ 成功創建新的管理員駕駛視窗 Rich Menu: {admin_menu_id}")
         
         # 設為預設
         if manager.set_default_rich_menu(admin_menu_id):
@@ -93,7 +93,7 @@ def update_user_rich_menus():
         print(f"更新用戶 Rich Menu 時發生錯誤: {e}")
 
 def cleanup_legacy_menus():
-    """清理舊的傳統選單，只保留分頁式選單"""
+    """清理傳統選單，保留駕駛視窗選單"""
     print("=== 清理傳統選單 ===")
     
     manager = RichMenuManager()
@@ -105,23 +105,23 @@ def cleanup_legacy_menus():
         return
     
     # 分類選單
-    tabbed_menus = []
+    driver_view_menus = []
     legacy_menus = []
     
     for menu in all_menus:
         menu_id = menu.get("richMenuId")
         menu_name = menu.get("name", "")
         
-        # 分頁式選單（保留）
-        if ("TabbedMenu" in menu_name or 
-            "分頁選單" in menu_name or
-            "tabbed_menu" in menu_name.lower()):
-            tabbed_menus.append(menu)
+        # 駕駛視窗選單（保留）
+        if ("DriverView" in menu_name or 
+            "driver_view" in menu_name.lower() or
+            "駕駛視窗" in menu_name):
+            driver_view_menus.append(menu)
         # 傳統選單（刪除）
         else:
             legacy_menus.append(menu)
     
-    print(f"找到 {len(tabbed_menus)} 個分頁式選單（保留）")
+    print(f"找到 {len(driver_view_menus)} 個駕駛視窗選單（保留）")
     print(f"找到 {len(legacy_menus)} 個傳統選單（將刪除）")
     
     # 刪除傳統選單
@@ -139,15 +139,15 @@ def cleanup_legacy_menus():
     print(f"\n清理完成！刪除了 {deleted_count} 個傳統選單")
     
     # 顯示剩餘選單
-    if tabbed_menus:
-        print("\n保留的分頁式選單:")
-        for menu in tabbed_menus:
+    if driver_view_menus:
+        print("\n保留的駕駛視窗選單:")
+        for menu in driver_view_menus:
             menu_id = menu.get("richMenuId")
             menu_name = menu.get("name", "")
             print(f"  - {menu_name} ({menu_id})")
 
 def smart_cleanup():
-    """智能清理：只保留最新的分頁式選單"""
+    """智能清理：只保留最新的駕駛視窗選單"""
     print("=== 智能清理選單 ===")
     
     manager = RichMenuManager()
@@ -158,7 +158,7 @@ def smart_cleanup():
         print("沒有找到任何選單")
         return
     
-    # 按用戶等級和分頁分組
+    # 按分頁類型分組
     menu_groups = {}
     legacy_menus = []
     
@@ -166,35 +166,24 @@ def smart_cleanup():
         menu_id = menu.get("richMenuId")
         menu_name = menu.get("name", "")
         
-        # 分頁式選單
-        if ("TabbedMenu" in menu_name or 
-            "分頁選單" in menu_name or
-            "tabbed_menu" in menu_name.lower()):
+        # 駕駛視窗選單
+        if ("DriverView" in menu_name or 
+            "driver_view" in menu_name.lower() or
+            "駕駛視窗" in menu_name):
             
-            # 提取分頁和用戶等級信息
-            if "TabbedMenu_" in menu_name:
+            # 提取分頁信息
+            if "DriverView_" in menu_name:
                 parts = menu_name.split("_")
-                if len(parts) >= 3:
+                if len(parts) >= 2:
                     tab = parts[1]
-                    level = parts[2]
-                    key = f"{tab}_{level}"
-                    
-                    if key not in menu_groups:
-                        menu_groups[key] = []
-                    menu_groups[key].append(menu)
-            elif "分頁選單-" in menu_name:
-                parts = menu_name.split("-")
-                if len(parts) >= 3:
-                    tab = parts[1]
-                    level = parts[2]
-                    key = f"{tab}_{level}"
+                    key = f"driver_view_{tab}"
                     
                     if key not in menu_groups:
                         menu_groups[key] = []
                     menu_groups[key].append(menu)
             else:
-                # 無法分類的分頁選單，暫時保留
-                key = "uncategorized_tabbed"
+                # 無法分類的駕駛視窗選單，暫時保留
+                key = "uncategorized_driver_view"
                 if key not in menu_groups:
                     menu_groups[key] = []
                 menu_groups[key].append(menu)
@@ -202,7 +191,7 @@ def smart_cleanup():
             # 傳統選單（全部刪除）
             legacy_menus.append(menu)
     
-    print(f"找到 {len(menu_groups)} 個分頁式選單組")
+    print(f"找到 {len(menu_groups)} 個駕駛視窗選單組")
     print(f"找到 {len(legacy_menus)} 個傳統選單（將全部刪除）")
     
     # 刪除傳統選單

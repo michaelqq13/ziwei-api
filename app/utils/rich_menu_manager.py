@@ -9,9 +9,9 @@ from typing import Optional, Dict, List, Any
 import logging
 
 from app.config.linebot_config import LineBotConfig
-from app.utils.rich_menu_image_generator import generate_starry_rich_menu, generate_admin_starry_rich_menu
-from app.utils.tabbed_rich_menu_generator import generate_tabbed_rich_menu
 from app.utils.image_based_rich_menu_generator import generate_image_based_rich_menu
+# 替換starry相關的引用為driver_view
+from app.utils.driver_view_rich_menu_handler import DriverViewRichMenuHandler
 
 logger = logging.getLogger(__name__)
 
@@ -184,20 +184,18 @@ class RichMenuManager:
             logger.error(f"刪除 Rich Menu 失敗: {e}")
             return False
     
-    def create_starry_sky_menu_config(self) -> Dict:
+    def create_driver_view_menu_config(self) -> Dict:
         """
-        創建星空主題的 Rich Menu 配置
+        創建駕駛視窗主題的 Rich Menu 配置
         
         Returns:
             Dict: Rich Menu 配置
         """
-        # 根據設定選擇生成方式
-        if self.use_image_based:
-            # 使用圖片資源型生成器
-            _, button_areas = generate_image_based_rich_menu("member")
-        else:
-            # 使用程式生成器
-            _, button_areas = generate_starry_rich_menu()
+        # 使用駕駛視窗處理器
+        handler = DriverViewRichMenuHandler()
+        
+        # 創建默認分頁的配置
+        button_areas = handler.create_button_areas("basic")
         
         menu_config = {
             "size": {
@@ -205,8 +203,8 @@ class RichMenuManager:
                 "height": LineBotConfig.RICH_MENU_HEIGHT
             },
             "selected": True,
-            "name": "StarrySkyMenu",
-            "chatBarText": "✨ 星空紫微",
+            "name": "DriverViewMenu",
+            "chatBarText": "🚗 駕駛視窗紫微",
             "areas": button_areas
         }
         
@@ -224,7 +222,9 @@ class RichMenuManager:
             Dict: 分頁式選單配置
         """
         # 生成圖片和按鈕區域
-        _, button_areas = generate_tabbed_rich_menu(active_tab, user_level)
+        # 替換starry相關的引用為driver_view
+        handler = DriverViewRichMenuHandler()
+        image_path, button_areas = handler.create_tabbed_rich_menu(active_tab, user_level)
         
         menu_config = {
             "size": {
@@ -277,8 +277,9 @@ class RichMenuManager:
                 del self.rich_menu_cache[cache_key]
             
             # 生成分頁選單
-            from app.utils.tabbed_rich_menu_generator import generate_tabbed_rich_menu
-            image_path, button_areas = generate_tabbed_rich_menu(active_tab, user_level)
+            # 替換starry相關的引用為driver_view
+            handler = DriverViewRichMenuHandler()
+            image_path, button_areas = handler.create_tabbed_rich_menu(active_tab, user_level)
             
             if not image_path or not os.path.exists(image_path):
                 logger.error(f"分頁選單圖片生成失敗: {image_path}")
@@ -397,7 +398,7 @@ class RichMenuManager:
     
     def setup_complete_rich_menu(self, force_recreate: bool = False) -> Optional[str]:
         """
-        完整設定 Rich Menu（創建、上傳圖片、設為預設）
+        設定完整的 Rich Menu 系統（自動選擇最佳類型）
         
         Args:
             force_recreate: 是否強制重新創建
@@ -406,57 +407,96 @@ class RichMenuManager:
             str: Rich Menu ID (如果成功)
         """
         try:
-            # 檢查是否已有預設 Rich Menu
-            if not force_recreate:
-                existing_menu_id = self.get_default_rich_menu_id()
-                if existing_menu_id:
-                    logger.info(f"已存在預設 Rich Menu: {existing_menu_id}")
-                    return existing_menu_id
+            # 檢查是否已有緩存的選單
+            if not force_recreate and hasattr(self, '_default_menu_id') and self._default_menu_id:
+                # 檢查選單是否仍存在
+                existing_menus = self.get_rich_menu_list()
+                if existing_menus:
+                    for menu in existing_menus:
+                        if menu.get("richMenuId") == self._default_menu_id:
+                            logger.info(f"使用現有默認選單: {self._default_menu_id}")
+                            return self._default_menu_id
+                # 選單不存在，清除緩存
+                self._default_menu_id = None
             
-            # 1. 生成圖片
-            logger.info("正在生成 Rich Menu 圖片...")
+            # 優先使用駕駛視窗選單
+            logger.info("🚗 創建駕駛視窗選單...")
+            handler = DriverViewRichMenuHandler()
+            
+            # 創建基本分頁的駕駛視窗選單
+            menu_id = handler.create_tab_rich_menu("basic")
+            if menu_id:
+                # 設為默認選單
+                if self.set_default_rich_menu(menu_id):
+                    self._default_menu_id = menu_id
+                    logger.info(f"✅ 駕駛視窗選單設定成功: {menu_id}")
+                    return menu_id
+                else:
+                    logger.warning("駕駛視窗選單創建成功但設為默認失敗")
+                    return menu_id
+            
+            # 備用方案：使用圖片基礎選單
+            logger.info("🖼️ 駕駛視窗選單創建失敗，使用圖片基礎選單...")
             if self.use_image_based:
-                # 使用圖片資源型生成器
                 image_path, button_areas = generate_image_based_rich_menu("member")
-                logger.info("使用圖片資源型生成器生成選單")
             else:
-                # 使用程式生成器
-                image_path, button_areas = generate_starry_rich_menu()
-                logger.info("使用程式生成器生成選單")
+                # 如果所有方案都失敗，創建基本配置
+                logger.warning("所有選單類型都失敗，創建基本配置")
+                button_areas = [
+                    {
+                        "bounds": {"x": 0, "y": 0, "width": 833, "height": 1000},
+                        "action": {"type": "message", "text": "本週占卜"}
+                    },
+                    {
+                        "bounds": {"x": 833, "y": 0, "width": 833, "height": 500},
+                        "action": {"type": "message", "text": "會員資訊"}
+                    },
+                    {
+                        "bounds": {"x": 833, "y": 500, "width": 833, "height": 500},
+                        "action": {"type": "message", "text": "命盤綁定"}
+                    }
+                ]
+                image_path = "rich_menu_images/driver_view_richmenu.png"
             
-            if not os.path.exists(image_path):
-                logger.error(f"圖片生成失敗: {image_path}")
+            if not image_path or not os.path.exists(image_path):
+                logger.error(f"選單圖片不存在: {image_path}")
                 return None
             
-            # 2. 創建 Rich Menu 配置
-            menu_config = self.create_starry_sky_menu_config()
+            # 創建 Rich Menu 配置
+            rich_menu_config = {
+                "size": {
+                    "width": LineBotConfig.RICH_MENU_WIDTH,
+                    "height": LineBotConfig.RICH_MENU_HEIGHT
+                },
+                "selected": True,
+                "name": "駕駛視窗紫微選單",
+                "chatBarText": "🚗 駕駛視窗紫微",
+                "areas": button_areas
+            }
             
-            # 3. 創建 Rich Menu
-            logger.info("正在創建 Rich Menu...")
-            rich_menu_id = self.create_rich_menu(menu_config)
-            
+            # 創建 Rich Menu
+            rich_menu_id = self.create_rich_menu(rich_menu_config)
             if not rich_menu_id:
-                logger.error("Rich Menu 創建失敗")
+                logger.error("創建選單失敗")
                 return None
             
-            # 4. 上傳圖片
-            logger.info("正在上傳 Rich Menu 圖片...")
+            # 上傳圖片
             if not self.upload_rich_menu_image(rich_menu_id, image_path):
-                logger.error("圖片上傳失敗，嘗試刪除 Rich Menu")
+                logger.error("上傳選單圖片失敗")
                 self.delete_rich_menu(rich_menu_id)
                 return None
             
-            # 5. 設為預設
-            logger.info("正在設定為預設 Rich Menu...")
-            if not self.set_default_rich_menu(rich_menu_id):
-                logger.error("設定預設失敗")
-                return None
+            # 設為默認選單
+            if self.set_default_rich_menu(rich_menu_id):
+                self._default_menu_id = rich_menu_id
+                logger.info(f"✅ 備用選單設定成功: {rich_menu_id}")
+            else:
+                logger.warning("備用選單創建成功但設為默認失敗")
             
-            logger.info(f"✅ Rich Menu 設定完成: {rich_menu_id}")
             return rich_menu_id
-            
+                
         except Exception as e:
-            logger.error(f"設定 Rich Menu 過程中發生錯誤: {e}")
+            logger.error(f"設定完整選單時發生錯誤: {e}")
             return None
     
     def ensure_default_rich_menu(self) -> Optional[str]:
@@ -481,9 +521,9 @@ class RichMenuManager:
                     menu_id = menu.get("richMenuId")
                     menu_name = menu.get("name", "")
                     
-                    # 找到星空主題的 Rich Menu
-                    if "StarrySky" in menu_name or "starry" in menu_name.lower():
-                        logger.info(f"找到既存的星空 Rich Menu: {menu_id}")
+                    # 找到駕駛視窗主題的 Rich Menu
+                    if "DriverView" in menu_name or "driver" in menu_name.lower():
+                        logger.info(f"找到既存的駕駛視窗 Rich Menu: {menu_id}")
                         
                         # 設為預設
                         if self.set_default_rich_menu(menu_id):
@@ -631,18 +671,16 @@ class RichMenuManager:
     
     def create_admin_menu_config(self) -> Dict:
         """
-        創建管理員 Rich Menu 配置
+        創建管理員專用的 Rich Menu 配置
         
         Returns:
             Dict: Rich Menu 配置
         """
-        # 根據設定選擇生成方式
-        if self.use_image_based:
-            # 使用圖片資源型生成器
-            _, button_areas = generate_image_based_rich_menu("admin")
-        else:
-            # 使用程式生成器
-            _, button_areas = generate_admin_starry_rich_menu()
+        # 使用駕駛視窗處理器創建管理員選單
+        handler = DriverViewRichMenuHandler()
+        
+        # 創建進階分頁的配置（管理員專用）
+        button_areas = handler.create_button_areas("advanced")
         
         menu_config = {
             "size": {
@@ -650,16 +688,16 @@ class RichMenuManager:
                 "height": LineBotConfig.RICH_MENU_HEIGHT
             },
             "selected": True,
-            "name": "AdminStarrySkyMenu",
-            "chatBarText": "🔧 管理員選單",
+            "name": "AdminDriverViewMenu",
+            "chatBarText": "🚗 管理員駕駛視窗",
             "areas": button_areas
         }
         
         return menu_config
-    
+
     def setup_admin_rich_menu(self, force_recreate: bool = False) -> Optional[str]:
         """
-        設定管理員 Rich Menu
+        設定管理員專用的 Rich Menu
         
         Args:
             force_recreate: 是否強制重新創建
@@ -668,56 +706,41 @@ class RichMenuManager:
             str: Rich Menu ID (如果成功)
         """
         try:
-            # 檢查是否已有管理員 Rich Menu
-            if not force_recreate:
-                existing_menu_id = self.get_or_create_admin_menu_id()
-                if existing_menu_id:
-                    logger.info(f"已存在管理員 Rich Menu: {existing_menu_id}")
-                    return existing_menu_id
+            # 檢查是否需要重新創建
+            cache_key = "admin_driver_view"
             
-            # 1. 生成圖片
-            logger.info("正在生成管理員 Rich Menu 圖片...")
-            if self.use_image_based:
-                # 使用圖片資源型生成器
-                image_path, button_areas = generate_image_based_rich_menu("admin")
-                logger.info("使用圖片資源型生成器生成管理員選單")
-            else:
-                # 使用程式生成器
-                image_path, button_areas = generate_admin_starry_rich_menu()
-                logger.info("使用程式生成器生成管理員選單")
+            if not force_recreate and cache_key in self.rich_menu_cache:
+                existing_id = self.rich_menu_cache[cache_key]
+                # 檢查選單是否仍存在
+                existing_menus = self.get_rich_menu_list()
+                if existing_menus:
+                    for menu in existing_menus:
+                        if menu.get("richMenuId") == existing_id:
+                            logger.info(f"使用現有管理員選單: {existing_id}")
+                            return existing_id
+                # 選單不存在，清除緩存
+                del self.rich_menu_cache[cache_key]
             
-            if not os.path.exists(image_path):
-                logger.error(f"管理員圖片生成失敗: {image_path}")
+            # 使用駕駛視窗處理器創建管理員選單
+            handler = DriverViewRichMenuHandler()
+            menu_id = handler.create_tab_rich_menu("advanced")
+            
+            if not menu_id:
+                logger.error("創建管理員駕駛視窗選單失敗")
                 return None
             
-            # 2. 創建 Rich Menu 配置
-            menu_config = self.create_admin_menu_config()
-            
-            # 3. 創建 Rich Menu
-            logger.info("正在創建管理員 Rich Menu...")
-            rich_menu_id = self.create_rich_menu(menu_config)
-            
-            if not rich_menu_id:
-                logger.error("管理員 Rich Menu 創建失敗")
-                return None
-            
-            # 4. 上傳圖片
-            logger.info("正在上傳管理員 Rich Menu 圖片...")
-            if not self.upload_rich_menu_image(rich_menu_id, image_path):
-                logger.error("管理員圖片上傳失敗，嘗試刪除 Rich Menu")
-                self.delete_rich_menu(rich_menu_id)
-                return None
-            
-            logger.info(f"✅ 管理員 Rich Menu 設定完成: {rich_menu_id}")
-            return rich_menu_id
-            
+            # 更新緩存
+            self.rich_menu_cache[cache_key] = menu_id
+            logger.info(f"✅ 管理員駕駛視窗選單創建成功: {menu_id}")
+            return menu_id
+                
         except Exception as e:
-            logger.error(f"設定管理員 Rich Menu 過程中發生錯誤: {e}")
+            logger.error(f"設定管理員選單時發生錯誤: {e}")
             return None
-    
+
     def set_user_menu_by_role(self, user_id: str, is_admin: bool = False) -> bool:
         """
-        根據用戶角色設置對應的 Rich Menu
+        根據用戶角色設置 Rich Menu
         
         Args:
             user_id: LINE 用戶 ID
@@ -728,49 +751,57 @@ class RichMenuManager:
         """
         try:
             if is_admin:
-                # 管理員使用專用 Rich Menu
-                admin_menu_id = self.setup_admin_rich_menu()
-                if admin_menu_id:
-                    return self.set_user_rich_menu(user_id, admin_menu_id)
-                else:
-                    logger.error("無法獲取管理員 Rich Menu ID")
-                    return False
+                # 管理員使用進階駕駛視窗選單
+                menu_id = self.get_or_create_admin_menu_id()
+                menu_type = "管理員駕駛視窗"
             else:
-                # 一般用戶使用預設 Rich Menu
-                default_menu_id = self.ensure_default_rich_menu()
-                if default_menu_id:
-                    return self.set_user_rich_menu(user_id, default_menu_id)
-                else:
-                    logger.error("無法獲取預設 Rich Menu ID")
-                    return False
-                    
+                # 一般用戶使用基本駕駛視窗選單
+                menu_id = self.ensure_default_rich_menu()
+                menu_type = "駕駛視窗"
+            
+            if not menu_id:
+                logger.error(f"無法獲取{menu_type}選單 ID")
+                return False
+            
+            # 為用戶設置選單
+            success = self.set_user_rich_menu(user_id, menu_id)
+            if success:
+                logger.info(f"✅ 用戶 {user_id} 已設置{menu_type}選單")
+            else:
+                logger.error(f"❌ 用戶 {user_id} 設置{menu_type}選單失敗")
+            
+            return success
+            
         except Exception as e:
-            logger.error(f"為用戶 {user_id} 設置 Rich Menu 失敗: {e}")
+            logger.error(f"根據角色設置選單失敗: {e}")
             return False
-    
+
     def get_or_create_admin_menu_id(self) -> Optional[str]:
         """
-        獲取或創建管理員 Rich Menu ID
+        獲取或創建管理員選單 ID
         
         Returns:
-            str: 管理員 Rich Menu ID
+            str: 管理員選單 ID
         """
         try:
-            # 先檢查是否已存在
-            existing_menus = self.get_rich_menu_list()
-            if existing_menus:
-                for menu in existing_menus:
-                    menu_name = menu.get("name", "")
-                    if "AdminStarrySky" in menu_name:
-                        menu_id = menu.get("richMenuId")
-                        logger.info(f"找到既存的管理員 Rich Menu: {menu_id}")
-                        return menu_id
+            # 檢查緩存
+            cache_key = "admin_driver_view"
+            if cache_key in self.rich_menu_cache:
+                menu_id = self.rich_menu_cache[cache_key]
+                # 驗證選單是否存在
+                existing_menus = self.get_rich_menu_list()
+                if existing_menus:
+                    for menu in existing_menus:
+                        if menu.get("richMenuId") == menu_id:
+                            return menu_id
+                # 選單不存在，清除緩存
+                del self.rich_menu_cache[cache_key]
             
-            # 不存在則創建
+            # 創建新的管理員選單
             return self.setup_admin_rich_menu(force_recreate=True)
             
         except Exception as e:
-            logger.error(f"獲取或創建管理員 Rich Menu 失敗: {e}")
+            logger.error(f"獲取管理員選單 ID 失敗: {e}")
             return None
     
     def switch_generation_mode(self, use_image_based: bool):
@@ -848,160 +879,6 @@ class RichMenuManager:
             logger.error(f"切換用戶 {user_id} 分頁時發生錯誤: {e}")
             return False
 
-# 全局實例
-rich_menu_manager = RichMenuManager()
-
-def setup_rich_menu(force_recreate: bool = False, use_image_based: bool = False) -> Optional[str]:
-    """
-    設定 Rich Menu（全域函數）
-    
-    Args:
-        force_recreate: 是否強制重新創建
-        use_image_based: 是否使用圖片資源型生成器
-        
-    Returns:
-        str: Rich Menu ID (如果成功)
-    """
-    manager = RichMenuManager(use_image_based=use_image_based)
-    return manager.setup_complete_rich_menu(force_recreate)
-
-def setup_tabbed_rich_menu(active_tab: str, user_level: str, force_recreate: bool = False) -> Optional[str]:
-    """
-    設定分頁式 Rich Menu 的便捷函數
-    
-    Args:
-        active_tab: 當前活躍分頁 ("basic", "fortune", "admin")
-        user_level: 用戶等級 ("free", "premium", "admin")
-        force_recreate: 是否強制重新創建
-        
-    Returns:
-        str: Rich Menu ID (如果成功)
-    """
-    return rich_menu_manager.setup_tabbed_rich_menu(active_tab, user_level, force_recreate)
-
-def set_user_tabbed_menu(user_id: str, active_tab: str, user_level: str) -> bool:
-    """
-    為用戶設置分頁式選單的便捷函數
-    
-    Args:
-        user_id: LINE 用戶 ID
-        active_tab: 當前活躍分頁 ("basic", "fortune", "admin")
-        user_level: 用戶等級 ("free", "premium", "admin")
-        
-    Returns:
-        bool: 是否成功設置
-    """
-    return rich_menu_manager.set_user_tabbed_menu(user_id, active_tab, user_level)
-
-def get_user_current_tab(user_id: str) -> Optional[str]:
-    """
-    獲取用戶當前分頁的便捷函數
-    
-    Args:
-        user_id: LINE 用戶 ID
-        
-    Returns:
-        str: 當前分頁名稱，如果無法確定則返回 None
-    """
-    return rich_menu_manager.get_user_current_tab(user_id)
-
-def get_rich_menu_status() -> Dict[str, Any]:
-    """
-    獲取 Rich Menu 狀態的便捷函數
-    
-    Returns:
-        Dict: Rich Menu 狀態資訊
-    """
-    current_default = rich_menu_manager.get_default_rich_menu_id()
-    all_menus = rich_menu_manager.get_rich_menu_list()
-    
-    return {
-        "current_default": current_default,
-        "total_menus": len(all_menus) if all_menus else 0,
-        "all_menus": all_menus or []
-    }
-
-def update_user_rich_menu(user_id: str, is_admin: bool = False, use_image_based: bool = False) -> bool:
-    """
-    更新用戶的 Rich Menu
-    
-    Args:
-        user_id: 用戶 ID
-        is_admin: 是否為管理員
-        use_image_based: 是否使用圖片資源型生成器
-        
-    Returns:
-        bool: 是否成功
-    """
-    try:
-        manager = RichMenuManager(use_image_based=use_image_based)
-        return manager.set_user_menu_by_role(user_id, is_admin)
-    except Exception as e:
-        logger.error(f"更新用戶 Rich Menu 失敗: {e}")
-        return False
-
-def determine_user_level(user_permissions: Dict[str, Any]) -> str:
-    """
-    根據用戶權限確定用戶等級
-    
-    Args:
-        user_permissions: 用戶權限資訊
-        
-    Returns:
-        str: 用戶等級 ("free", "premium", "admin")
-    """
-    if user_permissions.get("is_admin", False):
-        return "admin"
-    elif user_permissions.get("is_premium", False):
-        return "premium"
-    else:
-        return "free"
-
-def get_default_tab_for_user_level(user_level: str) -> str:
-    """
-    根據用戶等級獲取預設分頁
-    
-    Args:
-        user_level: 用戶等級 ("free", "premium", "admin")
-        
-    Returns:
-        str: 預設分頁名稱
-    """
-    # 所有用戶都從基本功能分頁開始
-    return "basic"
-
-def switch_user_tab(user_id: str, target_tab: str, user_level: str) -> bool:
-    """
-    切換用戶的分頁
-    
-    Args:
-        user_id: LINE 用戶 ID
-        target_tab: 目標分頁 ("basic", "fortune", "admin")
-        user_level: 用戶等級 ("free", "premium", "admin")
-        
-    Returns:
-        bool: 是否成功切換
-    """
-    try:
-        # 檢查用戶是否有權限訪問目標分頁
-        if not can_access_tab(target_tab, user_level):
-            logger.warning(f"用戶 {user_id} (等級: {user_level}) 無權限訪問分頁: {target_tab}")
-            return False
-        
-        # 設定新分頁選單
-        rich_menu_id = rich_menu_manager.setup_user_tabbed_rich_menu(user_id, user_level, target_tab)
-        
-        if rich_menu_id:
-            logger.info(f"✅ 成功切換用戶 {user_id} 到分頁 {target_tab}")
-            return True
-        else:
-            logger.error(f"切換用戶 {user_id} 到分頁 {target_tab} 失敗")
-            return False
-            
-    except Exception as e:
-        logger.error(f"切換用戶 {user_id} 分頁時發生錯誤: {e}")
-        return False
-
 def can_access_tab(tab_name: str, user_level: str) -> bool:
     """
     檢查用戶是否有權限訪問特定分頁
@@ -1024,6 +901,96 @@ def can_access_tab(tab_name: str, user_level: str) -> bool:
         return user_level == "admin"
     else:
         return False
+
+def determine_user_level(user_permissions: Dict[str, Any]) -> str:
+    """
+    根據用戶權限確定用戶等級
+    
+    Args:
+        user_permissions: 用戶權限資訊
+        
+    Returns:
+        str: 用戶等級 ("free", "premium", "admin")
+    """
+    try:
+        user_info = user_permissions.get("user_info", {})
+        
+        if user_info.get("is_admin", False):
+            return "admin"
+        
+        membership_info = user_permissions.get("membership_info", {})
+        is_premium = membership_info.get("is_premium", False)
+        
+        if is_premium:
+            return "premium"
+        else:
+            return "free"
+            
+    except Exception as e:
+        logger.error(f"確定用戶等級時發生錯誤: {e}")
+        return "free"  # 預設為免費會員
+
+def get_default_tab_for_user_level(user_level: str) -> str:
+    """
+    根據用戶等級獲取預設分頁
+    
+    Args:
+        user_level: 用戶等級 ("free", "premium", "admin")
+        
+    Returns:
+        str: 預設分頁名稱
+    """
+    if user_level == "admin":
+        return "advanced"
+    elif user_level == "premium":
+        return "fortune"
+    else:
+        return "basic"
+
+# 創建全局實例
+rich_menu_manager = RichMenuManager()
+
+def setup_rich_menu() -> Optional[str]:
+    """
+    設置預設的 Rich Menu
+    
+    Returns:
+        str: Rich Menu ID (如果成功)
+    """
+    return rich_menu_manager.ensure_default_rich_menu()
+
+def get_rich_menu_status() -> Dict[str, Any]:
+    """
+    獲取 Rich Menu 狀態資訊
+    
+    Returns:
+        Dict: Rich Menu 狀態
+    """
+    try:
+        default_id = rich_menu_manager.get_default_rich_menu_id()
+        all_menus = rich_menu_manager.get_rich_menu_list()
+        
+        return {
+            "default_menu_id": default_id,
+            "total_menus": len(all_menus) if all_menus else 0,
+            "menu_list": all_menus or []
+        }
+    except Exception as e:
+        logger.error(f"獲取 Rich Menu 狀態失敗: {e}")
+        return {"error": str(e)}
+
+def update_user_rich_menu(user_id: str, is_admin: bool = False) -> bool:
+    """
+    更新用戶的 Rich Menu
+    
+    Args:
+        user_id: LINE 用戶 ID
+        is_admin: 是否為管理員
+        
+    Returns:
+        bool: 是否成功更新
+    """
+    return rich_menu_manager.set_user_menu_by_role(user_id, is_admin)
 
 # 導出
 __all__ = [

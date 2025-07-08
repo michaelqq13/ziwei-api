@@ -8,11 +8,11 @@ from app.utils.rich_menu_manager import (
     rich_menu_manager, 
     determine_user_level, 
     get_default_tab_for_user_level,
-    set_user_tabbed_menu,
     get_user_current_tab,
     switch_user_tab,
     can_access_tab
 )
+from app.utils.driver_view_rich_menu_handler import DriverViewRichMenuHandler
 from app.logic.permission_manager import permission_manager
 from app.db.database import get_db
 
@@ -22,7 +22,8 @@ class DynamicRichMenuManager:
     """動態 Rich Menu 管理器"""
     
     def __init__(self):
-        self.use_tabbed_menu = True  # 是否使用分頁式選單
+        self.use_driver_view_menu = True  # 使用駕駛視窗選單
+        self.driver_handler = DriverViewRichMenuHandler()
     
     def initialize_user_menu(self, user_id: str, user_permissions: Optional[Dict[str, Any]] = None) -> bool:
         """
@@ -47,8 +48,8 @@ class DynamicRichMenuManager:
                         logger.warning(f"用戶 {user_id} 不存在於數據庫中")
                         return False
             
-            if self.use_tabbed_menu:
-                return self._initialize_tabbed_menu(user_id, user_permissions)
+            if self.use_driver_view_menu:
+                return self._initialize_driver_view_menu(user_id, user_permissions)
             else:
                 return self._initialize_legacy_menu(user_id, user_permissions)
                 
@@ -56,27 +57,32 @@ class DynamicRichMenuManager:
             logger.error(f"初始化用戶 {user_id} 選單失敗: {e}")
             return False
     
-    def _initialize_tabbed_menu(self, user_id: str, user_permissions: Dict[str, Any]) -> bool:
-        """初始化分頁式選單"""
+    def _initialize_driver_view_menu(self, user_id: str, user_permissions: Dict[str, Any]) -> bool:
+        """初始化駕駛視窗選單"""
         try:
             # 確定用戶等級
             user_level = determine_user_level(user_permissions)
             
-            # 獲取預設分頁
-            default_tab = get_default_tab_for_user_level(user_level)
+            # 根據用戶等級選擇預設分頁
+            if user_level == "admin":
+                default_tab = "advanced"
+            elif user_level == "premium":
+                default_tab = "fortune"
+            else:
+                default_tab = "basic"
             
-            # 設置分頁式選單
-            success = set_user_tabbed_menu(user_id, default_tab, user_level)
+            # 設置駕駛視窗選單
+            success = self.driver_handler.setup_default_tab(user_id, default_tab)
             
             if success:
-                logger.info(f"✅ 用戶 {user_id} 分頁式選單初始化成功 - 等級: {user_level}, 分頁: {default_tab}")
+                logger.info(f"✅ 用戶 {user_id} 駕駛視窗選單初始化成功 - 等級: {user_level}, 分頁: {default_tab}")
             else:
-                logger.error(f"❌ 用戶 {user_id} 分頁式選單初始化失敗")
+                logger.error(f"❌ 用戶 {user_id} 駕駛視窗選單初始化失敗")
             
             return success
             
         except Exception as e:
-            logger.error(f"初始化用戶 {user_id} 分頁式選單失敗: {e}")
+            logger.error(f"初始化用戶 {user_id} 駕駛視窗選單失敗: {e}")
             return False
     
     def _initialize_legacy_menu(self, user_id: str, user_permissions: Dict[str, Any]) -> bool:
@@ -103,7 +109,7 @@ class DynamicRichMenuManager:
         
         Args:
             user_id: LINE 用戶 ID
-            target_tab: 目標分頁 ("basic", "fortune", "admin")
+            target_tab: 目標分頁 ("basic", "fortune", "advanced")
             
         Returns:
             bool: 是否成功切換
@@ -140,13 +146,19 @@ class DynamicRichMenuManager:
                 if db:
                     db.close()
             
-            # 檢查權限
-            if not can_access_tab(target_tab, user_level):
-                logger.warning(f"用戶 {user_id} (等級: {user_level}) 無權限訪問分頁: {target_tab}")
+            # 檢查權限 - 駕駛視窗的分頁權限檢查
+            available_tabs = self.driver_handler.list_available_tabs()
+            if target_tab not in available_tabs:
+                logger.warning(f"無效的分頁: {target_tab}")
                 return False
             
-            # 執行切換
-            success = switch_user_tab(user_id, target_tab, user_level)
+            # 簡單的權限檢查
+            if target_tab == "advanced" and user_level != "admin":
+                logger.warning(f"用戶 {user_id} (等級: {user_level}) 無權限訪問進階分頁")
+                return False
+            
+            # 執行切換 - 使用駕駛視窗處理器
+            success = self.driver_handler.switch_to_tab(user_id, target_tab)
             
             if success:
                 logger.info(f"✅ 用戶 {user_id} 成功切換到分頁: {target_tab}")
@@ -193,7 +205,7 @@ class DynamicRichMenuManager:
                 "user_level": user_level,
                 "current_tab": current_tab,
                 "available_tabs": available_tabs,
-                "is_tabbed_menu": self.use_tabbed_menu
+                "is_tabbed_menu": self.use_driver_view_menu
             }
             
         except Exception as e:
@@ -252,8 +264,8 @@ class DynamicRichMenuManager:
         Args:
             use_tabbed: 是否使用分頁式選單
         """
-        self.use_tabbed_menu = use_tabbed
-        logger.info(f"設置選單模式: {'分頁式' if use_tabbed else '傳統'}")
+        self.use_driver_view_menu = use_tabbed
+        logger.info(f"設置選單模式: {'駕駛視窗' if use_tabbed else '傳統'}")
 
 # 全局實例
 dynamic_rich_menu_manager = DynamicRichMenuManager()
