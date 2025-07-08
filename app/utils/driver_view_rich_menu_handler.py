@@ -16,9 +16,8 @@ class DriverViewRichMenuHandler:
     """駕駛視窗 Rich Menu 處理器"""
     
     def __init__(self):
-        # 延遲導入以避免循環依賴
-        from app.utils.rich_menu_manager import RichMenuManager
-        self.manager = RichMenuManager()
+        # 移除循環導入，改為在需要時才導入
+        self.manager = None  # 延遲初始化
         self.base_image_path = "rich_menu_images/driver_view_richmenu.png"
         self.rich_menu_cache = {}  # 緩存不同分頁的 Rich Menu ID
         
@@ -83,6 +82,12 @@ class DriverViewRichMenuHandler:
             logger.error(f"❌ 載入按鈕圖片配置失敗: {e}")
             return {"button_images": {}, "image_settings": {}}
     
+    def _ensure_manager(self):
+        """確保 RichMenuManager 已初始化"""
+        if self.manager is None:
+            from app.utils.rich_menu_manager import RichMenuManager
+            self.manager = RichMenuManager()
+    
     def create_tab_image_with_highlight(self, active_tab: str) -> str:
         """
         創建帶有高亮分頁的圖片
@@ -94,6 +99,9 @@ class DriverViewRichMenuHandler:
             str: 生成的圖片路徑
         """
         try:
+            # 延遲導入 RichMenuManager
+            self._ensure_manager()
+
             # 載入基礎圖片
             base_image = Image.open(self.base_image_path)
             draw = ImageDraw.Draw(base_image)
@@ -419,6 +427,9 @@ class DriverViewRichMenuHandler:
             bool: 是否成功切換
         """
         try:
+            # 確保 manager 已初始化
+            self._ensure_manager()
+            
             # 檢查緩存
             cache_key = f"driver_view_{tab_name}"
             if cache_key in self.rich_menu_cache:
@@ -456,6 +467,9 @@ class DriverViewRichMenuHandler:
             str: Rich Menu ID (如果成功)
         """
         try:
+            # 確保 manager 已初始化
+            self._ensure_manager()
+            
             # 創建分頁圖片
             image_path = self.create_tab_image_with_highlight(tab_name)
             
