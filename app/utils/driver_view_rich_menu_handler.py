@@ -90,7 +90,7 @@ class DriverViewRichMenuHandler:
     
     def create_tab_image_with_highlight(self, active_tab: str) -> str:
         """
-        創建帶有高亮分頁的圖片
+        創建帶有高亮分頁的圖片 - 使用原圖的螢幕區域，不額外繪製方框
         
         Args:
             active_tab: 當前活躍的分頁 ("basic", "fortune", "advanced")
@@ -103,103 +103,104 @@ class DriverViewRichMenuHandler:
             self._ensure_manager()
 
             # 載入基礎圖片
-            base_image = Image.open(self.base_image_path)
-            draw = ImageDraw.Draw(base_image)
+            base_image = Image.open(self.base_image_path).convert('RGBA')
             
             # 嘗試載入支援中文的字體
-            try:
-                # macOS 中文字體
-                font_large = ImageFont.truetype("/System/Library/Fonts/Arial Unicode MS.ttf", 60)
-                font_medium = ImageFont.truetype("/System/Library/Fonts/Arial Unicode MS.ttf", 40)
-                font_small = ImageFont.truetype("/System/Library/Fonts/Arial Unicode MS.ttf", 32)
-            except:
-                try:
-                    # 備選中文字體
-                    font_large = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 60)
-                    font_medium = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 40)
-                    font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 32)
-                except:
-                    # 最終備選
-                    font_large = ImageFont.load_default()
-                    font_medium = ImageFont.load_default()
-                    font_small = ImageFont.load_default()
+            font_large = None
+            font_medium = None
+            font_small = None
             
+            # 嘗試多種中文字體路徑
+            chinese_font_paths = [
+                "/System/Library/Fonts/PingFang.ttc",  # macOS 繁體中文字體
+                "/System/Library/Fonts/Hiragino Sans GB.ttc",  # macOS 簡體中文字體
+                "/System/Library/Fonts/Arial Unicode MS.ttf",  # Unicode 字體
+                "/System/Library/Fonts/STHeiti Light.ttc",  # 黑體
+                "/System/Library/Fonts/AppleGothic.ttf"  # Apple Gothic
+            ]
+            
+            for font_path in chinese_font_paths:
+                try:
+                    if os.path.exists(font_path):
+                        font_large = ImageFont.truetype(font_path, 48)
+                        font_medium = ImageFont.truetype(font_path, 36)
+                        font_small = ImageFont.truetype(font_path, 28)
+                        logger.info(f"✅ 成功載入中文字體: {font_path}")
+                        break
+                except Exception as e:
+                    logger.warning(f"⚠️ 無法載入字體 {font_path}: {e}")
+                    continue
+            
+            # 如果都失敗了，使用預設字體
+            if font_medium is None:
+                font_large = ImageFont.load_default()
+                font_medium = ImageFont.load_default()
+                font_small = ImageFont.load_default()
+                logger.warning("⚠️ 使用預設字體，中文可能無法正常顯示")
+
             # 定義分頁標籤
             tabs = ["basic", "fortune", "advanced"]
             tab_names = ["基本功能", "運勢", "進階選項"]
             
-            # 為每個分頁添加視覺效果
+            # 為螢幕區域添加內容（不繪製邊框）
             for i, (tab_key, tab_name) in enumerate(zip(tabs, tab_names)):
                 pos = self.tab_positions[i]
                 
+                # 計算螢幕中心位置
+                center_x = pos["x"] + pos["width"] // 2
+                center_y = pos["y"] + pos["height"] // 2
+                
                 if tab_key == active_tab:
-                    # 活躍分頁：螢幕亮起效果
-                    # 1. 添加亮綠色高亮邊框（模擬螢幕發光）
-                    for width in range(1, 8):  # 多層邊框創造發光效果
-                        alpha = max(50, 200 - width * 20)  # 漸變透明度
-                        draw.rectangle([
-                            pos["x"] - width, pos["y"] - width, 
-                            pos["x"] + pos["width"] + width, pos["y"] + pos["height"] + width
-                        ], outline=(0, 255, 100, alpha), width=2)
-                    
-                    # 2. 螢幕內部亮度增強（白色半透明層）
-                    overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
-                    overlay_draw = ImageDraw.Draw(overlay)
-                    overlay_draw.rectangle([
-                        pos["x"] + 10, pos["y"] + 10,
-                        pos["x"] + pos["width"] - 10, pos["y"] + pos["height"] - 10
-                    ], fill=(255, 255, 255, 80))  # 白色半透明層
-                    base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay).convert('RGB')
+                    # 活躍分頁：在螢幕中央顯示分頁名稱，使用亮綠色
                     draw = ImageDraw.Draw(base_image)
                     
-                    # 3. 添加活躍指示圖標（亮綠色圓點）
-                    center_x = pos["x"] + pos["width"] // 2
-                    center_y = pos["y"] + pos["height"] // 2
-                    circle_radius = 25
+                    # 添加半透明背景突出文字
+                    text_bg_overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
+                    text_bg_draw = ImageDraw.Draw(text_bg_overlay)
                     
-                    # 發光圓點效果
-                    for r in range(circle_radius, 0, -3):
-                        alpha = min(255, r * 8)
-                        draw.ellipse([
-                            center_x - r, center_y - r,
-                            center_x + r, center_y + r
-                        ], fill=(0, 255, 100, alpha))
+                    # 計算文字範圍
+                    bbox = draw.textbbox((0, 0), tab_name, font=font_medium)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
                     
-                    # 4. 分頁名稱（在螢幕內部顯示）
+                    # 在文字後方添加半透明背景
+                    bg_padding = 15
+                    text_bg_draw.rectangle([
+                        center_x - text_width // 2 - bg_padding,
+                        center_y - text_height // 2 - bg_padding,
+                        center_x + text_width // 2 + bg_padding,
+                        center_y + text_height // 2 + bg_padding
+                    ], fill=(0, 150, 50, 120))  # 半透明綠色背景
+                    
+                    # 合併背景
+                    base_image = Image.alpha_composite(base_image, text_bg_overlay)
+                    draw = ImageDraw.Draw(base_image)
+                    
+                    # 分頁名稱（亮綠色）
                     draw.text((center_x, center_y), tab_name, fill=(0, 255, 100), 
                              font=font_medium, anchor="mm")
                     
-                else:
-                    # 非活躍分頁：螢幕暗淡效果
-                    # 1. 暗灰色邊框
-                    draw.rectangle([
-                        pos["x"], pos["y"], 
-                        pos["x"] + pos["width"], pos["y"] + pos["height"]
-                    ], outline=(80, 80, 80), width=2)
-                    
-                    # 2. 螢幕暗化效果（深色半透明層）
-                    overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
-                    overlay_draw = ImageDraw.Draw(overlay)
-                    overlay_draw.rectangle([
-                        pos["x"] + 5, pos["y"] + 5,
-                        pos["x"] + pos["width"] - 5, pos["y"] + pos["height"] - 5
-                    ], fill=(0, 0, 0, 60))  # 黑色半透明層（螢幕關閉效果）
-                    base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay).convert('RGB')
-                    draw = ImageDraw.Draw(base_image)
-                    
-                    # 3. 暗淡的指示圖標
-                    center_x = pos["x"] + pos["width"] // 2
-                    center_y = pos["y"] + pos["height"] // 2
+                    # 在螢幕上方添加活躍指示點
+                    indicator_y = pos["y"] + 30
                     draw.ellipse([
-                        center_x - 15, center_y - 15,
-                        center_x + 15, center_y + 15
-                    ], fill=(100, 100, 100), outline=(60, 60, 60))
+                        center_x - 12, indicator_y - 12,
+                        center_x + 12, indicator_y + 12
+                    ], fill=(0, 255, 100))
                     
-                    # 4. 分頁名稱（暗色，在螢幕內部顯示）
-                    draw.text((center_x, center_y), tab_name, fill=(120, 120, 120), 
+                else:
+                    # 非活躍分頁：顯示暗色分頁名稱
+                    draw = ImageDraw.Draw(base_image)
+                    draw.text((center_x, center_y), tab_name, fill=(100, 100, 100), 
                              font=font_medium, anchor="mm")
-            
-            # 5. 繪製當前分頁的功能按鈕
+                    
+                    # 暗色指示點
+                    indicator_y = pos["y"] + 30
+                    draw.ellipse([
+                        center_x - 8, indicator_y - 8,
+                        center_x + 8, indicator_y + 8
+                    ], fill=(80, 80, 80))
+
+            # 繪製當前分頁的功能按鈕（在底部按鈕區域）
             if active_tab in self.tab_configs:
                 buttons = self.tab_configs[active_tab]["buttons"]
                 
@@ -212,69 +213,52 @@ class DriverViewRichMenuHandler:
                         # 檢查是否有對應的圖片
                         if image_key and image_key in self.button_images_config.get("button_images", {}):
                             # 使用圖片按鈕
-                            self._draw_image_button(base_image, btn_pos, btn_text, image_key)
+                            self._draw_image_button(base_image, btn_pos, btn_text, image_key, font_small)
                         else:
                             # 使用文字按鈕 (備用方案)
                             self._draw_text_button(base_image, btn_pos, btn_text, font_small)
-            
-            # 6. 在底部添加當前分頁的功能提示
-            if active_tab in self.tab_configs:
-                buttons = self.tab_configs[active_tab]["buttons"]
-                button_texts = [btn["text"] for btn in buttons]
-                
-                # 底部功能預覽文字
-                preview_text = " | ".join(button_texts)
-                preview_y = base_image.height - 80
-                draw = ImageDraw.Draw(base_image)
-                draw.text((base_image.width // 2, preview_y), preview_text, 
-                         fill=(0, 255, 100), font=font_small, anchor="mm")
-            
+
             # 保存圖片
             output_path = f"rich_menu_images/driver_view_{active_tab}_tab.png"
+            
+            # 確保輸出目錄存在
+            os.makedirs("rich_menu_images", exist_ok=True)
             
             # 壓縮圖片以符合 LINE Rich Menu 1MB 限制
             quality = 85
             max_size = 1024 * 1024  # 1MB
             
             while quality > 10:
-                # 將 PIL Image 轉換為 RGB 模式以支援 JPEG 壓縮
-                if base_image.mode != 'RGB':
-                    base_image = base_image.convert('RGB')
+                # 將圖片轉換為 RGB 模式以支援 JPEG 壓縮
+                rgb_image = base_image.convert('RGB')
                 
-                # 先嘗試用 PNG 格式
-                base_image.save(output_path, format='PNG', optimize=True)
+                # 先嘗試用 JPEG 格式（壓縮效果更好）
+                temp_path = output_path.replace('.png', '.jpg')
+                rgb_image.save(temp_path, "JPEG", quality=quality, optimize=True)
                 
-                # 檢查文件大小
-                file_size = os.path.getsize(output_path)
-                if file_size <= max_size:
-                    break
+                if os.path.getsize(temp_path) <= max_size:
+                    logger.info(f"✅ 圖片壓縮成功，品質: {quality}%, 大小: {os.path.getsize(temp_path)/1024:.1f} KB")
+                    return temp_path
                 
-                # 如果太大，改用 JPEG 格式並降低品質
-                output_path_jpg = output_path.replace('.png', '.jpg')
-                base_image.save(output_path_jpg, format='JPEG', quality=quality, optimize=True)
-                
-                file_size = os.path.getsize(output_path_jpg)
-                if file_size <= max_size:
-                    output_path = output_path_jpg
-                    break
-                
-                quality -= 10
+                quality -= 5
             
-            # 最終檢查文件大小
-            final_size = os.path.getsize(output_path)
-            logger.info(f"✅ 創建高亮分頁圖片成功: {output_path} ({final_size/1024:.1f} KB)")
+            # 如果 JPEG 仍然太大，嘗試 PNG
+            base_image.convert('RGB').save(output_path, "PNG", optimize=True)
+            if os.path.getsize(output_path) <= max_size:
+                logger.info(f"✅ PNG 圖片生成成功，大小: {os.path.getsize(output_path)/1024:.1f} KB")
+                return output_path
             
-            if final_size > max_size:
-                logger.warning(f"⚠️ 圖片大小 ({final_size/1024:.1f} KB) 仍超過 1MB 限制")
-            
+            logger.error(f"❌ 無法將圖片壓縮到 1MB 以下")
             return output_path
             
         except Exception as e:
-            logger.error(f"❌ 創建分頁圖片失敗: {e}")
-            return self.base_image_path
+            logger.error(f"❌ 創建分頁圖片時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
-    def _draw_image_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, image_key: str):
-        """繪製圖片按鈕"""
+    def _draw_image_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, image_key: str, font_small):
+        """繪製圖片按鈕 - 無邊框，純淨風格"""
         try:
             button_config = self.button_images_config["button_images"][image_key]
             image_file = button_config["image_file"]
@@ -282,88 +266,108 @@ class DriverViewRichMenuHandler:
             
             if not os.path.exists(image_path):
                 logger.warning(f"⚠️ 按鈕圖片不存在: {image_path}")
-                self._draw_text_button(base_image, btn_pos, btn_text, None)
+                self._draw_text_button(base_image, btn_pos, btn_text, font_small)
                 return
             
             # 載入按鈕圖片
             button_img = Image.open(image_path).convert("RGBA")
             
-            # 計算圖片大小 (保持比例，適應按鈕區域)
+            # 計算圖片大小 - 調整為更合適的尺寸
             image_settings = self.button_images_config.get("image_settings", {})
-            button_size = image_settings.get("button_size", 150)
+            button_size = image_settings.get("button_size", 120)  # 調小一點
             
-            # 調整圖片大小
+            # 調整圖片大小，保持比例
             button_img.thumbnail((button_size, button_size), Image.Resampling.LANCZOS)
             
-            # 計算圖片位置 (置中)
+            # 計算圖片和文字的佈局
+            text_height = 40 if font_small else 30
+            total_height = button_img.height + text_height + 10  # 圖片 + 間隔 + 文字
+            
+            # 計算垂直置中位置
+            start_y = btn_pos["y"] + (btn_pos["height"] - total_height) // 2
+            
+            # 圖片位置 (水平置中，垂直在上方)
             img_x = btn_pos["x"] + (btn_pos["width"] - button_img.width) // 2
-            img_y = btn_pos["y"] + (btn_pos["height"] - button_img.height) // 2 - 20  # 稍微上移為文字留空間
+            img_y = start_y
             
-            # 創建半透明背景
-            overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
-            overlay_draw = ImageDraw.Draw(overlay)
+            # 確保圖片在按鈕範圍內
+            img_x = max(btn_pos["x"], min(img_x, btn_pos["x"] + btn_pos["width"] - button_img.width))
+            img_y = max(btn_pos["y"], min(img_y, btn_pos["y"] + btn_pos["height"] - button_img.height))
             
-            # 繪製按鈕背景框
-            overlay_draw.rectangle([
-                btn_pos["x"], btn_pos["y"],
-                btn_pos["x"] + btn_pos["width"], btn_pos["y"] + btn_pos["height"]
-            ], outline=(0, 255, 100), width=2, fill=(0, 30, 10, 80))
-            
-            # 合併背景
-            base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay).convert('RGB')
-            
-            # 貼上按鈕圖片
-            base_image.paste(button_img, (img_x, img_y), button_img)
+            # 直接貼上按鈕圖片，不加任何邊框
+            if button_img.mode == 'RGBA':
+                base_image.paste(button_img, (img_x, img_y), button_img)
+            else:
+                base_image.paste(button_img, (img_x, img_y))
             
             # 添加文字標籤 (在圖片下方)
             draw = ImageDraw.Draw(base_image)
-            text_y = img_y + button_img.height + 10
             text_x = btn_pos["x"] + btn_pos["width"] // 2
+            text_y = img_y + button_img.height + 8
             
-            # 嘗試載入字體
-            try:
-                font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
-            except:
-                font_small = ImageFont.load_default()
+            # 確保文字在按鈕範圍內
+            if text_y + text_height > btn_pos["y"] + btn_pos["height"]:
+                text_y = btn_pos["y"] + btn_pos["height"] - text_height
             
+            # 使用傳入的字體
+            if font_small is None:
+                try:
+                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 24)
+                except:
+                    font_small = ImageFont.load_default()
+            
+            # 繪製白色文字，確保在駕駛艙背景上清晰可見
             draw.text((text_x, text_y), btn_text, fill=(255, 255, 255), 
-                     font=font_small, anchor="mm")
+                     font=font_small, anchor="mt")
             
-            logger.info(f"✅ 圖片按鈕繪製成功: {image_key}")
+            logger.debug(f"✅ 圖片按鈕繪製成功: {image_key} at ({img_x}, {img_y})")
             
         except Exception as e:
             logger.error(f"❌ 繪製圖片按鈕失敗: {e}")
             # 失敗時使用文字按鈕
-            self._draw_text_button(base_image, btn_pos, btn_text, None)
+            self._draw_text_button(base_image, btn_pos, btn_text, font_small)
     
     def _draw_text_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, font_small):
-        """繪製文字按鈕 (備用方案)"""
+        """繪製文字按鈕 - 簡潔風格，適合駕駛艙主題"""
         try:
-            # 創建半透明背景
-            overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
-            overlay_draw = ImageDraw.Draw(overlay)
-            
-            # 按鈕邊框
-            overlay_draw.rectangle([
-                btn_pos["x"], btn_pos["y"],
-                btn_pos["x"] + btn_pos["width"], btn_pos["y"] + btn_pos["height"]
-            ], outline=(0, 255, 100), width=3, fill=(0, 50, 20, 100))
-            
-            # 合併圖層
-            base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay).convert('RGB')
             draw = ImageDraw.Draw(base_image)
             
-            # 繪製按鈕文字
+            # 計算按鈕中心
             btn_center_x = btn_pos["x"] + btn_pos["width"] // 2
             btn_center_y = btn_pos["y"] + btn_pos["height"] // 2
             
-            # 使用預設字體如果沒有提供
+            # 使用傳入的字體或載入預設字體
             if font_small is None:
                 try:
-                    font_small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 32)
+                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 28)
                 except:
                     font_small = ImageFont.load_default()
             
+            # 添加半透明背景，突出文字
+            overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            
+            # 計算文字範圍
+            bbox = draw.textbbox((0, 0), btn_text, font=font_small)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            # 繪製圓角矩形背景
+            padding = 20
+            bg_x1 = btn_center_x - text_width // 2 - padding
+            bg_y1 = btn_center_y - text_height // 2 - padding
+            bg_x2 = btn_center_x + text_width // 2 + padding
+            bg_y2 = btn_center_y + text_height // 2 + padding
+            
+            # 半透明背景
+            overlay_draw.rectangle([bg_x1, bg_y1, bg_x2, bg_y2], 
+                                 fill=(50, 50, 50, 150))  # 深灰半透明
+            
+            # 合併背景
+            base_image = Image.alpha_composite(base_image.convert('RGBA'), overlay)
+            draw = ImageDraw.Draw(base_image)
+            
+            # 繪製白色文字
             draw.text((btn_center_x, btn_center_y), btn_text, 
                      fill=(255, 255, 255), font=font_small, anchor="mm")
             
