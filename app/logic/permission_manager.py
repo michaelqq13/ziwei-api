@@ -6,6 +6,7 @@ import logging
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from sqlalchemy import func
 
 from app.models.linebot_models import LineBotUser, DivinationHistory
 from app.config.linebot_config import LineBotConfig
@@ -13,47 +14,50 @@ from app.config.linebot_config import LineBotConfig
 logger = logging.getLogger(__name__)
 
 class PermissionManager:
-    """權限管理核心類"""
-    
+    """
+    權限管理器，負責用戶權限檢查和管理
+    """
     def __init__(self):
-        self.config = LineBotConfig()
-    
+        self.admin_secret = LineBotConfig.ADMIN_SECRET_PHRASE
+        self.admin_password = LineBotConfig.ADMIN_PASSWORD
+
     def get_or_create_user(self, db: Session, line_user_id: str, user_profile: Dict = None) -> LineBotUser:
         """
         獲取或創建用戶
         """
-        # 查找現有用戶
-        user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
-        
-        if user:
-            # 更新最後活動時間
-            user.last_active_at = datetime.utcnow()
-            if user_profile:
-                user.display_name = user_profile.get("displayName", user.display_name)
-                user.profile_picture_url = user_profile.get("pictureUrl", user.profile_picture_url)
-            db.commit()
+        try:
+            # 查找現有用戶
+            user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+            
+            if not user:
+                # 創建新用戶
+                user = LineBotUser(
+                    line_user_id=line_user_id,
+                    display_name=user_profile.get("displayName", "新用戶") if user_profile else "新用戶",
+                    profile_picture_url=user_profile.get("pictureUrl") if user_profile else None,
+                    membership_level=LineBotConfig.MembershipLevel.FREE
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+                logger.info(f"創建新用戶：{line_user_id}")
+            else:
+                # 更新最後活動時間
+                user.last_active_at = datetime.utcnow()
+                db.commit()
+                
             return user
-        
-        # 創建新用戶
-        new_user = LineBotUser(
-            line_user_id=line_user_id,
-            display_name=user_profile.get("displayName", "") if user_profile else "",
-            profile_picture_url=user_profile.get("pictureUrl", "") if user_profile else "",
-            membership_level=LineBotConfig.MembershipLevel.FREE
-        )
-        
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        
-        return new_user
+            
+        except Exception as e:
+            logger.error(f"獲取或創建用戶失敗：{e}")
+            db.rollback()
+            raise
     
     def authenticate_admin(self, secret_phrase: str, password: str) -> bool:
         """
-        管理員身份驗證
+        驗證管理員身份
         """
-        return (secret_phrase == LineBotConfig.ADMIN_SECRET_PHRASE and 
-                password == LineBotConfig.ADMIN_PASSWORD)
+        return secret_phrase == self.admin_secret and password == self.admin_password
     
     def promote_to_admin(self, db: Session, line_user_id: str) -> bool:
         """
@@ -74,23 +78,21 @@ class PermissionManager:
     @staticmethod
     def set_admin_permissions(line_user_id: str, db: Session) -> bool:
         """
-        設定管理員權限（靜態方法，用於管理腳本）
+        設置管理員權限（靜態方法）
         """
-        user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
-        if user:
-            user.membership_level = LineBotConfig.MembershipLevel.ADMIN
-            user.updated_at = datetime.utcnow()
-            db.commit()
-            
-            # 自動更新 Rich Menu
-            try:
-                from app.utils.rich_menu_manager import update_user_rich_menu
-                update_user_rich_menu(line_user_id, is_admin=True)
-            except Exception as e:
-                logger.warning(f"更新管理員 Rich Menu 失敗: {e}")
-            
-            return True
-        return False
+        try:
+            user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+            if user:
+                user.membership_level = LineBotConfig.MembershipLevel.ADMIN
+                user.updated_at = datetime.utcnow()
+                db.commit()
+                
+                logger.info(f"✅ 管理員權限設置成功: {line_user_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"設置管理員權限失敗: {e}")
+            return False
     
     def update_user_nickname(self, db: Session, line_user_id: str, nickname: str) -> bool:
         """
@@ -98,7 +100,7 @@ class PermissionManager:
         """
         user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
         if user:
-            user.display_name = nickname.strip()
+            user.display_name = nickname
             user.updated_at = datetime.utcnow()
             db.commit()
             return True
@@ -106,10 +108,10 @@ class PermissionManager:
     
     def upgrade_to_premium(self, db: Session, line_user_id: str) -> bool:
         """
-        升級為付費會員
+        升級用戶為付費會員
         """
         user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
-        if user and user.membership_level != LineBotConfig.MembershipLevel.ADMIN:
+        if user and user.membership_level == LineBotConfig.MembershipLevel.FREE:
             user.membership_level = LineBotConfig.MembershipLevel.PREMIUM
             user.updated_at = datetime.utcnow()
             db.commit()
@@ -118,10 +120,10 @@ class PermissionManager:
     
     def downgrade_to_free(self, db: Session, line_user_id: str) -> bool:
         """
-        降級為免費會員
+        降級用戶為免費會員
         """
         user = db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
-        if user and user.membership_level != LineBotConfig.MembershipLevel.ADMIN:
+        if user and user.membership_level == LineBotConfig.MembershipLevel.PREMIUM:
             user.membership_level = LineBotConfig.MembershipLevel.FREE
             user.updated_at = datetime.utcnow()
             db.commit()
@@ -130,38 +132,34 @@ class PermissionManager:
     
     def check_divination_permission(self, db: Session, user: LineBotUser) -> Dict[str, Any]:
         """
-        檢查占卜功能權限
+        檢查占卜權限
         """
         # 管理員和付費會員無限制
         if user.is_premium():
             return {
                 "allowed": True,
                 "reason": "unlimited",
-                "remaining_count": -1  # -1 表示無限制
+                "remaining_count": -1,
+                "weekly_count": 0,
+                "limit": -1
             }
         
         # 免費會員檢查週限制
-        from app.models.divination import DivinationRecord
-        
-        # 計算本週開始日期
         today = datetime.utcnow()
         days_since_monday = today.weekday()
         week_start = today - timedelta(days=days_since_monday)
         week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        # 檢查本週占卜次數
-        weekly_count = db.query(DivinationRecord).filter(
-            DivinationRecord.user_id == user.line_user_id,  # 使用 line_user_id 而不是 id
-            DivinationRecord.week_start_date == week_start.date()
+        weekly_count = db.query(DivinationHistory).filter(
+            DivinationHistory.user_id == user.id,  # 使用 user.id 而不是 line_user_id
+            DivinationHistory.created_at >= week_start
         ).count()
         
-        remaining = LineBotConfig.FREE_DIVINATION_WEEKLY_LIMIT - weekly_count
-        
-        if remaining > 0:
+        if weekly_count < LineBotConfig.FREE_DIVINATION_WEEKLY_LIMIT:
             return {
                 "allowed": True,
                 "reason": "within_limit",
-                "remaining_count": remaining,
+                "remaining_count": LineBotConfig.FREE_DIVINATION_WEEKLY_LIMIT - weekly_count,
                 "weekly_count": weekly_count,
                 "limit": LineBotConfig.FREE_DIVINATION_WEEKLY_LIMIT
             }
@@ -221,12 +219,11 @@ class PermissionManager:
         """
         獲取用戶統計資訊
         """
-        from app.models.divination import DivinationRecord
         from datetime import datetime, timedelta
         
-        # 占卜統計
-        total_divinations = db.query(DivinationRecord).filter(
-            DivinationRecord.user_id == user.line_user_id
+        # 占卜統計 - 使用 DivinationHistory 模型和正確的字段
+        total_divinations = db.query(DivinationHistory).filter(
+            DivinationHistory.user_id == user.id  # 使用 user.id 而不是 line_user_id
         ).count()
         
         # 本週占卜次數
@@ -235,9 +232,9 @@ class PermissionManager:
         week_start = today - timedelta(days=days_since_monday)
         week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        weekly_divinations = db.query(DivinationRecord).filter(
-            DivinationRecord.user_id == user.line_user_id,
-            DivinationRecord.week_start_date == week_start.date()
+        weekly_divinations = db.query(DivinationHistory).filter(
+            DivinationHistory.user_id == user.id,  # 使用 user.id 而不是 line_user_id
+            DivinationHistory.created_at >= week_start
         ).count()
         
         # 權限檢查

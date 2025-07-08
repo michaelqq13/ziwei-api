@@ -548,8 +548,7 @@ class RichMenuManager:
         try:
             url = f"https://api.line.me/v2/bot/user/{user_id}/richmenu/{rich_menu_id}"
             headers = {
-                "Authorization": f"Bearer {LineBotConfig.CHANNEL_ACCESS_TOKEN}",
-                "Content-Type": "application/json"
+                "Authorization": f"Bearer {LineBotConfig.CHANNEL_ACCESS_TOKEN}"
             }
             
             response = requests.post(url, headers=headers, timeout=30)
@@ -559,6 +558,9 @@ class RichMenuManager:
                 return True
             else:
                 logger.error(f"❌ 用戶 {user_id} Rich Menu 設定失敗: {response.status_code}")
+                logger.error(f"響應內容: {response.text}")
+                logger.error(f"使用的 Rich Menu ID: {rich_menu_id}")
+                logger.error(f"請求 URL: {url}")
                 return False
                 
         except Exception as e:
@@ -1015,8 +1017,8 @@ def can_access_tab(tab_name: str, user_level: str) -> bool:
         # 基本功能分頁所有用戶都可以訪問
         return True
     elif tab_name == "fortune":
-        # 運勢分頁只有付費會員和管理員可以訪問
-        return user_level in ["premium", "admin"]
+        # 運勢分頁所有用戶都可以訪問（功能內部會控制權限）
+        return True
     elif tab_name == "admin":
         # 進階選項分頁只有管理員可以訪問
         return user_level == "admin"
