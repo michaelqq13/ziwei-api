@@ -24,46 +24,59 @@ class DriverViewRichMenuHandler:
         # 載入按鈕圖片配置
         self.button_images_config = self._load_button_images_config()
         
-        # 分頁配置 - 更新為使用圖片按鈕
+        # 分頁配置 - 移除符號，只保留文字
         self.tab_configs = {
             "basic": {
                 "name": "基本功能",
                 "buttons": [
-                    {"text": "🔮 本週占卜", "action": {"type": "message", "text": "本週占卜"}, "image_key": "weekly_divination"},
-                    {"text": "📊 會員資訊", "action": {"type": "message", "text": "會員資訊"}, "image_key": "member_info"},
-                    {"text": "🛰️ 命盤綁定", "action": {"type": "message", "text": "命盤綁定"}, "image_key": "chart_binding"}
+                    {"text": "本週占卜", "action": {"type": "message", "text": "本週占卜"}, "image_key": "weekly_divination"},
+                    {"text": "會員資訊", "action": {"type": "message", "text": "會員資訊"}, "image_key": "member_info"},
+                    {"text": "命盤綁定", "action": {"type": "message", "text": "命盤綁定"}, "image_key": "chart_binding"}
                 ]
             },
             "fortune": {
                 "name": "運勢",
                 "buttons": [
-                    {"text": "🌍 流年運勢", "action": {"type": "message", "text": "流年運勢"}, "image_key": "yearly_fortune"},
-                    {"text": "🪐 流月運勢", "action": {"type": "message", "text": "流月運勢"}, "image_key": "monthly_fortune"},
-                    {"text": "☀️ 流日運勢", "action": {"type": "message", "text": "流日運勢"}, "image_key": "daily_fortune"}
+                    {"text": "流年運勢", "action": {"type": "message", "text": "流年運勢"}, "image_key": "yearly_fortune"},
+                    {"text": "流月運勢", "action": {"type": "message", "text": "流月運勢"}, "image_key": "monthly_fortune"},
+                    {"text": "流日運勢", "action": {"type": "message", "text": "流日運勢"}, "image_key": "daily_fortune"}
                 ]
             },
             "advanced": {
                 "name": "進階選項",
                 "buttons": [
-                    {"text": "🎲 指定時間占卜", "action": {"type": "message", "text": "指定時間占卜"}, "image_key": "scheduled_divination"},
-                    {"text": "📈 詳細分析", "action": {"type": "message", "text": "詳細分析"}, "image_key": None},  # 暫時沒有對應圖片
-                    {"text": "🔧 管理功能", "action": {"type": "message", "text": "管理功能"}, "image_key": None}   # 暫時沒有對應圖片
+                    {"text": "指定時間占卜", "action": {"type": "message", "text": "指定時間占卜"}, "image_key": "scheduled_divination"},
+                    {"text": "詳細分析", "action": {"type": "message", "text": "詳細分析"}, "image_key": None},  # 暫時沒有對應圖片
+                    {"text": "管理功能", "action": {"type": "message", "text": "管理功能"}, "image_key": None}   # 暫時沒有對應圖片
                 ]
             }
         }
         
-        # 按鈕位置配置 - 修正按鈕大小
+        # 螢幕位置配置 - 使用實際的白色螢幕範圍
         self.tab_positions = [
-            {"x": 417, "y": 50, "width": 500, "height": 280},   # 左側螢幕
-            {"x": 1000, "y": 50, "width": 500, "height": 280}, # 中間螢幕
-            {"x": 1583, "y": 50, "width": 500, "height": 280}  # 右側螢幕
+            {"x": 417, "y": 246, "width": 500, "height": 83},   # 左側螢幕 (實際白色範圍)
+            {"x": 1000, "y": 50, "width": 500, "height": 279}, # 中間螢幕 (實際白色範圍)
+            {"x": 1583, "y": 266, "width": 500, "height": 63}  # 右側螢幕 (實際白色範圍)
         ]
         
-        # 修正按鈕位置和大小
+        # 重新設計按鈕位置 - 以中間螢幕 (x=1250) 為中心對齊，增大按鈕尺寸
+        middle_screen_center_x = 1250  # 中間螢幕的中心點
+        button_width = 750  # 保持按鈕寬度
+        button_height = 275  # 增加按鈕高度到 275px (250-300 之間)
+        button_spacing = 10  # 進一步縮小間距到 10px
+        
+        # 計算三個按鈕的起始位置，讓它們以中間螢幕為中心對稱分佈
+        total_width = button_width * 3 + button_spacing * 2
+        start_x = middle_screen_center_x - total_width // 2
+        
+        # 中間按鈕往上移動更多，左右按鈕保持原位置（模擬螢幕弧度）
+        button_y_side = 720    # 左右按鈕位置
+        button_y_center = 695  # 中間按鈕往上移動25px
+        
         self.button_positions = [
-            {"x": 208, "y": 800, "width": 625, "height": 200},  # 左側按鈕 - 縮小高度
-            {"x": 833, "y": 800, "width": 634, "height": 200},  # 中間按鈕 - 縮小高度  
-            {"x": 1467, "y": 800, "width": 625, "height": 200}  # 右側按鈕 - 縮小高度
+            {"x": start_x, "y": button_y_side, "width": button_width, "height": button_height},  # 左側按鈕
+            {"x": start_x + button_width + button_spacing, "y": button_y_center, "width": button_width, "height": button_height},  # 中間按鈕 (往上)
+            {"x": start_x + (button_width + button_spacing) * 2, "y": button_y_side, "width": button_width, "height": button_height}  # 右側按鈕
         ]
     
     def _load_button_images_config(self) -> Dict:
@@ -81,6 +94,47 @@ class DriverViewRichMenuHandler:
         except Exception as e:
             logger.error(f"❌ 載入按鈕圖片配置失敗: {e}")
             return {"button_images": {}, "image_settings": {}}
+    
+    def _create_rotated_text(self, text: str, font, color: tuple, angle: float) -> Optional[Image.Image]:
+        """
+        創建旋轉的文字圖片
+        
+        Args:
+            text: 文字內容
+            font: 字體
+            color: 文字顏色 (R, G, B)
+            angle: 旋轉角度（正數為順時針，負數為逆時針）
+            
+        Returns:
+            Image.Image: 旋轉後的文字圖片
+        """
+        try:
+            # 創建臨時圖片來測量文字大小
+            temp_img = Image.new('RGBA', (1000, 200), (0, 0, 0, 0))
+            temp_draw = ImageDraw.Draw(temp_img)
+            
+            # 獲取文字範圍
+            bbox = temp_draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            # 創建合適大小的文字圖片
+            padding = 20
+            text_img = Image.new('RGBA', (text_width + padding * 2, text_height + padding * 2), (0, 0, 0, 0))
+            text_draw = ImageDraw.Draw(text_img)
+            
+            # 繪製文字
+            text_draw.text((padding, padding), text, fill=color, font=font)
+            
+            # 如果需要旋轉
+            if angle != 0:
+                text_img = text_img.rotate(angle, expand=True, fillcolor=(0, 0, 0, 0))
+            
+            return text_img
+            
+        except Exception as e:
+            logger.error(f"❌ 創建旋轉文字失敗: {e}")
+            return None
     
     def _ensure_manager(self):
         """確保 RichMenuManager 已初始化"""
@@ -122,8 +176,8 @@ class DriverViewRichMenuHandler:
             for font_path in chinese_font_paths:
                 try:
                     if os.path.exists(font_path):
-                        font_large = ImageFont.truetype(font_path, 48)
-                        font_medium = ImageFont.truetype(font_path, 36)
+                        font_large = ImageFont.truetype(font_path, 72)  # 再次增大分頁字體
+                        font_medium = ImageFont.truetype(font_path, 60)  # 再次增大分頁字體
                         font_small = ImageFont.truetype(font_path, 28)
                         logger.info(f"✅ 成功載入中文字體: {font_path}")
                         break
@@ -142,63 +196,48 @@ class DriverViewRichMenuHandler:
             tabs = ["basic", "fortune", "advanced"]
             tab_names = ["基本功能", "運勢", "進階選項"]
             
-            # 為螢幕區域添加內容（不繪製邊框）
+            # 為螢幕區域添加分頁文字，確保在白色螢幕範圍內
             for i, (tab_key, tab_name) in enumerate(zip(tabs, tab_names)):
                 pos = self.tab_positions[i]
                 
-                # 計算螢幕中心位置
-                center_x = pos["x"] + pos["width"] // 2
-                center_y = pos["y"] + pos["height"] // 2
+                # 計算實際白色螢幕中心位置，並根據螢幕位置調整
+                if i == 0:  # 左側螢幕 - 往左移動進入螢幕
+                    center_x = pos["x"] + pos["width"] // 2 - 30  # 往左移30px
+                    center_y = pos["y"] + pos["height"] // 2 + 10  # 往下移10px
+                elif i == 1:  # 中間螢幕 - 往下移動進入螢幕
+                    center_x = pos["x"] + pos["width"] // 2
+                    center_y = pos["y"] + pos["height"] // 2 + 30  # 往下移30px進入螢幕
+                else:  # 右側螢幕 - 往右移動進入螢幕
+                    center_x = pos["x"] + pos["width"] // 2 + 30  # 往右移30px
+                    center_y = pos["y"] + pos["height"] // 2 + 10  # 往下移10px
                 
-                if tab_key == active_tab:
-                    # 活躍分頁：在螢幕中央顯示分頁名稱，使用亮綠色
-                    draw = ImageDraw.Draw(base_image)
+                # 創建文字圖片，以支援旋轉
+                if i == 0:  # 左側螢幕 - 向右傾斜（修正方向）
+                    text_img = self._create_rotated_text(tab_name, font_large, 
+                                                       (50, 50, 50) if tab_key == active_tab else (150, 150, 150),
+                                                       15)  # 右傾 15 度
+                elif i == 2:  # 右側螢幕 - 向左傾斜（修正方向）
+                    text_img = self._create_rotated_text(tab_name, font_large,
+                                                       (50, 50, 50) if tab_key == active_tab else (150, 150, 150),
+                                                       -15)   # 左傾 15 度
+                else:  # 中間螢幕 - 不傾斜
+                    text_img = self._create_rotated_text(tab_name, font_large,
+                                                       (50, 50, 50) if tab_key == active_tab else (150, 150, 150),
+                                                       0)    # 不傾斜
+                
+                # 將文字圖片貼到基礎圖片上
+                if text_img:
+                    text_x = center_x - text_img.width // 2
+                    text_y = center_y - text_img.height // 2
                     
-                    # 添加半透明背景突出文字
-                    text_bg_overlay = Image.new('RGBA', base_image.size, (0, 0, 0, 0))
-                    text_bg_draw = ImageDraw.Draw(text_bg_overlay)
+                    # 確保文字在螢幕範圍內（實際白色範圍），但允許一些彈性
+                    text_x = max(pos["x"] - 50, min(text_x, pos["x"] + pos["width"] - text_img.width + 50))
+                    text_y = max(pos["y"] - 20, min(text_y, pos["y"] + pos["height"] - text_img.height + 20))
                     
-                    # 計算文字範圍
-                    bbox = draw.textbbox((0, 0), tab_name, font=font_medium)
-                    text_width = bbox[2] - bbox[0]
-                    text_height = bbox[3] - bbox[1]
-                    
-                    # 在文字後方添加半透明背景
-                    bg_padding = 15
-                    text_bg_draw.rectangle([
-                        center_x - text_width // 2 - bg_padding,
-                        center_y - text_height // 2 - bg_padding,
-                        center_x + text_width // 2 + bg_padding,
-                        center_y + text_height // 2 + bg_padding
-                    ], fill=(0, 150, 50, 120))  # 半透明綠色背景
-                    
-                    # 合併背景
-                    base_image = Image.alpha_composite(base_image, text_bg_overlay)
-                    draw = ImageDraw.Draw(base_image)
-                    
-                    # 分頁名稱（亮綠色）
-                    draw.text((center_x, center_y), tab_name, fill=(0, 255, 100), 
-                             font=font_medium, anchor="mm")
-                    
-                    # 在螢幕上方添加活躍指示點
-                    indicator_y = pos["y"] + 30
-                    draw.ellipse([
-                        center_x - 12, indicator_y - 12,
-                        center_x + 12, indicator_y + 12
-                    ], fill=(0, 255, 100))
-                    
-                else:
-                    # 非活躍分頁：顯示暗色分頁名稱
-                    draw = ImageDraw.Draw(base_image)
-                    draw.text((center_x, center_y), tab_name, fill=(100, 100, 100), 
-                             font=font_medium, anchor="mm")
-                    
-                    # 暗色指示點
-                    indicator_y = pos["y"] + 30
-                    draw.ellipse([
-                        center_x - 8, indicator_y - 8,
-                        center_x + 8, indicator_y + 8
-                    ], fill=(80, 80, 80))
+                    if text_img.mode == 'RGBA':
+                        base_image.paste(text_img, (text_x, text_y), text_img)
+                    else:
+                        base_image.paste(text_img, (text_x, text_y))
 
             # 繪製當前分頁的功能按鈕（在底部按鈕區域）
             if active_tab in self.tab_configs:
@@ -274,14 +313,14 @@ class DriverViewRichMenuHandler:
             
             # 計算圖片大小 - 調整為更合適的尺寸
             image_settings = self.button_images_config.get("image_settings", {})
-            button_size = image_settings.get("button_size", 120)  # 調小一點
+            button_size = image_settings.get("button_size", 380)  # 更新到 380px
             
             # 調整圖片大小，保持比例
             button_img.thumbnail((button_size, button_size), Image.Resampling.LANCZOS)
             
-            # 計算圖片和文字的佈局
-            text_height = 40 if font_small else 30
-            total_height = button_img.height + text_height + 10  # 圖片 + 間隔 + 文字
+            # 計算圖片和文字的佈局 - 為380px大圖片調整間距
+            text_height = 50 if font_small else 35  # 增加文字高度空間
+            total_height = button_img.height + text_height + 15  # 圖片 + 更大間隔 + 文字
             
             # 計算垂直置中位置
             start_y = btn_pos["y"] + (btn_pos["height"] - total_height) // 2
@@ -303,7 +342,7 @@ class DriverViewRichMenuHandler:
             # 添加文字標籤 (在圖片下方)
             draw = ImageDraw.Draw(base_image)
             text_x = btn_pos["x"] + btn_pos["width"] // 2
-            text_y = img_y + button_img.height + 8
+            text_y = img_y + button_img.height + 12  # 增加間距到12px
             
             # 確保文字在按鈕範圍內
             if text_y + text_height > btn_pos["y"] + btn_pos["height"]:
@@ -312,7 +351,7 @@ class DriverViewRichMenuHandler:
             # 使用傳入的字體
             if font_small is None:
                 try:
-                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 24)
+                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 36)  # 與圖片按鈕保持一致
                 except:
                     font_small = ImageFont.load_default()
             
@@ -339,7 +378,7 @@ class DriverViewRichMenuHandler:
             # 使用傳入的字體或載入預設字體
             if font_small is None:
                 try:
-                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 28)
+                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 36)  # 與圖片按鈕保持一致
                 except:
                     font_small = ImageFont.load_default()
             

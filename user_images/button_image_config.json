@@ -72,7 +72,7 @@
     }
   },
   "image_settings": {
-    "button_size": 200,
+    "button_size": 380,
     "image_resize": true,
     "maintain_aspect_ratio": true,
     "add_background_circle": false,
