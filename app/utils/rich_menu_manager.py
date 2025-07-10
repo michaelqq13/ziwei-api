@@ -456,7 +456,7 @@ class RichMenuManager:
                         "action": {"type": "message", "text": "命盤綁定"}
                     }
                 ]
-                image_path = "rich_menu_images/driver_view_richmenu.png"
+                image_path = "rich_menu_images/drive_view.jpg"  # 使用壓縮後的駕駛視窗圖片
             
             if not image_path or not os.path.exists(image_path):
                 logger.error(f"選單圖片不存在: {image_path}")

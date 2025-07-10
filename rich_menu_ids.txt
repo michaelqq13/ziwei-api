@@ -1,2 +1,0 @@
-main_rich_menu_id=richmenu-0578bd901b9e6d7ab1548f3a2ce60f4c
-unbound_rich_menu_id=richmenu-6302d1326a70285a82d4d27daffbab11

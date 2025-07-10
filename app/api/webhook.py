@@ -1120,31 +1120,27 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 請重新輸入目標時間：""")
                     return  # 重要：防止觸發默認歡迎訊息
 
-                # 檢查是否為四化完整解釋請求
-                elif "查看" in text and "星完整解釋" in text:
+                # 檢查是否為四化更多解釋請求  
+                elif "查看" in text and ("星更多解釋" in text or "星完整解釋" in text):
                     # 檢查用戶權限
                     from app.logic.permission_manager import permission_manager
                     user_stats = permission_manager.get_user_stats(db, user)
                     user_type = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
                     
-                    # 只有管理員和付費會員可以查看完整解釋
-                    if user_type == "free":
-                        send_line_message(user_id, "🔒 完整解釋功能僅限付費會員使用\n\n💎 升級為付費會員即可：\n• 查看四化完整解釋\n• 了解詳細心理特質\n• 獲得專業建議提示\n\n✨ 讓紫微斗數為您提供更深入的人生指引！")
+                    # 解析四化類型
+                    sihua_type = None
+                    for st in ["祿", "權", "科", "忌"]:
+                        if f"查看{st}星更多解釋" in text or f"查看{st}星完整解釋" in text:
+                            sihua_type = st
+                            break
+                    
+                    # 管理員和付費會員可以查看更多解釋
+                    if user_type not in ["admin", "premium"]:
+                        send_line_message(user_id, "🔒 詳細解釋功能需要升級會員\n\n💎 **升級會員享有：**\n• 查看四化完整解釋\n• 獲得詳細運勢分析\n• 專業命理詳細解讀\n\n✨ 升級即可享受更深度的紫微斗數解析！")
                         return  # 重要：防止觸發默認歡迎訊息
                     
-                    # 提取四化類型
-                    sihua_type = None
-                    if "祿星完整解釋" in text:
-                        sihua_type = "祿"
-                    elif "權星完整解釋" in text:
-                        sihua_type = "權"
-                    elif "科星完整解釋" in text:
-                        sihua_type = "科"
-                    elif "忌星完整解釋" in text:
-                        sihua_type = "忌"
-                    
                     if sihua_type:
-                        # 處理四化完整解釋查看請求
+                        # 處理四化更多解釋查看請求（僅限管理員）
                         try:
                             # 獲取用戶最近的占卜結果
                             from app.models.linebot_models import DivinationHistory
@@ -1156,7 +1152,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                             ).order_by(DivinationHistory.divination_time.desc()).first()
                             
                             if not recent_divination:
-                                send_line_message(user_id, "🔮 請先進行占卜，才能查看四化完整解釋喔！\n\n💫 點擊「本週占卜」開始您的占卜之旅。")
+                                send_line_message(user_id, "🔮 請先進行占卜，才能查看四化詳細解釋喔！\n\n💫 點擊「本週占卜」開始您的占卜之旅。")
                                 return
                             
                             # 解析占卜結果 - 從 sihua_results 字段解析
@@ -1174,7 +1170,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                                 send_line_message(user_id, "🔮 找不到完整的占卜資料，請重新進行占卜。")
                                 return
                             
-                            # 生成四化詳細解釋訊息
+                            # 生成四化詳細解釋訊息（管理員看完整資訊，付費會員看隱藏資訊）
                             message_generator = DivinationFlexMessageGenerator()
                             detail_message = message_generator.generate_sihua_detail_message(
                                 divination_result, 
@@ -1189,42 +1185,44 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                                 send_line_message(user_id, f"🔮 {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
                                 
                         except Exception as e:
-                            logger.error(f"獲取四化完整解釋失敗: {e}")
-                            send_line_message(user_id, f"🔮 {sihua_type}星完整解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
+                            logger.error(f"獲取四化詳細解釋失敗: {e}")
+                            send_line_message(user_id, f"🔮 {sihua_type}星詳細解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
                         return  # 重要：防止觸發默認歡迎訊息
 
                 # 管理員功能
                 if "更新選單" in text or "refresh menu" in text.lower():
                     try:
-                        from app.utils.dynamic_rich_menu import initialize_user_menu
+                        from app.utils.drive_view_rich_menu_manager import set_user_drive_view_menu
                         user_stats = permission_manager.get_user_stats(db, user)
-                        success = initialize_user_menu(user_id, user_stats)
+                        user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "user")
+                        
+                        success = set_user_drive_view_menu(user_id, user_level, "basic")
                         
                         if success:
-                            user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
-                            send_line_message(user_id, f"✅ Rich Menu 更新成功！\n\n用戶等級: {user_level}\n\n如果選單沒有立即更新，請：\n1. 關閉並重新開啟 LINE 應用\n2. 或者重新進入本聊天室")
+                            send_line_message(user_id, f"✅ 駕駛視窗選單更新成功！\n\n用戶等級: {user_level}\n分頁: 基本功能\n\n如果選單沒有立即更新，請：\n1. 關閉並重新開啟 LINE 應用\n2. 或者重新進入本聊天室")
                         else:
-                            send_line_message(user_id, "❌ Rich Menu 更新失敗，請稍後再試")
+                            send_line_message(user_id, "❌ 駕駛視窗選單更新失敗，請稍後再試")
                     except Exception as e:
-                        logger.error(f"更新 Rich Menu 失敗: {e}")
+                        logger.error(f"❌ 更新駕駛視窗選單失敗: {e}")
                         send_line_message(user_id, "❌ 更新選單時發生錯誤")
                     return
                 
                 # 管理員功能
                 if "創建選單" in text or "create menu" in text.lower():
                     try:
-                        from app.utils.rich_menu_manager import RichMenuManager
-                        manager = RichMenuManager()
+                        from app.utils.drive_view_rich_menu_manager import drive_view_manager
                         
-                        # 強制創建新的預設選單
-                        new_menu_id = manager.setup_complete_rich_menu(force_recreate=True)
+                        # 清理舊選單並創建新的駕駛視窗選單
+                        drive_view_manager.cleanup_old_menus()
+                        menu_ids = drive_view_manager.setup_all_menus()
                         
-                        if new_menu_id:
-                            send_line_message(user_id, f"✅ 新的預設 Rich Menu 創建成功！\n\nMenu ID: {new_menu_id}\n\n所有新用戶將使用此選單")
+                        if menu_ids:
+                            menu_list = '\n'.join([f"   - {tab}: {menu_id[:8]}..." for tab, menu_id in menu_ids.items()])
+                            send_line_message(user_id, f"✅ 新的駕駛視窗選單創建成功！\n\n創建的選單:\n{menu_list}\n\n所有新用戶將使用此選單系統")
                         else:
-                            send_line_message(user_id, "❌ 創建預設選單失敗")
+                            send_line_message(user_id, "❌ 創建駕駛視窗選單失敗")
                     except Exception as e:
-                        logger.error(f"創建預設選單失敗: {e}")
+                        logger.error(f"❌ 創建駕駛視窗選單失敗: {e}")
                         send_line_message(user_id, "❌ 創建選單時發生錯誤")
                     return
                 
@@ -1292,19 +1290,20 @@ def handle_follow_event(event: dict, db: Optional[Session]):
                 
                 # 檢查用戶角色並設置對應的 Rich Menu
                 try:
-                    from app.utils.dynamic_rich_menu import initialize_user_menu
+                    from app.utils.drive_view_rich_menu_manager import set_user_drive_view_menu
                     user_stats = permission_manager.get_user_stats(db, user)
                     
-                    # 使用分頁式選單系統
-                    success = initialize_user_menu(user_id, user_stats)
+                    # 使用新的駕駛視窗選單系統
+                    user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "user")
+                    success = set_user_drive_view_menu(user_id, user_level, "basic")
+                    
                     if success:
-                        user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
-                        logger.info(f"成功為用戶 {user_id} 設置分頁式選單 - 等級: {user_level}")
+                        logger.info(f"✅ 成功為用戶 {user_id} 設置駕駛視窗選單 - 等級: {user_level}")
                     else:
-                        logger.warning(f"為用戶 {user_id} 設置分頁式選單失敗")
+                        logger.warning(f"❌ 為用戶 {user_id} 設置駕駛視窗選單失敗")
                         
                 except Exception as menu_error:
-                    logger.warning(f"設置用戶分頁式選單失敗: {menu_error}")
+                    logger.warning(f"❌ 設置用戶駕駛視窗選單失敗: {menu_error}")
                     
             except Exception as e:
                 logger.warning(f"創建用戶記錄失敗：{e}")

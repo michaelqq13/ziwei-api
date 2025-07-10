@@ -733,8 +733,13 @@ class StarCalculator:
                 updated_stars = []
                 
                 for star in palace_info.stars:
-                    # 提取星曜名稱（去除狀態描述）
+                    # 提取星曜名稱（去除狀態描述和四化標記）
                     clean_star_name = star.split("（")[0] if "（" in star else star
+                    # 進一步去除四化標記
+                    for sihua_type in ['化祿', '化權', '化科', '化忌']:
+                        if clean_star_name.endswith(sihua_type):
+                            clean_star_name = clean_star_name[:-2]  # 去除最後兩個字符
+                            break
                     
                     if clean_star_name == star_name:
                         # 找到了要四化的星曜，加上四化標記
@@ -796,8 +801,13 @@ class StarCalculator:
             for palace_name, palace_info in palaces.items():
                 # 檢查該宮位是否有此星曜
                 for star in palace_info.stars:
-                    # 提取星曜名稱（去除狀態描述）
+                    # 提取星曜名稱（去除狀態描述和四化標記）
                     clean_star_name = star.split("（")[0] if "（" in star else star
+                    # 進一步去除四化標記
+                    for sihua_type in ['化祿', '化權', '化科', '化忌']:
+                        if clean_star_name.endswith(sihua_type):
+                            clean_star_name = clean_star_name[:-2]  # 去除最後兩個字符
+                            break
                     
                     if clean_star_name == star_name:
                         # 找到了四化星曜，獲取解釋
@@ -832,7 +842,7 @@ class StarCalculator:
                                     "心理傾向": palace_explanation.get("心理傾向", ""),
                                     "可能事件": palace_explanation.get("可能事件", ""),
                                     "提示": palace_explanation.get("提示", ""),
-                                    "來意不明建議": palace_explanation.get("來意不明建議", "")
+                                    "建議": palace_explanation.get("建議", "")
                                 }
                         break
         
@@ -862,8 +872,13 @@ class StarCalculator:
             for palace_name, palace_info in palaces.items():
                 # 檢查該宮位是否有此星曜
                 for star in palace_info.stars:
-                    # 提取星曜名稱（去除狀態描述）
+                    # 提取星曜名稱（去除狀態描述和四化標記）
                     clean_star_name = star.split("（")[0] if "（" in star else star
+                    # 進一步去除四化標記
+                    for sihua_type in ['化祿', '化權', '化科', '化忌']:
+                        if clean_star_name.endswith(sihua_type):
+                            clean_star_name = clean_star_name[:-2]  # 去除最後兩個字符
+                            break
                     
                     if clean_star_name == star_name:
                         # 找到了四化星曜，獲取解釋
@@ -898,7 +913,7 @@ class StarCalculator:
                                     "心理傾向": palace_explanation.get("心理傾向", ""),
                                     "可能事件": palace_explanation.get("可能事件", ""),
                                     "提示": palace_explanation.get("提示", ""),
-                                    "來意不明建議": palace_explanation.get("來意不明建議", ""),
+                                    "建議": palace_explanation.get("建議", ""),
                                     "自定義天干": custom_stem
                                 }
                         break
@@ -1590,7 +1605,7 @@ class StarCalculator:
                 "心理傾向": palace_explanation.get("心理傾向", ""),
                 "可能事件": palace_explanation.get("可能事件", ""),
                 "提示": palace_explanation.get("提示", ""),
-                "來意不明建議": palace_explanation.get("來意不明建議", "")
+                "建議": palace_explanation.get("建議", "")
             }
         
         return {}

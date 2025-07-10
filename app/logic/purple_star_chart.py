@@ -665,7 +665,7 @@ class PurpleStarChart:
             '心理傾向': gender_explanation.get('心理傾向', ''),
             '可能事件': gender_explanation.get('可能事件', ''),
             '提示': gender_explanation.get('提示', ''),
-            '來意不明建議': gender_explanation.get('來意不明建議', '')
+            '建議': gender_explanation.get('建議', '')
         }
 
     def apply_taichi(self, taichi_branch: str):
@@ -852,7 +852,7 @@ class PurpleStarChart:
                         "心理傾向": explanation.get("心理傾向", ""),
                         "可能事件": explanation.get("可能事件", ""),
                         "提示": explanation.get("提示", ""),
-                        "來意不明建議": explanation.get("來意不明建議", "")
+                        "建議": explanation.get("建議", "")
                     }
             
             # 如果沒找到特定宮位的解釋，使用預設內容
@@ -862,7 +862,7 @@ class PurpleStarChart:
                 "心理傾向": "需要特別關注這個領域的發展。",
                 "可能事件": "此宮位可能有相關的機會或挑戰。",
                 "提示": f"多留意{palace_name}相關的事務。",
-                "來意不明建議": f"善用{trans_type}的能量在{palace_name}上。"
+                "建議": f"善用{trans_type}的能量在{palace_name}上。"
             }
             
         except Exception as e:
@@ -872,5 +872,5 @@ class PurpleStarChart:
                 "心理傾向": "保持開放心態。", 
                 "可能事件": "可能有意外的變化。",
                 "提示": "順應時勢，隨機應變。",
-                "來意不明建議": "把握當下，隨緣而安。"
+                "建議": "把握當下，隨緣而安。"
             } 

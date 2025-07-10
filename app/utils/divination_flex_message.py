@@ -678,10 +678,10 @@ class DivinationFlexMessageGenerator:
                 )
             )
             
-            # 第一層：核心信息顯示
+            # 統一顯示「現象」字段
             body_contents.append(
                 FlexText(
-                    text="✨ 核心信息",
+                    text="🎯 主要現象",
                     size="lg",
                     weight="bold",
                     color="#333333",
@@ -689,14 +689,16 @@ class DivinationFlexMessageGenerator:
                 )
             )
             
-            # 星曜概要列表
+            # 星曜概要列表 - 統一顯示現象字段
             for i, sihua_info in enumerate(sihua_list):
                 if i >= 2:  # 第一層最多顯示2個，保持簡潔
                     break
                     
                 star = str(sihua_info.get("star", ""))
                 palace = str(sihua_info.get("palace", ""))
-                explanation = str(sihua_info.get("explanation", ""))
+                
+                # 從解釋結構中提取現象字段
+                phenomenon = self._extract_phenomenon_from_sihua(sihua_info)
                 
                 # 添加分隔線
                 if i > 0:
@@ -739,13 +741,14 @@ class DivinationFlexMessageGenerator:
                                     weight="bold",
                                     size="lg",
                                     color="#333333",
-                                    flex=1
+                                    flex=2
                                 ),
                                 FlexText(
-                                    text="🔐 會員專屬",
-                                    size="sm",
+                                    text="🔐 管理員專屬",
+                                    size="lg",
                                     color="#999999",
-                                    flex=1,
+                                    weight="bold",
+                                    flex=2,
                                     align="end"
                                 )
                             ],
@@ -753,32 +756,29 @@ class DivinationFlexMessageGenerator:
                         )
                     )
                 
-                # 核心現象 - 只顯示最重要的信息
-                if explanation:
-                    # 提取關鍵信息（通常在開頭）
-                    key_info = self._extract_key_info(explanation, sihua_type)
-                    if key_info:
-                        body_contents.append(
-                            FlexBox(
-                                layout="vertical",
-                                contents=[
-                                    FlexText(
-                                        text="🎯 核心現象",
-                                        size="sm",
-                                        color="#888888",
-                                        weight="bold",
-                                        margin="sm"
-                                    ),
-                                    FlexText(
-                                        text=key_info,
-                                        size="md",
-                                        color="#444444",
-                                        wrap=True,
-                                        margin="xs"
-                                    )
-                                ]
-                            )
+                # 統一顯示現象字段
+                if phenomenon:
+                    body_contents.append(
+                        FlexBox(
+                            layout="vertical",
+                            contents=[
+                                FlexText(
+                                    text="📋 現象",
+                                    size="sm",
+                                    color="#888888",
+                                    weight="bold",
+                                    margin="sm"
+                                ),
+                                FlexText(
+                                    text=phenomenon,
+                                    size="md",
+                                    color="#444444",
+                                    wrap=True,
+                                    margin="xs"
+                                )
+                            ]
                         )
+                    )
             
             # 如果有更多星曜，顯示數量提示
             if len(sihua_list) > 2:
@@ -799,7 +799,7 @@ class DivinationFlexMessageGenerator:
                 )
             
             # 第二層：展開按鈕（根據用戶類型決定是否顯示）
-            if user_type in ["admin", "premium"]:  # 管理員和付費會員可以查看完整解釋
+            if user_type in ["admin", "premium"]:  # 管理員和付費會員都可以查看詳細解釋
                 body_contents.append(
                     FlexBox(
                         layout="vertical",
@@ -809,7 +809,7 @@ class DivinationFlexMessageGenerator:
                                 layout="horizontal",
                                 contents=[
                                     FlexText(
-                                        text="📖 查看完整解釋",
+                                        text="📖 查看更多解釋",
                                         size="md",
                                         color="#FFFFFF",
                                         weight="bold",
@@ -822,7 +822,7 @@ class DivinationFlexMessageGenerator:
                                 paddingAll="md",
                                 margin="md",
                                 action=MessageAction(
-                                    text=f"查看{sihua_type}星完整解釋"
+                                    text=f"查看{sihua_type}星更多解釋"
                                 )
                             )
                         ]
@@ -839,7 +839,7 @@ class DivinationFlexMessageGenerator:
                                 layout="horizontal",
                                 contents=[
                                     FlexText(
-                                        text="🔒 升級查看完整解釋",
+                                        text="🔒 升級查看更多解釋",
                                         size="md",
                                         color="#FFFFFF",
                                         weight="bold",
@@ -888,6 +888,64 @@ class DivinationFlexMessageGenerator:
         except Exception as e:
             logger.error(f"創建四化bubble失敗: {e}")
             return None
+    
+    def _extract_phenomenon_from_sihua(self, sihua_info: Dict[str, Any]) -> str:
+        """從四化信息中提取現象字段"""
+        try:
+            # 方法1：檢查是否直接有「現象」字段（傳統四化格式）
+            if "現象" in sihua_info:
+                phenomenon = sihua_info.get("現象", "").strip()
+                if phenomenon:
+                    return phenomenon
+            
+            # 方法2：從explanation字典中獲取現象字段（太極盤格式）
+            explanation = sihua_info.get("explanation", {})
+            if isinstance(explanation, dict):
+                phenomenon = explanation.get("現象", "").strip()
+                if phenomenon:
+                    return phenomenon
+            
+            # 方法3：從解釋文本中解析現象（字符串格式）
+            explanation_text = str(explanation) if explanation else ""
+            if explanation_text and explanation_text != "{}":
+                # 嘗試解析結構化的解釋文本
+                lines = explanation_text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('現象：'):
+                        phenomenon = line.replace('現象：', '').strip()
+                        if phenomenon:
+                            return phenomenon
+                    elif '現象' in line and '：' in line:
+                        parts = line.split('：', 1)
+                        if len(parts) == 2 and '現象' in parts[0]:
+                            phenomenon = parts[1].strip()
+                            if phenomenon:
+                                return phenomenon
+                
+                # 如果沒有找到現象字段，使用前半部分作為現象描述
+                cleaned_text = self.clean_sihua_explanation(explanation_text)
+                sentences = cleaned_text.split('。')
+                if sentences and sentences[0].strip():
+                    # 取第一句作為現象描述，限制長度
+                    phenomenon = sentences[0].strip()
+                    if len(phenomenon) > 60:
+                        phenomenon = phenomenon[:60] + "..."
+                    return phenomenon + "。" if not phenomenon.endswith("。") else phenomenon
+            
+            # 方法4：如果都沒有，生成基於星曜和四化類型的通用描述
+            star = sihua_info.get("star", "此星")
+            trans_type = sihua_info.get("type", sihua_info.get("transformation_type", "四化"))
+            palace = sihua_info.get("palace", "相關宮位")
+            
+            if star != "此星" and trans_type != "四化":
+                return f"{star}化{trans_type}在{palace}，帶來相應的能量變化。"
+            else:
+                return "此四化星帶來相關的影響與變化。"
+            
+        except Exception as e:
+            logger.error(f"提取現象字段失敗: {e}")
+            return "此四化星帶來相關的影響與變化。"
     
     def _extract_key_info(self, explanation: str, sihua_type: str) -> str:
         """提取四化的關鍵信息"""
@@ -1085,8 +1143,8 @@ class DivinationFlexMessageGenerator:
                                     flex=2
                                 ),
                                 FlexText(
-                                    text="🔐 會員專屬",
-                                    size="md",
+                                    text="🔐 管理員專屬",
+                                    size="lg",
                                     color="#999999",
                                     weight="bold",
                                     flex=2,

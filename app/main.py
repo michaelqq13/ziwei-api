@@ -79,17 +79,36 @@ def init_test_data():
         logger.info("應用將在無數據庫模式下運行")
 
 def setup_rich_menu():
-    """設定 Rich Menu"""
+    """設定 Rich Menu - 使用新的駕駛視窗選單系統"""
     try:
-        from app.utils.rich_menu_manager import rich_menu_manager
-        logger.info("開始設定 Rich Menu...")
-        menu_id = rich_menu_manager.ensure_default_rich_menu()
-        if menu_id:
-            logger.info(f"Rich Menu 設定成功，ID: {menu_id}")
+        from app.utils.drive_view_rich_menu_manager import drive_view_manager
+        logger.info("開始設定駕駛視窗選單系統...")
+        
+        # 清理舊選單
+        drive_view_manager.cleanup_old_menus()
+        
+        # 設定所有駕駛視窗選單
+        menu_ids = drive_view_manager.setup_all_menus()
+        
+        if menu_ids:
+            logger.info(f"✅ 駕駛視窗選單設定成功，創建了 {len(menu_ids)} 個選單")
+            for tab, menu_id in menu_ids.items():
+                logger.info(f"   - {tab}: {menu_id}")
+            
+            # 設定基本功能選單為預設選單
+            basic_menu_id = menu_ids.get("basic")
+            if basic_menu_id:
+                from app.utils.rich_menu_manager import RichMenuManager
+                temp_manager = RichMenuManager()
+                if temp_manager.set_default_rich_menu(basic_menu_id):
+                    logger.info(f"✅ 基本功能選單設為預設: {basic_menu_id}")
+                else:
+                    logger.warning("❌ 設定預設選單失敗")
         else:
-            logger.warning("Rich Menu 設定失敗，但應用會繼續運行")
+            logger.warning("❌ 駕駛視窗選單設定失敗，但應用會繼續運行")
+            
     except Exception as e:
-        logger.error(f"設定 Rich Menu 時發生錯誤: {str(e)}")
+        logger.error(f"❌ 設定駕駛視窗選單時發生錯誤: {str(e)}")
         # 不拋出異常，讓應用繼續啟動
 
 @asynccontextmanager
