@@ -8,6 +8,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.utils.rich_menu_manager import RichMenuManager
+from app.utils.driver_view_rich_menu_handler import driver_view_handler
 from app.utils.dynamic_rich_menu import dynamic_rich_menu_manager
 from app.db.database import get_db
 from app.models.linebot_models import LineBotUser
@@ -19,26 +20,26 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def update_default_rich_menu():
-    """更新預設 Rich Menu"""
-    print("=== 更新預設 Rich Menu ===")
+    """更新預設 Rich Menu 為 '基本功能' 分頁"""
+    print("=== 更新預設 Rich Menu (設為'基本功能') ===")
     
     manager = RichMenuManager()
     
-    # 創建管理員級別的駕駛視窗 Rich Menu
-    admin_menu_id = manager.setup_admin_rich_menu(force_recreate=True)
+    # 使用 driver_view_handler 創建 "basic" 分頁的 Rich Menu
+    basic_menu_id = driver_view_handler.create_tab_rich_menu("basic")
     
-    if admin_menu_id:
-        print(f"✅ 成功創建新的管理員駕駛視窗 Rich Menu: {admin_menu_id}")
+    if basic_menu_id:
+        print(f"✅ 成功創建新的 '基本功能' Rich Menu: {basic_menu_id}")
         
         # 設為預設
-        if manager.set_default_rich_menu(admin_menu_id):
+        if manager.set_default_rich_menu(basic_menu_id):
             print(f"✅ 成功設為預設 Rich Menu")
-            return admin_menu_id
+            return basic_menu_id
         else:
             print("❌ 設為預設失敗")
             return None
     else:
-        print("❌ 創建新 Rich Menu 失敗")
+        print("❌ 創建新的 '基本功能' Rich Menu 失敗")
         return None
 
 def update_user_rich_menus():

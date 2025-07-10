@@ -7,10 +7,7 @@ from typing import Optional, Dict, Any
 from app.utils.rich_menu_manager import (
     rich_menu_manager, 
     determine_user_level, 
-    get_default_tab_for_user_level,
-    get_user_current_tab,
-    switch_user_tab,
-    can_access_tab
+    get_default_tab_for_user_level
 )
 from app.utils.driver_view_rich_menu_handler import DriverViewRichMenuHandler
 from app.logic.permission_manager import permission_manager
@@ -193,12 +190,12 @@ class DynamicRichMenuManager:
                 user_level = determine_user_level(user_permissions)
             
             # 獲取當前分頁
-            current_tab = get_user_current_tab(user_id)
+            current_tab = rich_menu_manager.get_user_current_tab(user_id)
             
             # 獲取可訪問的分頁
             available_tabs = []
             for tab in ["basic", "fortune", "admin"]:
-                if can_access_tab(tab, user_level):
+                if rich_menu_manager.can_access_tab(tab, user_level):
                     available_tabs.append(tab)
             
             return {

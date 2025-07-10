@@ -25,7 +25,7 @@ class DriverViewRichMenuHandler:
         self.button_images_config = self._load_button_images_config()
         
         # 設置版本號，用於緩存管理
-        self.menu_version = "v2.1"  # 每次重大修改時增加版本號
+        self.menu_version = "v2.2"  # 每次重大修改時增加版本號
         
         # 分頁配置 - 移除符號，只保留文字
         self.tab_configs = {
@@ -338,9 +338,9 @@ class DriverViewRichMenuHandler:
             # 調整圖片大小，保持比例
             button_img.thumbnail((button_size, button_size), Image.Resampling.LANCZOS)
             
-            # 圖片位置 (在按鈕中心)
+            # 圖片位置 (在按鈕上部)
             img_x = btn_pos["x"] + (btn_pos["width"] - button_img.width) // 2
-            img_y = btn_pos["y"] + (btn_pos["height"] - button_img.height) // 2
+            img_y = btn_pos["y"] + (btn_pos["height"] - button_img.height - 40) // 2  # 向上移動，為文字留空間
             
             # 確保圖片在按鈕範圍內
             img_x = max(btn_pos["x"], min(img_x, btn_pos["x"] + btn_pos["width"] - button_img.width))
@@ -352,20 +352,20 @@ class DriverViewRichMenuHandler:
             else:
                 base_image.paste(button_img, (img_x, img_y))
             
-            # 添加文字標籤 (在按鈕底下)
+            # 添加文字標籤 (在按鈕底部)
             draw = ImageDraw.Draw(base_image)
             text_x = btn_pos["x"] + btn_pos["width"] // 2  # 文字水平居中於按鈕
-            text_y = btn_pos["y"] + btn_pos["height"] + 20  # 文字在按鈕底部下方20px
+            text_y = btn_pos["y"] + btn_pos["height"] - 30  # 文字在按鈕底部上方30px
             
             # 增大字體尺寸，讓說明文字更清楚
             try:
-                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 64)  # 調整說明文字字體到64px，比原來的56px稍大
+                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 56)  # 調整說明文字字體到56px
             except:
                 text_font = font_small if font_small else ImageFont.load_default()
             
             # 繪製黑色文字，在按鈕底下居中
             draw.text((text_x, text_y), btn_text, fill=(0, 0, 0), 
-                     font=text_font, anchor="mt")  # 使用 "mt" 錨點：中間頂部對齊
+                     font=text_font, anchor="mb")  # 使用 "mb" 錨點：中間底部對齊
             
             logger.debug(f"✅ 圖片按鈕繪製成功: {image_key} at 圖片({img_x}, {img_y}), 文字({text_x}, {text_y})")
             
