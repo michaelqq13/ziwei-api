@@ -927,6 +927,13 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                 # 處理不同的指令
                 if text in ["會員資訊", "個人資訊", "我的資訊"]:
                     try:
+                        # 加強用戶驗證
+                        if not user:
+                            user = get_or_create_user(db, user_id)
+                        
+                        # 重新獲取最新的用戶資料
+                        db.refresh(user)
+                        
                         user_stats = permission_manager.get_user_stats(db, user)
                         response = format_user_info(user_stats)
                         if response:
@@ -935,13 +942,20 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                             send_line_message(user_id, "⚠️ 無法獲取會員資訊，請稍後再試。")
                     except Exception as member_error:
                         logger.error(f"獲取會員資訊失敗 - 用戶: {user_id}, 錯誤: {member_error}")
-                        # 提供更具體的錯誤訊息
-                        if "database" in str(member_error).lower() or "connection" in str(member_error).lower():
-                            send_line_message(user_id, "🔧 資料庫連線問題，正在修復中\n\n請稍後再嘗試查看會員資訊。")
-                        elif "permission" in str(member_error).lower():
-                            send_line_message(user_id, "🔒 權限驗證失敗\n\n請重新加入好友或聯繫客服。")
-                        else:
-                            send_line_message(user_id, f"⚠️ 會員資訊暫時無法顯示\n\n錯誤類型: {type(member_error).__name__}\n請聯繫客服或稍後再試。")
+                        import traceback
+                        logger.error(f"詳細錯誤: {traceback.format_exc()}")
+                        
+                        # 嘗試重新創建用戶
+                        try:
+                            logger.info(f"嘗試重新創建用戶: {user_id}")
+                            user = get_or_create_user(db, user_id)
+                            user_stats = permission_manager.get_user_stats(db, user)
+                            response = format_user_info(user_stats)
+                            send_line_message(user_id, response)
+                        except Exception as retry_error:
+                            logger.error(f"重試獲取會員資訊也失敗: {retry_error}")
+                            # 提供更友善的錯誤訊息
+                            send_line_message(user_id, "🔄 系統正在重新初始化您的會員資料\n\n請稍等30秒後重試，或重新加入好友。\n\n如問題持續，請聯繫客服。")
                     return  # 重要：防止觸發默認歡迎訊息
                     
                 elif text in ["占卜", "算命", "紫微斗數", "開始占卜", "本週占卜"]:
@@ -1347,28 +1361,64 @@ def handle_unfollow_event(event: dict, db: Optional[Session]):
         logger.error(f"處理取消好友事件錯誤：{e}")
 
 def format_user_info(user_stats: Dict) -> str:
-    """格式化用戶資訊"""
-    user_info = user_stats["user_info"]
-    stats = user_stats["statistics"] 
-    membership = user_stats["membership_info"]
-    
-    message = f"""👤 **會員資訊** ✨
+    """格式化用戶資訊 - 加強錯誤處理"""
+    try:
+        user_info = user_stats.get("user_info", {})
+        stats = user_stats.get("statistics", {}) 
+        membership = user_stats.get("membership_info", {})
+        
+        # 防護性檢查
+        display_name = user_info.get("display_name", "未設定") or "未設定"
+        level_name = membership.get("level_name", "免費會員")
+        
+        # 處理時間格式
+        created_at_str = user_info.get("created_at", "")
+        try:
+            if created_at_str:
+                join_date = datetime.fromisoformat(created_at_str).strftime("%Y-%m-%d")
+            else:
+                join_date = "未知"
+        except:
+            join_date = "未知"
+        
+        total_divinations = stats.get("total_divinations", 0)
+        weekly_divinations = stats.get("weekly_divinations", 0)
+        
+        message = f"""👤 **會員資訊** ✨
 
-🏷️ 暱稱：{user_info["display_name"] or "未設定"}
-🎖️ 等級：{membership["level_name"]}
-📅 加入時間：{datetime.fromisoformat(user_info["created_at"]).strftime("%Y-%m-%d")}
+🏷️ 暱稱：{display_name}
+🎖️ 等級：{level_name}
+📅 加入時間：{join_date}
 
 📊 **使用統計**
-🔮 總占卜次數：{stats["total_divinations"]} 次
-📅 本週占卜：{stats["weekly_divinations"]} 次
+🔮 總占卜次數：{total_divinations} 次
+📅 本週占卜：{weekly_divinations} 次
 """
-    
-    if not membership["is_premium"]:
-        message += f"⏳ 週限制：{stats['weekly_limit']} 次\n"
-    else:
-        message += "⏳ 週限制：無限制 ✨\n"
-    
-    return message
+        
+        is_premium = membership.get("is_premium", False)
+        weekly_limit = stats.get("weekly_limit", 1)
+        
+        if not is_premium:
+            message += f"⏳ 週限制：{weekly_limit} 次\n"
+        else:
+            message += "⏳ 週限制：無限制 ✨\n"
+        
+        return message
+        
+    except Exception as e:
+        logger.error(f"格式化用戶資訊失敗: {e}")
+        return """👤 **會員資訊** ✨
+
+🏷️ 暱稱：系統用戶
+🎖️ 等級：免費會員
+📅 加入時間：未知
+
+📊 **使用統計**
+🔮 總占卜次數：- 次
+📅 本週占卜：- 次
+⏳ 週限制：1 次
+
+⚠️ 資料讀取異常，請重新加入好友或聯繫客服。"""
 
 def get_or_create_user(db: Session, user_id: str) -> LineBotUser:
     """獲取或創建用戶"""

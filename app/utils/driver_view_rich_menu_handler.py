@@ -70,9 +70,9 @@ class DriverViewRichMenuHandler:
         
         button_width = 400  # 縮小按鈕寬度以適應螢幕
         button_height = 200  # 縮小按鈕高度
-        left_buttons_y = 530  # 左側按鈕適度往下移動 (原480 + 50)
-        middle_buttons_y = 505  # 中間按鈕適度往下移動 (原460 + 45)
-        right_buttons_y = 530  # 右側按鈕適度往下移動 (原480 + 50)
+        left_buttons_y = 550  # 左側按鈕調整到合理位置
+        middle_buttons_y = 525  # 中間按鈕調整到合理位置
+        right_buttons_y = 550  # 右側按鈕調整到合理位置
         
         self.button_positions = [
             {"x": left_screen_center_x - button_width // 2, "y": left_buttons_y, "width": button_width, "height": button_height},  # 左側按鈕

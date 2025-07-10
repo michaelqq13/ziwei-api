@@ -92,7 +92,7 @@ class LineBotConfig:
             "text": "本週占卜", 
             "action_text": "本週占卜",
             "x": 625,   # 左上
-            "y": 562,
+            "y": 550,
             "size": 200,
             "color": (200, 150, 200),  # 紫色調，配合水晶球
             "planet": "水晶球",
@@ -104,7 +104,7 @@ class LineBotConfig:
             "text": "流年運勢",
             "action_text": "流年運勢", 
             "x": 625,   # 左下
-            "y": 1124,
+            "y": 1130,
             "size": 180,
             "color": (255, 140, 60),  # 橙色
             "planet": "火箭",
@@ -116,7 +116,7 @@ class LineBotConfig:
             "text": "流月運勢", 
             "action_text": "流月運勢",
             "x": 1250,  # 中上
-            "y": 562,
+            "y": 550,
             "size": 170,
             "color": (255, 215, 100),  # 土星色
             "planet": "土星",
@@ -128,7 +128,7 @@ class LineBotConfig:
             "text": "流日運勢",
             "action_text": "流日運勢", 
             "x": 1250,  # 中下
-            "y": 1124,
+            "y": 1130,
             "size": 160,
             "color": (180, 180, 180),  # 銀灰色
             "planet": "幽浮",
@@ -140,7 +140,7 @@ class LineBotConfig:
             "text": "命盤綁定",
             "action_text": "命盤綁定",
             "x": 1875,  # 右上
-            "y": 562,
+            "y": 550,
             "size": 150,
             "color": (150, 200, 255),  # 藍色
             "planet": "地球",
@@ -152,7 +152,7 @@ class LineBotConfig:
             "text": "會員資訊",
             "action_text": "會員資訊",
             "x": 1875,  # 右下
-            "y": 1124,
+            "y": 1130,
             "size": 140,
             "color": (200, 200, 200),  # 月球色
             "planet": "月球",
@@ -168,7 +168,7 @@ class LineBotConfig:
             "text": "本週占卜", 
             "action_text": "本週占卜",
             "x": 625,   # 左上
-            "y": 421,
+            "y": 525,
             "size": 200,
             "color": (200, 150, 200),  # 紫色調，配合水晶球
             "planet": "水晶球",
@@ -180,7 +180,7 @@ class LineBotConfig:
             "text": "流年運勢",
             "action_text": "流年運勢", 
             "x": 625,   # 左下
-            "y": 1265,
+            "y": 1135,
             "size": 180,
             "color": (255, 140, 60),  # 橙色
             "planet": "火箭",
@@ -192,7 +192,7 @@ class LineBotConfig:
             "text": "流月運勢", 
             "action_text": "流月運勢",
             "x": 1250,  # 中上
-            "y": 421,
+            "y": 525,
             "size": 170,
             "color": (255, 215, 100),  # 土星色
             "planet": "土星",
@@ -204,7 +204,7 @@ class LineBotConfig:
             "text": "流日運勢",
             "action_text": "流日運勢", 
             "x": 1250,  # 中下
-            "y": 1265,
+            "y": 1135,
             "size": 160,
             "color": (180, 180, 180),  # 銀灰色
             "planet": "幽浮",
@@ -216,7 +216,7 @@ class LineBotConfig:
             "text": "命盤綁定",
             "action_text": "命盤綁定",
             "x": 1875,  # 右上
-            "y": 421,
+            "y": 525,
             "size": 150,
             "color": (150, 200, 255),  # 藍色
             "planet": "地球",
@@ -228,7 +228,7 @@ class LineBotConfig:
             "text": "會員資訊",
             "action_text": "會員資訊",
             "x": 1875,  # 右中
-            "y": 843,
+            "y": 830,
             "size": 140,
             "color": (200, 200, 200),  # 月球色
             "planet": "月球",
@@ -240,7 +240,7 @@ class LineBotConfig:
             "text": "指定時間",
             "action_text": "指定時間占卜",
             "x": 1875,  # 右下
-            "y": 1265,
+            "y": 1135,
             "size": 130,
             "color": (255, 100, 255),  # 紫色
             "planet": "時鐘",
