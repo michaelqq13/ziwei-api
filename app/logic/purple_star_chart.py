@@ -844,9 +844,26 @@ class PurpleStarChart:
             trans_data = stem_data.get(trans_type, {})
             explanations_list = trans_data.get("解釋", [])
             
+            # 統一宮位名稱格式：確保太極盤的宮位名稱有"宮"字後綴
+            target_palace_name = palace_name + "宮" if not palace_name.endswith("宮") else palace_name
+            
             # 查找對應宮位的解釋
             for explanation in explanations_list:
-                if explanation.get("宮位") == palace_name:
+                explanation_palace_name = explanation.get("宮位")
+                
+                # 直接匹配
+                if explanation_palace_name == target_palace_name:
+                    return {
+                        "現象": explanation.get("現象", ""),
+                        "心理傾向": explanation.get("心理傾向", ""),
+                        "可能事件": explanation.get("可能事件", ""),
+                        "提示": explanation.get("提示", ""),
+                        "建議": explanation.get("建議", "")
+                    }
+                
+                # 處理「交友宮」和「僕役宮」的別名對應
+                elif (target_palace_name == "交友宮" and explanation_palace_name == "僕役宮") or \
+                     (target_palace_name == "僕役宮" and explanation_palace_name == "交友宮"):
                     return {
                         "現象": explanation.get("現象", ""),
                         "心理傾向": explanation.get("心理傾向", ""),
@@ -856,13 +873,13 @@ class PurpleStarChart:
                     }
             
             # 如果沒找到特定宮位的解釋，使用預設內容
-            logger.warning(f"未找到天干{stem}、{trans_type}、{palace_name}的特定解釋，使用預設解釋")
+            logger.warning(f"未找到天干{stem}、{trans_type}、{target_palace_name}的特定解釋，使用預設解釋")
             return {
-                "現象": f"{trans_type}星在{palace_name}，帶來相關的能量與變化。",
+                "現象": f"{trans_type}星在{target_palace_name}，帶來相關的能量與變化。",
                 "心理傾向": "需要特別關注這個領域的發展。",
                 "可能事件": "此宮位可能有相關的機會或挑戰。",
-                "提示": f"多留意{palace_name}相關的事務。",
-                "建議": f"善用{trans_type}的能量在{palace_name}上。"
+                "提示": f"多留意{target_palace_name}相關的事務。",
+                "建議": f"善用{trans_type}的能量在{target_palace_name}上。"
             }
             
         except Exception as e:

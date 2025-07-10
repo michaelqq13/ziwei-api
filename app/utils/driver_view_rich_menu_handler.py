@@ -70,9 +70,9 @@ class DriverViewRichMenuHandler:
         
         button_width = 400  # 縮小按鈕寬度以適應螢幕
         button_height = 200  # 縮小按鈕高度
-        left_buttons_y = 490  # 左側按鈕往下移動10px，確保不壓到螢幕 (原480 + 10)
-        middle_buttons_y = 465  # 中間按鈕往下移動5px，確保不壓到螢幕 (原460 + 5)
-        right_buttons_y = 490  # 右側按鈕往下移動10px，確保不壓到螢幕 (原480 + 10)
+        left_buttons_y = 530  # 左側按鈕適度往下移動 (原480 + 50)
+        middle_buttons_y = 505  # 中間按鈕適度往下移動 (原460 + 45)
+        right_buttons_y = 530  # 右側按鈕適度往下移動 (原480 + 50)
         
         self.button_positions = [
             {"x": left_screen_center_x - button_width // 2, "y": left_buttons_y, "width": button_width, "height": button_height},  # 左側按鈕
@@ -359,7 +359,7 @@ class DriverViewRichMenuHandler:
             
             # 增大字體尺寸，讓說明文字更清楚
             try:
-                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 56)  # 增大說明文字字體到56px
+                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 64)  # 調整說明文字字體到64px，比原來的56px稍大
             except:
                 text_font = font_small if font_small else ImageFont.load_default()
             
