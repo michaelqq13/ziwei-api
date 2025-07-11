@@ -1,11 +1,16 @@
 [phases.build]
-cmds = ["echo 'Building... this phase is a placeholder to ensure custom config is used'"]
+cmds = [
+    "echo 'Copying rich_menu_images directory...'",
+    "cp -r rich_menu_images /tmp/rich_menu_images || echo 'Copy to tmp failed'",
+    "ls -la rich_menu_images/ || echo 'Source directory not found'"
+]
+
+[phases.setup]
+cmds = [
+    "echo 'Setting up runtime environment...'",
+    "mkdir -p /app/rich_menu_images",
+    "cp -r /tmp/rich_menu_images/* /app/rich_menu_images/ || cp -r rich_menu_images/* /app/rich_menu_images/ || echo 'Failed to copy images'"
+]
 
 [start]
-cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-onlyIncludeFiles = [
-    "./app/",
-    "./rich_menu_images/",
-    "./requirements.txt",
-    "./Procfile"
-] 
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT" 
