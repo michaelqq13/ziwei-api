@@ -1,16 +1,9 @@
-[phases.build]
-cmds = [
-    "echo 'Copying rich_menu_images directory...'",
-    "cp -r rich_menu_images /tmp/rich_menu_images || echo 'Copy to tmp failed'",
-    "ls -la rich_menu_images/ || echo 'Source directory not found'"
-]
+# nixpacks.toml
 
-[phases.setup]
-cmds = [
-    "echo 'Setting up runtime environment...'",
-    "mkdir -p /app/rich_menu_images",
-    "cp -r /tmp/rich_menu_images/* /app/rich_menu_images/ || cp -r rich_menu_images/* /app/rich_menu_images/ || echo 'Failed to copy images'"
-]
+# Top-level assets config.
+# Copies the local `rich_menu_images` directory to `rich_menu_images` inside the app's root directory (`/app`) in the container.
+[assets]
+"rich_menu_images" = "rich_menu_images"
 
 [start]
 cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT" 

@@ -15,23 +15,22 @@ logger = logging.getLogger(__name__)
 class DriverViewRichMenuHandler:
     """駕駛視窗 Rich Menu 處理器"""
     
-    def __init__(self):
+    def __init__(self, user_id, force_refresh=False):
         # 移除循環導入，改為在需要時才導入
         self.manager = None  # 延遲初始化
 
-        # 動態構建基礎圖片的絕對路徑，以解決不同環境下的路徑問題
-        try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.join(current_dir, '..', '..')
-            self.base_image_path = os.path.join(project_root, 'rich_menu_images', 'drive_view.jpg')
+        # Define the absolute path to the base image
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        unnormalized_path = os.path.join(current_dir, '..', '..', 'rich_menu_images', self.BASE_IMAGE_NAME)
+        self.base_image_path = os.path.normpath(unnormalized_path)
 
-            # 在初始化時立即檢查檔案是否存在，以便快速失敗和調試
-            if not os.path.exists(self.base_image_path):
-                logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
-                logger.error(f"基礎圖片 'drive_view.jpg' 不存在於預期路徑: {self.base_image_path}")
-                logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
-                # 在無法找到關鍵資源時，可以考慮拋出異常來阻止應用繼續運行
-                # raise FileNotFoundError(f"Base image not found at: {self.base_image_path}")
+        # Check if the base image exists, with a clear error message if not
+        if not os.path.exists(self.base_image_path):
+            logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
+            logger.error(f"基礎圖片 'drive_view.jpg' 不存在於預期路徑: {self.base_image_path}")
+            logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
+            # 在無法找到關鍵資源時，可以考慮拋出異常來阻止應用繼續運行
+            # raise FileNotFoundError(f"Base image not found at: {self.base_image_path}")
         except Exception as e:
             logger.error(f"在構建基礎圖片路徑時發生嚴重錯誤: {e}", exc_info=True)
             # 設置一個無效路徑，以確保後續操作會失敗並產生日誌
@@ -199,26 +198,27 @@ class DriverViewRichMenuHandler:
             from app.utils.rich_menu_manager import RichMenuManager
             self.manager = RichMenuManager()
     
-    def create_tab_image_with_highlight(self, active_tab: str) -> str:
+    def create_tab_image_with_highlight(self, tab_name: str) -> Optional[str]:
         """
-        創建帶有高亮分頁的圖片 - 使用原圖的螢幕區域，不額外繪製方框
+        根據 tab 名稱，創建帶有高亮效果的分頁圖片。
+        返回圖片的本地臨時路徑。
+        """
+        highlight_config = self.BUTTON_CONFIG.get(tab_name)
+        if not highlight_config:
+            logger.error(f"未找到 '{tab_name}' 的按鈕配置")
+            return None
+
+        logger.info(f"DIAGNOSTIC_LOG: Opening base image at normalized path: '{self.base_image_path}'")
+        try:
+            base_image = Image.open(self.base_image_path).convert('RGBA')
+        except FileNotFoundError:
+            logger.error(f"❌ Base image not found at path: {self.base_image_path}")
+            raise
         
-        Args:
-            active_tab: 當前活躍的分頁 ("basic", "fortune", "advanced")
-            
-        Returns:
-            str: 生成的圖片路徑
-        """
         try:
             # 延遲導入 RichMenuManager
             self._ensure_manager()
 
-            # 在打開圖片前，打印出將要使用的路徑，用於最終診斷
-            logger.info(f"DIAGNOSTIC_LOG: Attempting to open base image at path: '{self.base_image_path}'")
-
-            # 載入基礎圖片
-            base_image = Image.open(self.base_image_path).convert('RGBA')
-            
             # 嘗試載入支援中文的字體
             font_large = None
             font_medium = None
@@ -275,15 +275,15 @@ class DriverViewRichMenuHandler:
                 # 創建文字圖片，以支援旋轉
                 if i == 0:  # 左側螢幕 - 基本功能，向右傾斜15度
                     text_img = self._create_rotated_text(tab_name, font_large, 
-                                                       (50, 50, 50) if tab_key == active_tab else (150, 150, 150),
+                                                       (50, 50, 50) if tab_key == tab_name else (150, 150, 150),
                                                        15)   # 右傾 15 度
                 elif i == 2:  # 右側螢幕 - 進階選項，向左傾斜15度
                     text_img = self._create_rotated_text(tab_name, font_large,
-                                                       (50, 50, 50) if tab_key == active_tab else (150, 150, 150),
+                                                       (50, 50, 50) if tab_key == tab_name else (150, 150, 150),
                                                        -15)  # 左傾 15 度
                 else:  # 中間螢幕 - 不傾斜
                     text_img = self._create_rotated_text(tab_name, font_large,
-                                                       (50, 50, 50) if tab_key == active_tab else (150, 150, 150),
+                                                       (50, 50, 50) if tab_key == tab_name else (150, 150, 150),
                                                        0)    # 不傾斜
                 
                 # 將文字圖片貼到基礎圖片上
@@ -298,8 +298,8 @@ class DriverViewRichMenuHandler:
                         base_image.paste(text_img, (int(text_x), int(text_y)))
 
             # 繪製當前分頁的功能按鈕（在底部按鈕區域）
-            if active_tab in self.tab_configs:
-                buttons = self.tab_configs[active_tab]["buttons"]
+            if tab_name in self.tab_configs:
+                buttons = self.tab_configs[tab_name]["buttons"]
                 
                 for i, button_config in enumerate(buttons):
                     if i < len(self.button_positions):
@@ -316,7 +316,7 @@ class DriverViewRichMenuHandler:
                             self._draw_text_button(base_image, btn_pos, btn_text, font_small)
 
             # 保存圖片
-            output_path = f"rich_menu_images/driver_view_{active_tab}_tab.png"
+            output_path = f"rich_menu_images/driver_view_{tab_name}_tab.png"
             
             # 確保輸出目錄存在
             os.makedirs("rich_menu_images", exist_ok=True)
