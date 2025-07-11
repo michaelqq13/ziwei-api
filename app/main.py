@@ -191,12 +191,87 @@ def read_root(request: Request):
 @limiter.limit("10/minute")
 async def service_page(request: Request):
     """星語引路人服務頁面"""
-    from fastapi.responses import FileResponse
-    service_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "service.html")
-    if os.path.exists(service_file):
-        return FileResponse(service_file, media_type="text/html")
-    else:
-        raise HTTPException(status_code=404, detail="服務頁面未找到")
+    from fastapi.responses import HTMLResponse
+    
+    html_content = """<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星語引路人｜個人化訊息服務頁</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", sans-serif;
+      background-color: #fdfdfd;
+      color: #333;
+      padding: 2em;
+      line-height: 1.8;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 2em;
+      background: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    h1 {
+      font-size: 1.8em;
+      color: #4A4A4A;
+      text-align: center;
+    }
+    .item {
+      margin-top: 1.2em;
+    }
+    .label {
+      font-weight: bold;
+      color: #555;
+    }
+    a {
+      color: #0078d4;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    footer {
+      margin-top: 2em;
+      font-size: 0.85em;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>星語引路人｜服務頁</h1>
+
+    <div class="item">
+      本頁用於展示聯絡資訊與服務說明，提供個人化訊息提醒與引導建議。
+    </div>
+
+    <div class="item">
+      <span class="label">LINE 官方帳號：</span>
+      <a href="https://page.line.me/@087qwiyx" target="_blank">https://page.line.me/@087qwiyx</a>
+    </div>
+
+    <div class="item">
+      <span class="label">聯絡信箱：</span>michaelqq13@gmail.com
+    </div>
+
+    <div class="item">
+      <span class="label">聯絡電話：</span>0988163594
+    </div>
+
+    <footer>
+      所有付款皆透過綠界科技金流平台處理，保障交易安全。
+    </footer>
+  </div>
+</body>
+</html>"""
+    
+    return HTMLResponse(content=html_content, status_code=200)
 
 @app.get("/test-divination")
 @limiter.limit("5/minute")  # 測試端點嚴格限制
