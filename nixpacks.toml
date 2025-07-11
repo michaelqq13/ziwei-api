@@ -1,24 +1,28 @@
 # nixpacks.toml
 
-# 告訴 Nixpacks 在設定階段需要安裝 rsync 套件
-[phases.setup.pkgs]
-rsync = "latest"
-
 [phases.setup]
 cmds = [
-    "echo '=== DEBUGGING SETUP PHASE (using rsync) ==='",
+    "echo '=== DETAILED DEBUGGING SETUP PHASE ==='",
     "echo 'Current directory:'",
     "pwd",
-    "echo 'Listing contents of current directory:'",
+    "echo 'User info:'",
+    "whoami",
+    "echo 'Disk space:'",
+    "df -h",
+    "echo '--- Source directory listing ---'",
     "ls -la",
-    "echo '---'",
-    
-    "echo 'Attempting to copy assets with rsync...'",
+    "echo '--- Checking assets directory ---'",
+    "ls -la assets/ || echo 'assets directory not found or not accessible'",
+    "echo '--- Target directory preparation ---'",
     "mkdir -p /app/assets",
-    # 使用 rsync -av 進行複製，-a 保留屬性，-v 提供詳細輸出
-    "rsync -av assets/ /app/assets/",
-    "echo '--- Verifying copied assets in /app/assets/ ---'",
-    "ls -la /app/assets/ || echo 'Listing /app/assets/ failed, rsync might have been incomplete.'",
+    "ls -ld /app/assets || echo 'Failed to create /app/assets'",
+    "echo '--- Attempting file copy with detailed output ---'",
+    # 使用逐一複製的方式，更容易診斷問題
+    "for file in assets/*; do echo \"Copying $file to /app/assets/\"; cp \"$file\" /app/assets/ && echo \"✅ Success: $file\" || echo \"❌ Failed: $file\"; done",
+    "echo '--- Final verification ---'",
+    "ls -la /app/assets/ || echo 'Final listing failed'",
+    "echo 'Total files copied:'",
+    "ls /app/assets/ | wc -l || echo 'Count failed'",
     "echo '=== SETUP PHASE COMPLETE ==='"
 ]
 
