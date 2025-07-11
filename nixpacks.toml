@@ -1,22 +1,24 @@
 # nixpacks.toml
 
+# 告訴 Nixpacks 在設定階段需要安裝 rsync 套件
+[phases.setup.pkgs]
+rsync = "latest"
+
 [phases.setup]
 cmds = [
-    "echo '=== DEBUGGING SETUP PHASE ==='",
+    "echo '=== DEBUGGING SETUP PHASE (using rsync) ==='",
     "echo 'Current directory:'",
     "pwd",
     "echo 'Listing contents of current directory:'",
     "ls -la",
-    "echo 'Checking if assets directory exists:'",
-    "if [ -d 'assets' ]; then echo 'assets directory FOUND.'; else echo 'assets directory NOT FOUND.'; fi",
     "echo '---'",
     
-    "echo 'Attempting to copy assets...'",
+    "echo 'Attempting to copy assets with rsync...'",
     "mkdir -p /app/assets",
-    # 使用 `cp -a` 來確保所有檔案屬性都被保留，並複製資料夾內容
-    "cp -a assets/. /app/assets/",
-    "echo '--- Listing copied assets in /app/assets/ ---'",
-    "ls -la /app/assets/ || echo 'Listing /app/assets/ failed, copy might have been incomplete.'",
+    # 使用 rsync -av 進行複製，-a 保留屬性，-v 提供詳細輸出
+    "rsync -av assets/ /app/assets/",
+    "echo '--- Verifying copied assets in /app/assets/ ---'",
+    "ls -la /app/assets/ || echo 'Listing /app/assets/ failed, rsync might have been incomplete.'",
     "echo '=== SETUP PHASE COMPLETE ==='"
 ]
 
