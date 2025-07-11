@@ -2,12 +2,16 @@
 
 [phases.setup]
 cmds = [
-    "echo '=== SETUP PHASE: Copying rich_menu_images ==='",
-    "ls -la rich_menu_images/ || echo 'rich_menu_images directory not found in source'",
-    "mkdir -p /app/rich_menu_images || echo 'Failed to create /app/rich_menu_images'",
-    "cp -r rich_menu_images/* /app/rich_menu_images/ 2>/dev/null || echo 'Failed to copy images'",
+    "echo '=== SETUP PHASE: Copying assets ==='",
+    "mkdir -p /app/assets /app/user_images /app/rich_menu_images",
+    "cp -r assets/* /app/assets/ 2>/dev/null || echo 'No assets to copy'",
+    "cp -r user_images/* /app/user_images/ 2>/dev/null || echo 'No user_images to copy'",
+    "cp -r rich_menu_images/* /app/rich_menu_images/ 2>/dev/null || echo 'No rich_menu_images to copy'",
+    "echo '--- Listing copied assets ---'",
+    "ls -la /app/assets/ || echo '/app/assets listing failed'",
+    "ls -la /app/user_images/ || echo '/app/user_images listing failed'",
     "ls -la /app/rich_menu_images/ || echo '/app/rich_menu_images listing failed'",
-    "echo '=== SETUP PHASE COMPLETE ==='",
+    "echo '=== SETUP PHASE COMPLETE ==='"
 ]
 
 [start]

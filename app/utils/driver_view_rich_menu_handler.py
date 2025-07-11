@@ -153,14 +153,24 @@ class DriverViewRichMenuHandler:
     def _load_button_images_config(self) -> Dict:
         """載入按鈕圖片配置"""
         try:
-            config_path = "user_images/button_image_config.json"
-            if os.path.exists(config_path):
+            # 依序檢查部署路徑和本地路徑
+            possible_paths = [
+                "/app/user_images/button_image_config.json",  # Railway 部署路徑
+                "user_images/button_image_config.json"       # 本地開發路徑
+            ]
+            config_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    config_path = path
+                    break
+            
+            if config_path:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    logger.info("✅ 按鈕圖片配置載入成功")
+                    logger.info(f"✅ 按鈕圖片配置載入成功 from {config_path}")
                     return config
             else:
-                logger.warning("⚠️ 按鈕圖片配置檔案不存在")
+                logger.warning("⚠️ 按鈕圖片配置檔案在所有可能路徑中均未找到")
                 return {"button_images": {}, "image_settings": {}}
         except Exception as e:
             logger.error(f"❌ 載入按鈕圖片配置失敗: {e}")
@@ -241,27 +251,26 @@ class DriverViewRichMenuHandler:
             font_large = None
             font_medium = None
             font_small = None
-            
-            # 嘗試多種中文字體路徑
-            chinese_font_paths = [
-                "/System/Library/Fonts/PingFang.ttc",  # macOS 繁體中文字體
-                "/System/Library/Fonts/Hiragino Sans GB.ttc",  # macOS 簡體中文字體
-                "/System/Library/Fonts/Arial Unicode MS.ttf",  # Unicode 字體
-                "/System/Library/Fonts/STHeiti Light.ttc",  # 黑體
-                "/System/Library/Fonts/AppleGothic.ttf"  # Apple Gothic
+
+            # 定義字體路徑，優先檢查部署環境
+            possible_font_paths = [
+                "/app/assets/NotoSansTC-Regular.otf", # Railway 部署路徑
+                "assets/NotoSansTC-Regular.otf"       # 本地開發路徑
             ]
+            font_path = None
+            for path in possible_font_paths:
+                if os.path.exists(path):
+                    font_path = path
+                    break
             
-            for font_path in chinese_font_paths:
+            if font_path:
                 try:
-                    if os.path.exists(font_path):
-                        font_large = ImageFont.truetype(font_path, 75)  # 分頁字體微調至 75px
-                        font_medium = ImageFont.truetype(font_path, 40)  # 分頁字體改回原來大小 40px
-                        font_small = ImageFont.truetype(font_path, 48)  # 按鈕字體保持48px
-                        logger.info(f"✅ 成功載入中文字體: {font_path}")
-                        break
+                    font_large = ImageFont.truetype(font_path, 75)
+                    font_medium = ImageFont.truetype(font_path, 40)
+                    font_small = ImageFont.truetype(font_path, 48)
+                    logger.info(f"✅ 成功載入中文字體: {font_path}")
                 except Exception as e:
                     logger.warning(f"⚠️ 無法載入字體 {font_path}: {e}")
-                    continue
             
             # 如果都失敗了，使用預設字體
             if font_medium is None:
@@ -387,10 +396,20 @@ class DriverViewRichMenuHandler:
         try:
             button_config = self.button_images_config["button_images"][image_key]
             image_file = button_config["image_file"]
-            image_path = f"user_images/{image_file}"
             
-            if not os.path.exists(image_path):
-                logger.warning(f"⚠️ 按鈕圖片不存在: {image_path}, 使用文字按鈕替代。")
+            # 依序檢查部署路徑和本地路徑
+            possible_paths = [
+                f"/app/user_images/{image_file}", # Railway 部署路徑
+                f"user_images/{image_file}"       # 本地開發路徑
+            ]
+            image_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    image_path = path
+                    break
+
+            if not image_path:
+                logger.warning(f"⚠️ 按鈕圖片 '{image_file}' 在所有可能路徑中均未找到, 使用文字按鈕替代。")
                 self._draw_text_button(base_image, btn_pos, btn_text, font_small)
                 return
             
@@ -422,14 +441,25 @@ class DriverViewRichMenuHandler:
                 
             # --- 步驟 2: 將文字繪製成獨立圖片 ---
             try:
-                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 56)
+                # 定義字體路徑，優先檢查部署環境
+                possible_font_paths = [
+                    "/app/assets/NotoSansTC-Regular.otf", # Railway 部署路徑
+                    "assets/NotoSansTC-Regular.otf"       # 本地開發路徑
+                ]
+                font_path = None
+                for path in possible_font_paths:
+                    if os.path.exists(path):
+                        font_path = path
+                        break
+                
+                if font_path:
+                    text_font = ImageFont.truetype(font_path, 56)
+                else:
+                    raise IOError("字體檔案在所有路徑中均未找到")
+
             except IOError:
-                logger.warning("PingFang字體未找到，使用Hiragino Sans GB替代。")
-                try:
-                    text_font = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 56)
-                except IOError:
-                    logger.warning("Hiragino Sans GB字體也未找到，使用預設字體。")
-                    text_font = font_small if font_small else ImageFont.load_default()
+                logger.warning("項目字體未找到，使用備用字體。")
+                text_font = font_small if font_small else ImageFont.load_default()
 
             # 使用 _create_rotated_text 創建文字圖片 (無旋轉，黑色文字)
             text_img = self._create_rotated_text(btn_text, text_font, (0, 0, 0), 0)
@@ -466,8 +496,24 @@ class DriverViewRichMenuHandler:
             # 使用傳入的字體或載入預設字體，優先使用主函數傳入的font_small
             if font_small is None:
                 try:
-                    font_small = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 48)  # 備用字體大小48px
-                except:
+                    # 改為使用項目內的字體
+                    possible_font_paths = [
+                        "/app/assets/NotoSansTC-Regular.otf", # Railway 部署路徑
+                        "assets/NotoSansTC-Regular.otf"       # 本地開發路徑
+                    ]
+                    font_path = None
+                    for path in possible_font_paths:
+                        if os.path.exists(path):
+                            font_path = path
+                            break
+                    
+                    if font_path:
+                        font_small = ImageFont.truetype(font_path, 48)
+                    else:
+                        raise IOError("字體檔案在所有路徑中均未找到")
+
+                except Exception as e:
+                    logger.warning(f"無法載入項目字體，使用預設字體: {e}")
                     font_small = ImageFont.load_default()
             # 如果font_small已有值，就直接使用，不重新載入
             
