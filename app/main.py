@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -78,39 +79,6 @@ def init_test_data():
         logger.warning(f"數據庫不可用或測試數據初始化失敗，跳過: {str(e)}")
         logger.info("應用將在無數據庫模式下運行")
 
-def setup_rich_menu():
-    """設定 Rich Menu - 使用新的駕駛視窗選單系統"""
-    try:
-        from app.utils.drive_view_rich_menu_manager import drive_view_manager
-        logger.info("開始設定駕駛視窗選單系統...")
-        
-        # 清理舊選單
-        drive_view_manager.cleanup_old_menus()
-        
-        # 設定所有駕駛視窗選單
-        menu_ids = drive_view_manager.setup_all_menus()
-        
-        if menu_ids:
-            logger.info(f"✅ 駕駛視窗選單設定成功，創建了 {len(menu_ids)} 個選單")
-            for tab, menu_id in menu_ids.items():
-                logger.info(f"   - {tab}: {menu_id}")
-            
-            # 設定基本功能選單為預設選單
-            basic_menu_id = menu_ids.get("basic")
-            if basic_menu_id:
-                from app.utils.rich_menu_manager import RichMenuManager
-                temp_manager = RichMenuManager()
-                if temp_manager.set_default_rich_menu(basic_menu_id):
-                    logger.info(f"✅ 基本功能選單設為預設: {basic_menu_id}")
-                else:
-                    logger.warning("❌ 設定預設選單失敗")
-        else:
-            logger.warning("❌ 駕駛視窗選單設定失敗，但應用會繼續運行")
-            
-    except Exception as e:
-        logger.error(f"❌ 設定駕駛視窗選單時發生錯誤: {str(e)}")
-        # 不拋出異常，讓應用繼續啟動
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用生命週期管理"""
@@ -118,7 +86,7 @@ async def lifespan(app: FastAPI):
     logger.info("應用啟動中...")
     run_database_migrations()
     init_test_data()
-    setup_rich_menu()
+    # setup_rich_menu() 已被移除，因為新的 Handler 會在初始化時自動同步
     logger.info("應用啟動完成")
     
     yield
@@ -132,6 +100,14 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# 添加靜態文件支持
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ziwei-frontend", "public")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"靜態文件服務已啟用，目錄: {static_dir}")
+else:
+    logger.warning(f"靜態文件目錄不存在: {static_dir}")
 
 # 安全中間件設定
 # 1. 信任的主機限制
@@ -210,6 +186,17 @@ app.include_router(webhook.router)  # LINE Bot webhook at root path
 @limiter.limit("10/minute")  # 首頁限制
 def read_root(request: Request):
     return {"message": "Welcome to the Purple Star Astrology API"}
+
+@app.get("/service")
+@limiter.limit("10/minute")
+async def service_page(request: Request):
+    """星語引路人服務頁面"""
+    from fastapi.responses import FileResponse
+    service_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ziwei-frontend", "public", "service.html")
+    if os.path.exists(service_file):
+        return FileResponse(service_file, media_type="text/html")
+    else:
+        raise HTTPException(status_code=404, detail="服務頁面未找到")
 
 @app.get("/test-divination")
 @limiter.limit("5/minute")  # 測試端點嚴格限制
