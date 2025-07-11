@@ -539,32 +539,29 @@ class DriverViewRichMenuHandler:
     
     def validate_cached_menu(self, menu_id: str) -> bool:
         """
-        驗證緩存的選單是否仍然存在於 LINE 平台
-        
-        Args:
-            menu_id: Rich Menu ID
-            
-        Returns:
-            bool: 選單是否存在
+        驗證一個 Rich Menu ID 是否在 LINE 平台上真實存在且擁有圖片。
         """
+        self._ensure_manager()
         try:
-            self._ensure_manager()
-            existing_menus = self.manager.get_rich_menu_list()
-            if existing_menus:
-                for menu in existing_menus:
-                    if menu.get("richMenuId") == menu_id:
-                        # 檢查選單名稱是否包含當前版本
-                        menu_name = menu.get("name", "")
-                        if self.menu_version in menu_name:
-                            return True
-                        else:
-                            logger.info(f"🔄 發現舊版本選單: {menu_name}")
-                            return False
+            # 步驟 1: 嘗試獲取該 Rich Menu 的詳細資訊，確認存在
+            logger.debug(f"正在驗證 Rich Menu ID: {menu_id}...")
+            self.manager.get_rich_menu(menu_id)
+            logger.debug(f"  - {menu_id} 物件存在。")
+
+            # 步驟 2: 嘗試下載 Rich Menu 的圖片，確認圖片已上傳
+            if not self.manager.get_rich_menu_image(menu_id):
+                logger.warning(f"⚠️ Rich Menu ID '{menu_id}' 雖然存在，但圖片遺失。")
+                return False
+            
+            logger.debug(f"  - {menu_id} 圖片存在。")
+            logger.info(f"✅ Rich Menu ID '{menu_id}' 驗證通過。")
+            return True
+            
+        except Exception:
+            # 假設任何請求失敗都意味著選單無效
+            logger.warning(f"⚠️ 驗證 Rich Menu ID '{menu_id}' 失敗，可能已失效。")
             return False
-        except Exception as e:
-            logger.error(f"❌ 驗證緩存選單失敗: {e}")
-            return False
-    
+
     def cleanup_old_driver_menus(self, keep_current_version: bool = True) -> int:
         """
         清理舊的駕駛視窗選單

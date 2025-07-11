@@ -882,6 +882,51 @@ class RichMenuManager:
             logger.error(f"切換用戶 {user_id} 分頁時發生錯誤: {e}")
             return False
 
+    def get_rich_menu(self, rich_menu_id):
+        """獲取指定的 Rich Menu"""
+        try:
+            return self.line_bot_api.get_rich_menu(rich_menu_id)
+        except LineBotApiError as e:
+            logger.error(f"獲取 Rich Menu 失敗, ID: {rich_menu_id}, 錯誤: {e.status_code} {e.error.message}")
+            raise
+    
+    def get_rich_menu_image(self, rich_menu_id):
+        """下載指定 Rich Menu 的圖片"""
+        try:
+            # 這只會檢查圖片是否存在，不會下載整個圖片內容
+            content = self.line_bot_api.get_rich_menu_image(rich_menu_id)
+            # 檢查 content 是否有 iter_content 方法，確認是有效的響應對象
+            if hasattr(content, 'iter_content'):
+                # 讀取一小部分來確認流是有效的，但不消耗整個流
+                next(content.iter_content(1))
+                return True
+            return False
+        except StopIteration:
+            # 流是空的，但請求成功，代表圖片存在但可能為0字節
+            return True
+        except LineBotApiError as e:
+            logger.warning(f"下載 Rich Menu 圖片失敗, ID: {rich_menu_id}, 錯誤: {e.status_code} {e.error.message}")
+            # 將 SDK 的異常轉化為 False，而不是讓它冒泡
+            return False
+
+    def get_rich_menu_list(self):
+        """獲取所有 Rich Menu 的列表"""
+        url = f"{self.base_url}/richmenu/list"
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            
+            result = response.json()
+            rich_menus = result.get("richmenus", [])
+            
+            logger.info(f"成功獲取 Rich Menu 列表，共 {len(rich_menus)} 個")
+            return rich_menus
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"獲取 Rich Menu 列表失敗: {e}")
+            return None
+
 def can_access_tab(tab_name: str, user_level: str) -> bool:
     """
     檢查用戶是否有權限訪問特定分頁
