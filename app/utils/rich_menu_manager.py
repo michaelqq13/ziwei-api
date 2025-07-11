@@ -20,7 +20,7 @@ class RichMenuManager:
     """用於管理 LINE Rich Menu 的實用工具類"""
 
     def __init__(self):
-        self.line_bot_api = LineBotConfig.get_line_bot_api()
+        self.line_bot_api = LineBotApi(LineBotConfig.CHANNEL_ACCESS_TOKEN)
 
     def create_rich_menu(self, rich_menu_config: Dict[str, Any]) -> Optional[str]:
         """
