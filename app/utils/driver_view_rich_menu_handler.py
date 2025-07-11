@@ -5,10 +5,14 @@
 import os
 import json
 import logging
+import base64
+import tempfile
 from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
+from io import BytesIO
 
 from app.config.linebot_config import LineBotConfig
+from .embedded_images import DRIVE_VIEW_JPG_BASE64
 
 logger = logging.getLogger(__name__)
 
@@ -20,37 +24,22 @@ class DriverViewRichMenuHandler:
         # 移除循環導入，改為在需要時才導入
         self.manager = None  # 延遲初始化
 
-        # Define the absolute path to the base image
+        # 使用嵌入的圖片數據，不再依賴檔案系統
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # 將 base64 數據轉換為臨時檔案
+            image_data = base64.b64decode(DRIVE_VIEW_JPG_BASE64)
             
-            # 嘗試多個可能的路徑
-            possible_paths = [
-                # 部署環境：圖片在 app/rich_menu_images/
-                os.path.join(current_dir, '..', 'rich_menu_images', self.BASE_IMAGE_NAME),
-                # 開發環境：圖片在項目根目錄的 rich_menu_images/
-                os.path.join(current_dir, '..', '..', 'rich_menu_images', self.BASE_IMAGE_NAME)
-            ]
+            # 創建臨時檔案
+            self.temp_image_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+            self.temp_image_file.write(image_data)
+            self.temp_image_file.close()
             
-            self.base_image_path = None
-            for path in possible_paths:
-                normalized_path = os.path.normpath(path)
-                if os.path.exists(normalized_path):
-                    self.base_image_path = normalized_path
-                    logger.info(f"✅ 找到基礎圖片於: {normalized_path}")
-                    break
+            self.base_image_path = self.temp_image_file.name
+            logger.info(f"✅ 成功載入嵌入的基礎圖片，臨時路徑: {self.base_image_path}")
             
-            # Check if the base image exists, with a clear error message if not
-            if not self.base_image_path:
-                logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
-                logger.error(f"基礎圖片 '{self.BASE_IMAGE_NAME}' 在所有可能路徑中均未找到:")
-                for path in possible_paths:
-                    logger.error(f"  - {os.path.normpath(path)}")
-                logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
         except Exception as e:
-            logger.error(f"在構建基礎圖片路徑時發生嚴重錯誤: {e}", exc_info=True)
-            # 設置一個無效路徑，以確保後續操作會失敗並產生日誌
-            self.base_image_path = "invalid/path/drive_view.jpg"
+            logger.error(f"❌ 載入嵌入圖片失敗: {e}", exc_info=True)
+            self.base_image_path = None
 
         self.rich_menu_cache = {}  # 緩存不同分頁的 Rich Menu ID
         
@@ -115,6 +104,16 @@ class DriverViewRichMenuHandler:
         
         # 啟動時從 LINE 同步 Rich Menu
         self._sync_menus_from_line()
+
+    def __del__(self):
+        """清理臨時檔案"""
+        try:
+            if hasattr(self, 'temp_image_file') and hasattr(self.temp_image_file, 'name'):
+                if os.path.exists(self.temp_image_file.name):
+                    os.unlink(self.temp_image_file.name)
+                    logger.debug(f"✅ 已清理臨時圖片檔案: {self.temp_image_file.name}")
+        except Exception as e:
+            logger.warning(f"⚠️ 清理臨時檔案時發生錯誤: {e}")
 
     def _sync_menus_from_line(self):
         """從 LINE 平台同步符合當前版本的 Rich Menu 到本地快取"""
@@ -221,6 +220,10 @@ class DriverViewRichMenuHandler:
         """
         if tab_name not in self.tab_configs:
             logger.error(f"未找到 '{tab_name}' 的分頁配置")
+            return None
+
+        if not self.base_image_path:
+            logger.error("❌ 基礎圖片未載入，無法創建分頁圖片")
             return None
 
         logger.info(f"DIAGNOSTIC_LOG: Opening base image at normalized path: '{self.base_image_path}'")
