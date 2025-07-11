@@ -14,23 +14,23 @@ logger = logging.getLogger(__name__)
 
 class DriverViewRichMenuHandler:
     """駕駛視窗 Rich Menu 處理器"""
-    
-    def __init__(self, user_id, force_refresh=False):
+    BASE_IMAGE_NAME = "drive_view.jpg"  # 將基礎圖片名稱定義為類屬性
+
+    def __init__(self):
         # 移除循環導入，改為在需要時才導入
         self.manager = None  # 延遲初始化
 
         # Define the absolute path to the base image
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        unnormalized_path = os.path.join(current_dir, '..', '..', 'rich_menu_images', self.BASE_IMAGE_NAME)
-        self.base_image_path = os.path.normpath(unnormalized_path)
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            unnormalized_path = os.path.join(current_dir, '..', '..', 'rich_menu_images', self.BASE_IMAGE_NAME)
+            self.base_image_path = os.path.normpath(unnormalized_path)
 
-        # Check if the base image exists, with a clear error message if not
-        if not os.path.exists(self.base_image_path):
-            logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
-            logger.error(f"基礎圖片 'drive_view.jpg' 不存在於預期路徑: {self.base_image_path}")
-            logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
-            # 在無法找到關鍵資源時，可以考慮拋出異常來阻止應用繼續運行
-            # raise FileNotFoundError(f"Base image not found at: {self.base_image_path}")
+            # Check if the base image exists, with a clear error message if not
+            if not os.path.exists(self.base_image_path):
+                logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
+                logger.error(f"基礎圖片 '{self.BASE_IMAGE_NAME}' 不存在於預期路徑: {self.base_image_path}")
+                logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
         except Exception as e:
             logger.error(f"在構建基礎圖片路徑時發生嚴重錯誤: {e}", exc_info=True)
             # 設置一個無效路徑，以確保後續操作會失敗並產生日誌
@@ -203,9 +203,8 @@ class DriverViewRichMenuHandler:
         根據 tab 名稱，創建帶有高亮效果的分頁圖片。
         返回圖片的本地臨時路徑。
         """
-        highlight_config = self.BUTTON_CONFIG.get(tab_name)
-        if not highlight_config:
-            logger.error(f"未找到 '{tab_name}' 的按鈕配置")
+        if tab_name not in self.tab_configs:
+            logger.error(f"未找到 '{tab_name}' 的分頁配置")
             return None
 
         logger.info(f"DIAGNOSTIC_LOG: Opening base image at normalized path: '{self.base_image_path}'")
