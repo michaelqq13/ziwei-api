@@ -12,42 +12,51 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
 from app.config.linebot_config import LineBotConfig
-from .embedded_images import DRIVE_VIEW_JPG_BASE64
 
 logger = logging.getLogger(__name__)
 
+# --- 動態路徑設置 ---
+# 假設此檔案位於 .../app/utils/，我們需要向上兩級找到項目根目錄
+# 這使得無論在本地 (./assets) 還是 Railway (/app/assets) 都能找到資源
+try:
+    _THIS_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _PROJECT_ROOT = os.path.dirname(os.path.dirname(_THIS_FILE_DIR))
+    ASSETS_DIR = os.path.join(_PROJECT_ROOT, 'assets')
+    
+    # 在 Railway 環境，根目錄是 /app，我們要確保 assets 在 /app/assets
+    if not os.path.exists(ASSETS_DIR) and _PROJECT_ROOT == '/app':
+         # 如果 /app/assets 不存在，嘗試使用備用路徑（雖然不太可能發生）
+        ASSETS_DIR = '/app/assets'
+    
+    if not os.path.exists(ASSETS_DIR):
+        # 如果最終還是找不到，就使用本地相對路徑作為備用
+        ASSETS_DIR = 'assets'
+        
+    logger.info(f"✅ 資源目錄 (ASSETS_DIR) 設定為: {os.path.abspath(ASSETS_DIR)}")
+
+except Exception as e:
+    logger.error(f"❌ 初始化資源路徑時發生錯誤: {e}", exc_info=True)
+    ASSETS_DIR = 'assets' # Fallback to relative path
+
+
 class DriverViewRichMenuHandler:
     """駕駛視窗 Rich Menu 處理器"""
-    BASE_IMAGE_NAME = "drive_view.jpg"  # 將基礎圖片名稱定義為類屬性
+    BASE_IMAGE_NAME = "drive_view.jpg"
 
     def __init__(self):
-        # 移除循環導入，改為在需要時才導入
-        self.manager = None  # 延遲初始化
-
-        # 使用嵌入的圖片數據，不再依賴檔案系統
-        try:
-            # 將 base64 數據轉換為臨時檔案
-            image_data = base64.b64decode(DRIVE_VIEW_JPG_BASE64)
-            
-            # 創建臨時檔案
-            self.temp_image_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-            self.temp_image_file.write(image_data)
-            self.temp_image_file.close()
-            
-            self.base_image_path = self.temp_image_file.name
-            logger.info(f"✅ 成功載入嵌入的基礎圖片，臨時路徑: {self.base_image_path}")
-            
-        except Exception as e:
-            logger.error(f"❌ 載入嵌入圖片失敗: {e}", exc_info=True)
-            self.base_image_path = None
-
-        self.rich_menu_cache = {}  # 緩存不同分頁的 Rich Menu ID
+        self.manager = None
         
-        # 載入按鈕圖片配置
+        # 使用動態路徑載入主圖
+        self.base_image_path = os.path.join(ASSETS_DIR, self.BASE_IMAGE_NAME)
+        if not os.path.exists(self.base_image_path):
+            logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
+            logger.error(f"基礎圖片 '{self.base_image_path}' 未找到。請檢查部署時 assets 資料夾是否已成功複製。")
+        else:
+            logger.info(f"✅ 成功定位基礎圖片於: {self.base_image_path}")
+
+        self.rich_menu_cache = {}
         self.button_images_config = self._load_button_images_config()
-        
-        # 設置版本號，用於緩存管理
-        self.menu_version = "v2.2"  # 每次重大修改時增加版本號
+        self.menu_version = "v2.3" # 更新版本號以觸發刷新
         
         # 分頁配置 - 移除符號，只保留文字
         self.tab_configs = {
@@ -151,26 +160,16 @@ class DriverViewRichMenuHandler:
             logger.error(f"❌ 從 LINE 同步 Rich Menu 時發生錯誤: {e}", exc_info=True)
     
     def _load_button_images_config(self) -> Dict:
-        """載入按鈕圖片配置"""
+        """從 assets 資料夾載入按鈕圖片配置"""
         try:
-            # 依序檢查部署路徑和本地路徑
-            possible_paths = [
-                "/app/user_images/button_image_config.json",  # Railway 部署路徑
-                "user_images/button_image_config.json"       # 本地開發路徑
-            ]
-            config_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    config_path = path
-                    break
-            
-            if config_path:
+            config_path = os.path.join(ASSETS_DIR, "button_image_config.json")
+            if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    logger.info(f"✅ 按鈕圖片配置載入成功 from {config_path}")
+                    logger.info(f"✅ 按鈕圖片配置從 {config_path} 載入成功")
                     return config
             else:
-                logger.warning("⚠️ 按鈕圖片配置檔案在所有可能路徑中均未找到")
+                logger.warning(f"⚠️ 按鈕圖片配置檔案 {config_path} 不存在")
                 return {"button_images": {}, "image_settings": {}}
         except Exception as e:
             logger.error(f"❌ 載入按鈕圖片配置失敗: {e}")
@@ -247,32 +246,24 @@ class DriverViewRichMenuHandler:
             # 延遲導入 RichMenuManager
             self._ensure_manager()
 
-            # 嘗試載入支援中文的字體
+            # 使用動態路徑載入字體
+            font_path = os.path.join(ASSETS_DIR, "NotoSansTC-Regular.otf")
             font_large = None
             font_medium = None
             font_small = None
-
-            # 定義字體路徑，優先檢查部署環境
-            possible_font_paths = [
-                "/app/assets/NotoSansTC-Regular.otf", # Railway 部署路徑
-                "assets/NotoSansTC-Regular.otf"       # 本地開發路徑
-            ]
-            font_path = None
-            for path in possible_font_paths:
-                if os.path.exists(path):
-                    font_path = path
-                    break
             
-            if font_path:
-                try:
+            try:
+                if os.path.exists(font_path):
                     font_large = ImageFont.truetype(font_path, 75)
                     font_medium = ImageFont.truetype(font_path, 40)
                     font_small = ImageFont.truetype(font_path, 48)
-                    logger.info(f"✅ 成功載入中文字體: {font_path}")
-                except Exception as e:
-                    logger.warning(f"⚠️ 無法載入字體 {font_path}: {e}")
+                    logger.info(f"✅ 成功載入字體: {font_path}")
+                else:
+                    raise FileNotFoundError(f"字體檔案不存在: {font_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ 無法載入字體 {font_path}: {e}")
             
-            # 如果都失敗了，使用預設字體
+            # 如果字體載入失敗，使用預設字體
             if font_medium is None:
                 font_large = ImageFont.load_default()
                 font_medium = ImageFont.load_default()
@@ -396,20 +387,10 @@ class DriverViewRichMenuHandler:
         try:
             button_config = self.button_images_config["button_images"][image_key]
             image_file = button_config["image_file"]
+            image_path = os.path.join(ASSETS_DIR, image_file)
             
-            # 依序檢查部署路徑和本地路徑
-            possible_paths = [
-                f"/app/user_images/{image_file}", # Railway 部署路徑
-                f"user_images/{image_file}"       # 本地開發路徑
-            ]
-            image_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    image_path = path
-                    break
-
-            if not image_path:
-                logger.warning(f"⚠️ 按鈕圖片 '{image_file}' 在所有可能路徑中均未找到, 使用文字按鈕替代。")
+            if not os.path.exists(image_path):
+                logger.warning(f"⚠️ 按鈕圖片不存在: {image_path}, 使用文字按鈕替代。")
                 self._draw_text_button(base_image, btn_pos, btn_text, font_small)
                 return
             
@@ -441,24 +422,13 @@ class DriverViewRichMenuHandler:
                 
             # --- 步驟 2: 將文字繪製成獨立圖片 ---
             try:
-                # 定義字體路徑，優先檢查部署環境
-                possible_font_paths = [
-                    "/app/assets/NotoSansTC-Regular.otf", # Railway 部署路徑
-                    "assets/NotoSansTC-Regular.otf"       # 本地開發路徑
-                ]
-                font_path = None
-                for path in possible_font_paths:
-                    if os.path.exists(path):
-                        font_path = path
-                        break
-                
-                if font_path:
+                font_path = os.path.join(ASSETS_DIR, "NotoSansTC-Regular.otf")
+                if os.path.exists(font_path):
                     text_font = ImageFont.truetype(font_path, 56)
                 else:
-                    raise IOError("字體檔案在所有路徑中均未找到")
-
-            except IOError:
-                logger.warning("項目字體未找到，使用備用字體。")
+                    raise IOError(f"字體檔案不存在: {font_path}")
+            except IOError as e:
+                logger.warning(f"{e}，使用備用字體。")
                 text_font = font_small if font_small else ImageFont.load_default()
 
             # 使用 _create_rotated_text 創建文字圖片 (無旋轉，黑色文字)
@@ -497,21 +467,11 @@ class DriverViewRichMenuHandler:
             if font_small is None:
                 try:
                     # 改為使用項目內的字體
-                    possible_font_paths = [
-                        "/app/assets/NotoSansTC-Regular.otf", # Railway 部署路徑
-                        "assets/NotoSansTC-Regular.otf"       # 本地開發路徑
-                    ]
-                    font_path = None
-                    for path in possible_font_paths:
-                        if os.path.exists(path):
-                            font_path = path
-                            break
-                    
-                    if font_path:
+                    font_path = os.path.join(ASSETS_DIR, "NotoSansTC-Regular.otf")
+                    if os.path.exists(font_path):
                         font_small = ImageFont.truetype(font_path, 48)
                     else:
-                        raise IOError("字體檔案在所有路徑中均未找到")
-
+                        raise IOError(f"字體檔案不存在: {font_path}")
                 except Exception as e:
                     logger.warning(f"無法載入項目字體，使用預設字體: {e}")
                     font_small = ImageFont.load_default()
