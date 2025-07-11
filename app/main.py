@@ -102,7 +102,7 @@ app = FastAPI(
 )
 
 # 添加靜態文件支持
-static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ziwei-frontend", "public")
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     logger.info(f"靜態文件服務已啟用，目錄: {static_dir}")
@@ -192,7 +192,7 @@ def read_root(request: Request):
 async def service_page(request: Request):
     """星語引路人服務頁面"""
     from fastapi.responses import FileResponse
-    service_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ziwei-frontend", "public", "service.html")
+    service_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "service.html")
     if os.path.exists(service_file):
         return FileResponse(service_file, media_type="text/html")
     else:
