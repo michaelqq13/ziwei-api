@@ -1,9 +1,24 @@
 # nixpacks.toml
 
-# Top-level assets config.
-# Copies the local `rich_menu_images` directory to `rich_menu_images` inside the app's root directory (`/app`) in the container.
-[assets]
-"rich_menu_images" = "rich_menu_images"
+[phases.build]
+cmds = [
+    "echo '=== BUILD PHASE: Checking for rich_menu_images ==='",
+    "pwd",
+    "ls -la",
+    "ls -la rich_menu_images/ || echo 'rich_menu_images directory not found'",
+    "mkdir -p /tmp/rich_menu_images_backup",
+    "cp -r rich_menu_images/* /tmp/rich_menu_images_backup/ 2>/dev/null || echo 'Failed to backup rich_menu_images'",
+    "echo '=== BUILD PHASE COMPLETE ==='",
+]
+
+[phases.install]
+cmds = [
+    "echo '=== INSTALL PHASE: Ensuring rich_menu_images exists in app ==='",
+    "mkdir -p /app/rich_menu_images",
+    "cp -r /tmp/rich_menu_images_backup/* /app/rich_menu_images/ 2>/dev/null || echo 'Failed to restore rich_menu_images from backup'",
+    "ls -la /app/rich_menu_images/ || echo '/app/rich_menu_images does not exist'",
+    "echo '=== INSTALL PHASE COMPLETE ==='",
+]
 
 [start]
 cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT" 
