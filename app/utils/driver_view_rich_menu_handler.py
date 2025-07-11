@@ -23,13 +23,29 @@ class DriverViewRichMenuHandler:
         # Define the absolute path to the base image
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            unnormalized_path = os.path.join(current_dir, '..', '..', 'rich_menu_images', self.BASE_IMAGE_NAME)
-            self.base_image_path = os.path.normpath(unnormalized_path)
-
+            
+            # 嘗試多個可能的路徑
+            possible_paths = [
+                # 部署環境：圖片在 app/rich_menu_images/
+                os.path.join(current_dir, '..', 'rich_menu_images', self.BASE_IMAGE_NAME),
+                # 開發環境：圖片在項目根目錄的 rich_menu_images/
+                os.path.join(current_dir, '..', '..', 'rich_menu_images', self.BASE_IMAGE_NAME)
+            ]
+            
+            self.base_image_path = None
+            for path in possible_paths:
+                normalized_path = os.path.normpath(path)
+                if os.path.exists(normalized_path):
+                    self.base_image_path = normalized_path
+                    logger.info(f"✅ 找到基礎圖片於: {normalized_path}")
+                    break
+            
             # Check if the base image exists, with a clear error message if not
-            if not os.path.exists(self.base_image_path):
+            if not self.base_image_path:
                 logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
-                logger.error(f"基礎圖片 '{self.BASE_IMAGE_NAME}' 不存在於預期路徑: {self.base_image_path}")
+                logger.error(f"基礎圖片 '{self.BASE_IMAGE_NAME}' 在所有可能路徑中均未找到:")
+                for path in possible_paths:
+                    logger.error(f"  - {os.path.normpath(path)}")
                 logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
         except Exception as e:
             logger.error(f"在構建基礎圖片路徑時發生嚴重錯誤: {e}", exc_info=True)
