@@ -11,22 +11,21 @@ import pkg_resources
 from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
+from importlib import resources
 
 from app.config.linebot_config import LineBotConfig
 
 logger = logging.getLogger(__name__)
 
-# --- Helper function to get resource streams ---
+# --- Helper function to get resource streams using importlib.resources ---
 def get_asset_stream(asset_name: str) -> Optional[BytesIO]:
-    """從套件資源中安全地獲取資產的二進位流"""
+    """從套件資源中安全地獲取資產的二進位流 (使用 importlib.resources)"""
     try:
-        # 'app' 是你的套件名稱，'assets' 是資料夾
-        resource_path = f'assets/{asset_name}'
-        # pkg_resources.resource_stream 回傳一個 file-like object
-        stream = pkg_resources.resource_stream('app', resource_path)
-        return BytesIO(stream.read())
+        # 'app.assets' 是包含資源的套件
+        with resources.files('app.assets').joinpath(asset_name).open('rb') as f:
+            return BytesIO(f.read())
     except Exception as e:
-        logger.error(f"❌ 無法從套件資源加載 '{asset_name}': {e}", exc_info=True)
+        logger.error(f"❌ 無法從套件資源 importlib.resources 加載 '{asset_name}': {e}", exc_info=True)
         return None
 
 class DriverViewRichMenuHandler:
@@ -46,7 +45,7 @@ class DriverViewRichMenuHandler:
 
         self.rich_menu_cache = {}
         self.button_images_config = self._load_button_images_config()
-        self.menu_version = "v2.5" # 更新版本號以觸發刷新
+        self.menu_version = "v2.6" # 更新版本號以觸發刷新
         
         # 分頁配置 - 移除符號，只保留文字
         self.tab_configs = {
