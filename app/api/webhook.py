@@ -17,6 +17,7 @@ from app.models.linebot_models import LineBotUser, DivinationHistory, ChartBindi
 from app.logic.permission_manager import permission_manager, get_user_with_permissions
 from app.logic.divination_logic import divination_logic, get_divination_result
 from app.utils.rich_menu_manager import rich_menu_manager
+from app.utils.driver_view_rich_menu_handler import driver_view_handler
 from app.utils.divination_flex_message import DivinationFlexMessageGenerator
 import os
 import re
@@ -248,593 +249,339 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
         result = divination_logic.perform_divination(gender, current_time, db)
         
         if result["success"]:
-            # 嘗試保存占卜記錄（如果數據庫可用）
-            try:
-                if db:
-                    divination_record = DivinationHistory(
-                        user_id=user.id,
-                        gender=gender,
-                        divination_time=current_time,
-                        taichi_palace=result["taichi_palace"],
-                        minute_dizhi=result["minute_dizhi"],
-                        sihua_results=json.dumps(result["sihua_results"], ensure_ascii=False)
-                    )
-                    
-                    db.add(divination_record)
-                    db.commit()
-                    logger.info("占卜記錄已保存到數據庫")
-            except Exception as db_error:
-                logger.warning(f"無法保存占卜記錄到數據庫: {db_error}")
-                logger.info("占卜將繼續進行，但不會保存記錄")
-            
-            # 清除會話狀態
-            session.clear()
-            
-            # 修正：只保存必要的識別資訊，不保存完整的占卜結果
-            session.set_data("last_divination_id", result.get("divination_id"))
-            session.set_data("last_divination_time", result.get("divination_time"))
-            # 根據用戶權限決定用戶類型
-            user_type = "admin" if user.is_admin else ("premium" if user.is_premium else "free")
-            session.set_data("user_type", user_type)  # 保存用戶類型用於權限控制
-            
-            # 檢查管理員權限
+            # 獲取用戶權限等級
             is_admin = False
-            try:
-                if db:
-                    is_admin = permission_manager.check_admin_access(user.line_user_id, db)
-            except Exception as perm_error:
-                logger.warning(f"無法檢查管理員權限: {perm_error}")
+            if db:
+                user_stats = permission_manager.get_user_stats(db, user)
+                is_admin = user_stats["user_info"]["is_admin"]
+
+            # 使用 Flex Message產生器
+            message_generator = DivinationFlexMessageGenerator()
+            flex_messages = message_generator.generate_messages(result, is_admin)
             
-            # 獲取用戶類型
-            user_type = "free"  # 默認免費會員
-            try:
-                if db:
-                    user_stats = permission_manager.get_user_stats(db, user)
-                    user_type = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
-            except Exception as perm_error:
-                logger.warning(f"無法獲取用戶權限: {perm_error}")
-            
-            # 使用新的Flex Message生成器
-            flex_generator = DivinationFlexMessageGenerator()
-            flex_messages = flex_generator.generate_divination_messages(result, is_admin, user_type)
-            
+            # 發送 Flex 訊息
             if flex_messages:
-                # 發送Flex Messages
-                success = send_line_flex_messages(user.line_user_id, flex_messages)
-                if success:
-                    return None  # 已經發送Flex訊息，不需要返回文字
-                else:
-                    # Flex訊息發送失敗，使用備用文字格式
-                    return format_divination_result_text(result, is_admin)
+                send_line_flex_messages(user.line_user_id, flex_messages)
             else:
-                # 沒有生成Flex訊息，使用備用文字格式
-                return format_divination_result_text(result, is_admin)
+                return "占卜結果生成失敗，請稍後再試。"
         else:
-            session.clear()
-            return "🔮 占卜過程發生錯誤，請稍後再試。"
+            return result.get("error", "占卜失敗，請稍後再試。")
             
     except Exception as e:
-        logger.error(f"占卜過程錯誤: {e}")
-        session.clear()
-        return "🔮 占卜系統暫時無法使用，請稍後再試。"
+        logger.error(f"執行占卜時發生錯誤: {e}", exc_info=True)
+        return "執行占卜時發生未預期的錯誤，請聯繫管理員。"
+    finally:
+        session.clear_state()
+        
+    return None # 表示已經發送了 Flex 訊息
 
 def format_divination_result_text(result: Dict, is_admin: bool = False) -> str:
-    """格式化占卜結果為文字訊息（備用格式）"""
-    if not result.get("success"):
-        return "🔮 占卜過程發生錯誤，請稍後再試。"
+    """格式化占卜結果為純文字（備用）"""
+    
+    header = "🔮 **占卜結果** ✨\n\n"
     
     # 基本資訊
-    gender_text = "男性" if result["gender"] == "M" else "女性"
+    gender_text = "男性" if result.get("gender") == "M" else "女性"
+    divination_time_text = result.get("divination_time", "未知時間")
+    try:
+        # 解析ISO格式時間
+        dt_object = datetime.fromisoformat(divination_time_text)
+        # 轉換為本地時間格式
+        divination_time_text = dt_object.strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        pass
+        
+    base_info = (
+        f"👤 **性別：** {gender_text}\n"
+        f"📅 **占卜時間：** {divination_time_text}\n"
+        f"☯️ **太極點命宮：** {result.get('taichi_palace', '未知')}\n"
+        f"🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}\n"
+        f"🌌 **宮干：** {result.get('palace_tiangan', '未知')}\n\n"
+    )
     
-    # 解析時間字符串並轉換為台北時間
-    divination_time_str = result["divination_time"]
-    if divination_time_str.endswith('+08:00'):
-        divination_time = datetime.fromisoformat(divination_time_str)
+    # 四化結果
+    sihua_header = "🌟 **四化分析** 🌟\n"
+    sihua_text = ""
+    sihua_results = result.get("sihua_results", [])
+    
+    if not sihua_results:
+        sihua_text = "  (無四化結果)\n"
     else:
-        divination_time = datetime.fromisoformat(divination_time_str.replace('Z', '+00:00'))
-        if divination_time.tzinfo is None:
-            divination_time = divination_time.replace(tzinfo=timezone.utc)
-        divination_time = divination_time.astimezone(TAIPEI_TZ)
-    
-    time_str = divination_time.strftime("%Y-%m-%d %H:%M")
-    
-    message = f"""🔮 **紫微斗數占卜結果** ✨
+        for sihua in sihua_results:
+            sihua_text += (
+                f"  - **{sihua['type']}** ({sihua['star']}) -> {sihua['palace']}:\n"
+                f"    {sihua['explanation']}\n\n"
+            )
+            
+            # 管理員可見的額外資訊
+            if is_admin:
+                sihua_text += (
+                    f"    **[管理員]**\n"
+                    f"    觸機: {sihua.get('trigger_star', 'N/A')}\n"
+                    f"    觸機宮位: {sihua.get('trigger_palace', 'N/A')}\n\n"
+                )
 
-📅 占卜時間：{time_str} (台北時間)
-👤 性別：{gender_text}
-🏰 太極點命宮：{result["taichi_palace"]}
-🕰️ 分鐘地支：{result["minute_dizhi"]}
-⭐ 宮干：{result["palace_tiangan"]}
-
-"""
+    full_text = header + base_info + sihua_header + sihua_text
     
-    # 管理員可見的基本命盤資訊
-    if is_admin:
-        message += "━━━━━━━━━━━━━━━━━\n"
-        message += "📊 **基本命盤資訊** (管理員)\n\n"
-        
-        basic_chart = result.get("basic_chart", {})
-        if basic_chart:
-            for palace_name, info in basic_chart.items():
-                message += f"【{palace_name}】\n"
-                message += f"天干：{info.get('tiangan', '未知')} 地支：{info.get('dizhi', '未知')}\n"
-                stars = info.get('stars', [])
-                if stars:
-                    message += f"星曜：{', '.join(stars[:5])}\n"  # 最多顯示5顆星
-                message += "\n"
-        
-        message += "━━━━━━━━━━━━━━━━━\n"
-        message += "🎯 **太極點命宮資訊** (管理員)\n\n"
-        
-        taichi_mapping = result.get("taichi_palace_mapping", {})
-        if taichi_mapping:
-            message += "宮位重新分佈：\n"
-            for branch, palace in taichi_mapping.items():
-                message += f"• {branch} → {palace}\n"
-            message += "\n"
-    
-    message += "━━━━━━━━━━━━━━━━━\n"
-    message += "🔮 **四化解析**\n\n"
-    message += "💰 祿：有利的事情（好運、財運、順利、機會）\n"
-    message += "👑 權：有主導權的事情（領導力、決策權、掌控力）\n"
-    message += "🌟 科：提升地位名聲（受人重視、被看見、受表揚）\n"
-    message += "⚡ 忌：可能困擾的事情（阻礙、困難、需要注意）\n"
-    
-    # 添加四化結果
-    for i, sihua in enumerate(result["sihua_results"], 1):
-        emoji_map = {"忌": "⚡", "祿": "💰", "權": "👑", "科": "🌟"}
-        emoji = emoji_map.get(sihua["type"], "⭐")
-        
-        # 在每個四化星前加分隔線
-        message += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        message += f"{emoji} **{sihua['type']}星 - {sihua['star']}**\n"
-        message += f"   落宮：{sihua['palace']}\n\n"
-        
-        # 簡化解釋內容（文字版本）
-        explanation = sihua.get('explanation', '')
-        if explanation:
-            # 只取前200字
-            short_explanation = explanation[:200] + "..." if len(explanation) > 200 else explanation
-            message += f"{short_explanation}\n"
-    
-    message += "━━━━━━━━━━━━━━━━━\n"
-    message += "✨ 願星空指引您的方向 ✨"
-    
-    return message
+    return full_text
 
 def parse_time_input(time_text: str) -> Optional[datetime]:
-    """
-    解析用戶輸入的時間格式
-    支持多種時間格式：
-    - "2024-01-15 14:30"
-    - "今天 14:30"
-    - "昨天 09:15"
-    - "1小時前"
-    - "30分鐘前"
-    """
+    """解析多種格式的時間輸入"""
+    now = get_current_taipei_time()
+    
+    # 格式1: "今天 HH:MM"
+    match = re.match(r"今天\s*(\d{1,2}):(\d{1,2})", time_text)
+    if match:
+        hour, minute = map(int, match.groups())
+        return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    
+    # 格式2: "昨天 HH:MM"
+    match = re.match(r"昨天\s*(\d{1,2}):(\d{1,2})", time_text)
+    if match:
+        hour, minute = map(int, match.groups())
+        yesterday = now - timedelta(days=1)
+        return yesterday.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    
+    # 格式3: "YYYY-MM-DD HH:MM"
     try:
-        time_text = time_text.strip()
-        current_time = get_current_taipei_time()
+        return datetime.strptime(time_text, "%Y-%m-%d %H:%M").replace(tzinfo=TAIPEI_TZ)
+    except ValueError:
+        pass
+    
+    # 格式4: "N小時前"
+    match = re.match(r"(\d+)\s*小時前", time_text)
+    if match:
+        hours_ago = int(match.group(1))
+        return now - timedelta(hours=hours_ago)
         
-        # 格式1: 完整日期時間 "2024-01-15 14:30"
-        if re.match(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}', time_text):
-            return datetime.strptime(time_text, "%Y-%m-%d %H:%M").replace(tzinfo=TAIPEI_TZ)
-        
-        # 格式2: 今天/昨天 + 時間
-        if time_text.startswith("今天"):
-            time_part = time_text.replace("今天", "").strip()
-            if re.match(r'\d{2}:\d{2}', time_part):
-                hour, minute = map(int, time_part.split(':'))
-                return current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        
-        if time_text.startswith("昨天"):
-            time_part = time_text.replace("昨天", "").strip()
-            if re.match(r'\d{2}:\d{2}', time_part):
-                hour, minute = map(int, time_part.split(':'))
-                yesterday = current_time - timedelta(days=1)
-                return yesterday.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        
-        # 格式3: 相對時間 "1小時前", "30分鐘前"
-        if "小時前" in time_text:
-            hours = int(re.search(r'(\d+)小時前', time_text).group(1))
-            return current_time - timedelta(hours=hours)
-        
-        if "分鐘前" in time_text:
-            minutes = int(re.search(r'(\d+)分鐘前', time_text).group(1))
-            return current_time - timedelta(minutes=minutes)
-        
-        # 格式4: 只有時間 "14:30"
-        if re.match(r'\d{2}:\d{2}', time_text):
-            hour, minute = map(int, time_text.split(':'))
-            target_time = current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            
-            # 如果時間已經過了，假設是昨天
-            if target_time > current_time:
-                target_time = target_time - timedelta(days=1)
-            
-            return target_time
-        
-        return None
-        
-    except Exception as e:
-        logger.error(f"解析時間輸入錯誤: {e}")
-        return None
+    # 格式5: "N分鐘前"
+    match = re.match(r"(\d+)\s*分鐘前", time_text)
+    if match:
+        minutes_ago = int(match.group(1))
+        return now - timedelta(minutes=minutes_ago)
+
+    return None
 
 def handle_time_divination_request(db: Optional[Session], user: LineBotUser, session: MemoryUserSession) -> str:
-    """處理指定時間占卜請求（僅限管理員）"""
+    """處理指定時間占卜請求"""
+    # 權限檢查
+    is_admin = False
+    if db:
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_admin = user_stats["user_info"]["is_admin"]
     
-    # 檢查管理員權限
-    try:
-        if db:
-            user_stats = permission_manager.get_user_stats(db, user)
-            is_admin = user_stats["user_info"]["is_admin"]
-            
-            if not is_admin:
-                return """🔒 **指定時間占卜** 
-
-此功能僅限管理員使用！
-
-👑 **管理員專屬功能：**
-• 指定時間占卜分析
-• 回溯特定時刻運勢
-• 事件時間點解析
-• 詳細占卜歷史記錄
-
-✨ 請聯繫系統管理員獲取權限！"""
-    except Exception as e:
-        logger.warning(f"檢查管理員權限失敗: {e}")
-        return "系統暫時無法使用，請稍後再試。"
+    if not is_admin:
+        return "🔒 **權限不足**\n\n此功能僅限管理員使用。"
     
-    # 開始指定時間占卜流程
+    # 設置狀態
     session.set_state("waiting_for_time_divination_gender")
     
+    # 發送訊息
     quick_reply_items = [
         {"type": "action", "action": {"type": "message", "label": "👨 男性", "text": "男"}},
         {"type": "action", "action": {"type": "message", "label": "👩 女性", "text": "女"}}
     ]
     
-    message = """🕐 **指定時間占卜** ✨ (管理員專用)
+    message = """🔮 **指定時間占卜** ✨ (管理員模式)
 
-可以針對特定時間點進行占卜分析
+此功能讓您回溯特定時間點的星盤
 
-⚡ **請選擇性別：**"""
+⚡ **請先選擇性別：**"""
     
-    # 發送帶有Quick Reply按鈕的訊息
     send_line_message(user.line_user_id, message, quick_reply_items)
     return None
 
 def handle_time_divination_gender_input(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
     """處理指定時間占卜的性別輸入"""
     text = text.strip().upper()
-    
-    # 解析性別
     gender = None
-    if text in ["男", "M", "MALE", "MAN"]:
+    
+    if text in ["男", "M"]:
         gender = "M"
-    elif text in ["女", "F", "FEMALE", "WOMAN"]:
+    elif text in ["女", "F"]:
         gender = "F"
     
     if not gender:
-        return """❓ 請輸入有效的性別：
-• 回覆「男」或「M」代表男性  
-• 回覆「女」或「F」代表女性"""
-    
-    # 保存性別，進入時間選擇階段
-    session.set_data("time_divination_gender", gender)
+        return "❓ 請輸入有效的性別：「男」或「女」。"
+        
+    session.set_data("gender", gender)
     session.set_state("waiting_for_time_selection")
     
-    # 提供時間選擇的快速按鈕
-    current_time = get_current_taipei_time()
-    
     quick_reply_items = [
-        {"type": "action", "action": {"type": "message", "label": "🕐 1小時前", "text": "1小時前"}},
-        {"type": "action", "action": {"type": "message", "label": "🕑 2小時前", "text": "2小時前"}},
-        {"type": "action", "action": {"type": "message", "label": "🕒 3小時前", "text": "3小時前"}},
-        {"type": "action", "action": {"type": "message", "label": "🕓 6小時前", "text": "6小時前"}},
-        {"type": "action", "action": {"type": "message", "label": "📅 昨天同時", "text": "昨天同時"}},
-        {"type": "action", "action": {"type": "message", "label": "⏰ 自訂時間", "text": "自訂時間"}}
+        {"type": "action", "action": {"type": "message", "label": "現在", "text": "現在"}},
+        {"type": "action", "action": {"type": "message", "label": "1小時前", "text": "1小時前"}},
+        {"type": "action", "action": {"type": "message", "label": "昨天此時", "text": "昨天此時"}},
+        {"type": "action", "action": {"type": "action", "label": "📅 選擇日期和時間", "data": "select_datetime"}},
+        {"type": "action", "action": {"type": "message", "label": "✍️ 手動輸入", "text": "手動輸入"}}
     ]
     
-    message = f"""⏰ **選擇目標時間** 
+    message = """📅 **請選擇占卜時間：**
 
-當前時間：{current_time.strftime('%Y-%m-%d %H:%M')}
-
-🚀 **快速選擇：**
-• 點擊下方按鈕快速選擇時間
-• 或選擇「自訂時間」手動輸入"""
+您可以選擇快速選項，或手動輸入精確時間。"""
     
     send_line_message(user.line_user_id, message, quick_reply_items)
     return None
 
 def handle_time_selection(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
-    """處理時間選擇"""
-    text = text.strip()
-    current_time = get_current_taipei_time()
+    """處理時間選項"""
+    now = get_current_taipei_time()
     target_time = None
+    original_input = text
     
-    # 快速時間選擇
-    if text == "1小時前":
-        target_time = current_time - timedelta(hours=1)
-    elif text == "2小時前":
-        target_time = current_time - timedelta(hours=2)
-    elif text == "3小時前":
-        target_time = current_time - timedelta(hours=3)
-    elif text == "6小時前":
-        target_time = current_time - timedelta(hours=6)
-    elif text == "昨天同時":
-        target_time = current_time - timedelta(days=1)
-    elif text == "自訂時間":
-        # 進入自訂時間模式
-        session.set_state("waiting_for_custom_time_input")
-        
-        # 提供更多自訂選項
-        quick_reply_items = [
-            {"type": "action", "action": {"type": "message", "label": "📅 今天 09:00", "text": "今天 09:00"}},
-            {"type": "action", "action": {"type": "message", "label": "📅 今天 12:00", "text": "今天 12:00"}},
-            {"type": "action", "action": {"type": "message", "label": "📅 今天 15:00", "text": "今天 15:00"}},
-            {"type": "action", "action": {"type": "message", "label": "📅 今天 18:00", "text": "今天 18:00"}},
-            {"type": "action", "action": {"type": "message", "label": "📅 昨天 12:00", "text": "昨天 12:00"}},
-            {"type": "action", "action": {"type": "message", "label": "✏️ 手動輸入", "text": "手動輸入"}}
-        ]
-        
-        message = """📝 **自訂時間選擇**
+    if text == "現在":
+        target_time = now
+    elif text == "1小時前":
+        target_time = now - timedelta(hours=1)
+    elif text == "昨天此時":
+        target_time = now - timedelta(days=1)
+    elif text == "手動輸入":
+        session.set_state("waiting_for_manual_time_input")
+        return """✍️ **請手動輸入時間**
 
-🚀 **常用時間：**
-• 點擊下方按鈕快速選擇
-• 或選擇「手動輸入」自由輸入
+支持格式：
+• `今天 14:30`
+• `昨天 09:15`
+• `2024-01-15 14:30`
+• `1小時前`
+• `30分鐘前`
 
-✏️ **手動輸入格式：**
-• 今天 14:30
-• 昨天 09:15
-• 2024-01-15 14:30
-• 1小時前
-• 30分鐘前
-
-請輸入您的目標時間："""
-        
-        send_line_message(user.line_user_id, message, quick_reply_items)
-        return None
+請輸入目標時間："""
     else:
-        # 嘗試解析其他時間格式
+        # 嘗試解析其他格式
         target_time = parse_time_input(text)
         if not target_time:
-            return """❓ 時間格式不正確，請重新選擇：
-
-🚀 **請點擊上方按鈕選擇時間**
-或輸入以下格式：
-• 今天 14:30
-• 昨天 09:15
-• 1小時前
-• 30分鐘前"""
+            return "❓ 無法識別的時間格式，請重新選擇或手動輸入。"
     
-    # 如果成功解析時間，執行占卜
     if target_time:
-        return execute_time_divination(db, user, session, target_time, text)
-    
-    return "時間解析失敗，請重新選擇。"
+        return execute_time_divination(db, user, session, target_time, original_input)
+        
+    return None
 
 def handle_custom_time_input(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
-    """處理自訂時間輸入"""
-    text = text.strip()
-    current_time = get_current_taipei_time()
-    
-    # 處理預設時間選項
-    if text == "今天 09:00":
-        target_time = current_time.replace(hour=9, minute=0, second=0, microsecond=0)
-    elif text == "今天 12:00":
-        target_time = current_time.replace(hour=12, minute=0, second=0, microsecond=0)
-    elif text == "今天 15:00":
-        target_time = current_time.replace(hour=15, minute=0, second=0, microsecond=0)
-    elif text == "今天 18:00":
-        target_time = current_time.replace(hour=18, minute=0, second=0, microsecond=0)
-    elif text == "昨天 12:00":
-        yesterday = current_time - timedelta(days=1)
-        target_time = yesterday.replace(hour=12, minute=0, second=0, microsecond=0)
-    elif text == "手動輸入":
-        # 進入完全手動輸入模式
-        session.set_state("waiting_for_manual_time_input")
-        return """✏️ **手動輸入時間**
-
-請輸入目標時間，支持以下格式：
-
-📝 **格式範例：**
-• 今天 14:30
-• 昨天 09:15
-• 2024-01-15 14:30
-• 1小時前
-• 30分鐘前
-
-請輸入您的目標時間："""
+    """處理手動輸入的時間"""
+    target_time = parse_time_input(text)
+    if target_time:
+        return execute_time_divination(db, user, session, target_time, text)
     else:
-        # 嘗試解析用戶輸入
-        target_time = parse_time_input(text)
-        if not target_time:
-            return """❓ 時間格式不正確，請重新輸入：
+        return """❓ 時間格式不正確，請重新輸入：
 
 📝 **支持格式：**
 • 今天 14:30
-• 昨天 09:15
+• 昨天 09:15  
 • 2024-01-15 14:30
 • 1小時前
 • 30分鐘前
 
 請重新輸入目標時間："""
-    
-    # 執行占卜
-    return execute_time_divination(db, user, session, target_time, text)
 
 def execute_time_divination(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, target_time: datetime, original_input: str) -> str:
     """執行指定時間占卜"""
-    
-    # 檢查時間範圍
-    current_time = get_current_taipei_time()
-    time_diff = current_time - target_time
-    
-    if time_diff.days > 30:
-        return "⚠️ 目標時間不能超過 30 天前，請重新選擇。"
-    
-    if time_diff.days < -7:
-        return "⚠️ 目標時間不能超過 7 天後，請重新選擇。"
-    
-    # 執行占卜
+    gender = session.get_data("gender")
+    if not gender:
+        session.clear_state()
+        return "❌ 找不到性別資訊，請重新開始。"
+        
     try:
-        gender = session.get_data("time_divination_gender")
-        
-        logger.info(f"執行指定時間占卜 - 管理員: {user.line_user_id}, 時間: {target_time}, 性別: {gender}")
-        
         result = divination_logic.perform_divination(gender, target_time, db)
         
         if result["success"]:
-            # 保存指定時間占卜記錄
-            try:
-                if db:
-                    from app.models.divination import TimeDivinationHistory
-                    
-                    time_divination_record = TimeDivinationHistory(
-                        user_id=user.id,
-                        target_time=target_time,
-                        current_time=current_time,
-                        gender=gender,
-                        purpose=f"管理員指定時間占卜: {original_input}",
-                        taichi_palace=result["taichi_palace"],
-                        minute_dizhi=result["minute_dizhi"],
-                        sihua_results=json.dumps(result["sihua_results"], ensure_ascii=False)
-                    )
-                    
-                    db.add(time_divination_record)
-                    db.commit()
-                    logger.info("指定時間占卜記錄已保存")
-            except Exception as db_error:
-                logger.warning(f"保存指定時間占卜記錄失敗: {db_error}")
+            # 使用 Flex Message 產生器
+            message_generator = DivinationFlexMessageGenerator()
+            flex_messages = message_generator.generate_messages(result, True) # 管理員模式
             
-            # 清除會話狀態
-            session.clear()
-            
-            # 管理員使用，直接設為 admin 類型
-            user_type = "admin"
-            
-            # 使用 Flex Message 生成器
-            flex_generator = DivinationFlexMessageGenerator()
-            
-            # 修改結果標題，顯示是指定時間占卜
-            result["divination_title"] = f"🕐 指定時間占卜結果 (管理員)"
-            result["time_note"] = f"目標時間: {target_time.strftime('%Y-%m-%d %H:%M')}"
-            
-            flex_messages = flex_generator.generate_divination_messages(result, True, user_type)
-            
+            # 發送 Flex 訊息
             if flex_messages:
-                # 發送Flex Messages
-                success = send_line_flex_messages(user.line_user_id, flex_messages)
-                if success:
-                    return None  # 已經發送Flex訊息
-                else:
-                    return format_time_divination_result_text(result, target_time, True)
+                # 附加一個文字訊息，說明這是哪個時間點的占卜
+                time_info_message = f"您查詢的時間點為：\n{original_input}\n({target_time.strftime('%Y-%m-%d %H:%M')})"
+                send_line_message(user.line_user_id, time_info_message)
+                send_line_flex_messages(user.line_user_id, flex_messages)
             else:
-                return format_time_divination_result_text(result, target_time, True)
+                return "占卜結果生成失敗。"
         else:
-            session.clear()
-            return "🔮 指定時間占卜過程發生錯誤，請稍後再試。"
+            return result.get("error", "占卜失敗。")
             
     except Exception as e:
-        logger.error(f"指定時間占卜過程錯誤: {e}")
-        session.clear()
-        return "🔮 指定時間占卜系統暫時無法使用，請稍後再試。"
+        logger.error(f"執行指定時間占卜時發生錯誤: {e}", exc_info=True)
+        return "執行指定時間占卜時發生未預期的錯誤。"
+    finally:
+        session.clear_state()
+        
+    return None
 
 def format_time_divination_result_text(result: Dict, target_time: datetime, is_admin: bool = False) -> str:
-    """格式化指定時間占卜結果為文字訊息"""
-    if not result.get("success"):
-        return "🔮 指定時間占卜過程發生錯誤，請稍後再試。"
+    """格式化指定時間占卜結果（備用）"""
+    
+    header = "🔮 **指定時間占卜結果** ✨\n\n"
     
     # 基本資訊
-    gender_text = "男性" if result["gender"] == "M" else "女性"
-    time_str = target_time.strftime("%Y-%m-%d %H:%M")
-    
-    message = f"""🕐 **指定時間占卜結果** ✨
-
-📅 目標時間：{time_str} (台北時間)
-👤 性別：{gender_text}
-🏰 太極點命宮：{result["taichi_palace"]}
-🕰️ 分鐘地支：{result["minute_dizhi"]}
-⭐ 宮干：{result["palace_tiangan"]}
-
-━━━━━━━━━━━━━━━━━
-🔮 **四化解析**
-
-💰 祿：有利的事情（好運、財運、順利、機會）
-👑 權：有主導權的事情（領導力、決策權、掌控力）
-🌟 科：提升地位名聲（受人重視、被看見、受表揚）
-⚡ 忌：可能困擾的事情（阻礙、困難、需要注意）
-
-"""
-    
-    # 添加四化結果
-    for i, sihua in enumerate(result["sihua_results"], 1):
-        emoji_map = {"忌": "⚡", "祿": "💰", "權": "👑", "科": "🌟"}
-        emoji = emoji_map.get(sihua["type"], "⭐")
+    gender_text = "男性" if result.get("gender") == "M" else "女性"
+    divination_time_text = target_time.strftime("%Y-%m-%d %H:%M:%S")
         
-        message += f"\n━━━━━━━━━━━━━━━━━━━━\n"
-        message += f"{emoji} **{sihua['type']}星 - {sihua['star']}**\n"
-        message += f"   落宮：{sihua['palace']}\n\n"
-        
-        explanation = sihua.get('explanation', '')
-        if explanation:
-            short_explanation = explanation[:200] + "..." if len(explanation) > 200 else explanation
-            message += f"{short_explanation}\n"
+    base_info = (
+        f"👤 **性別：** {gender_text}\n"
+        f"📅 **占卜時間：** {divination_time_text}\n"
+        f"☯️ **太極點命宮：** {result.get('taichi_palace', '未知')}\n"
+        f"🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}\n"
+        f"🌌 **宮干：** {result.get('palace_tiangan', '未知')}\n\n"
+    )
     
-    message += "\n━━━━━━━━━━━━━━━━━\n"
-    message += "🕐 指定時間占卜完成 ✨"
+    # 四化結果
+    sihua_header = "🌟 **四化分析** 🌟\n"
+    sihua_text = ""
+    sihua_results = result.get("sihua_results", [])
     
-    return message
+    if not sihua_results:
+        sihua_text = "  (無四化結果)\n"
+    else:
+        for sihua in sihua_results:
+            sihua_text += (
+                f"  - **{sihua['type']}** ({sihua['star']}) -> {sihua['palace']}:\n"
+                f"    {sihua['explanation']}\n"
+            )
+            
+    full_text = header + base_info + sihua_header + sihua_text
+    
+    return full_text
 
 @router.post("/webhook")
 @limiter.limit("100/minute")  # LINE webhook 速率限制
 async def line_webhook(request: Request, background_tasks: BackgroundTasks):
     """處理 LINE Webhook 事件（支持可選數據庫）"""
     try:
-        body = await request.body()
-        signature = request.headers.get('X-Line-Signature', '')
+        # 安全檢查
+        body_bytes = await request.body()
+        signature = request.headers.get("X-Line-Signature")
+        if not verify_line_signature(body_bytes, signature):
+            raise HTTPException(status_code=403, detail="Invalid signature")
+
+        body_str = body_bytes.decode("utf-8")
+        data = json.loads(body_str)
         
-        # 驗證簽名
-        if not verify_line_signature(body, signature):
-            logger.error("LINE簽名驗證失敗")
-            raise HTTPException(status_code=400, detail="Invalid signature")
-        
-        # 解析事件
-        events_data = json.loads(body.decode('utf-8'))
-        events = events_data.get('events', [])
-        
-        logger.info(f"收到 {len(events)} 個LINE事件")
-        
-        # 獲取可選的數據庫會話
         db = get_optional_db()
         
-        try:
-            # 處理每個事件
-            for event in events:
-                background_tasks.add_task(handle_line_event, event, db)
+        for event in data["events"]:
+            background_tasks.add_task(handle_line_event, event, db)
             
-            return {"status": "ok"}
-            
-        finally:
-            # 清理數據庫會話（如果存在）
-            if db:
-                try:
-                    db.close()
-                except Exception as e:
-                    logger.warning(f"關閉數據庫會話時發生錯誤: {e}")
-        
+    except HTTPException as http_exc:
+        logger.error(f"HTTP 錯誤: {http_exc.detail}")
+        raise http_exc
+    except json.JSONDecodeError:
+        logger.error(f"無效的 JSON 格式: {body_str}")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
     except Exception as e:
-        logger.error(f"Webhook處理錯誤：{e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"處理 Webhook 時發生未預期的錯誤: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        if 'db' in locals() and db:
+            db.close()
+            
+    return {"status": "ok"}
 
 async def handle_line_event(event: dict, db: Optional[Session]):
-    """處理LINE事件（支持可選數據庫）"""
+    """非同步處理單個 LINE 事件"""
+    event_type = event.get("type")
+    
     try:
-        event_type = event.get("type")
-        user_id = event.get("source", {}).get("userId")
-        
-        logger.info(f"處理事件：{event_type}，用戶：{user_id}，數據庫：{'有' if db else '無'}")
-        
         if event_type == "message":
             await handle_message_event(event, db)
         elif event_type == "postback":
@@ -844,80 +591,47 @@ async def handle_line_event(event: dict, db: Optional[Session]):
         elif event_type == "unfollow":
             handle_unfollow_event(event, db)
         else:
-            logger.info(f"忽略事件類型：{event_type}")
-        
+            logger.info(f"收到未處理的事件類型: {event_type}")
     except Exception as e:
-        logger.error(f"處理LINE事件錯誤：{e}")
+        logger.error(f"處理事件 {event_type} 時發生錯誤: {e}", exc_info=True)
 
 async def handle_postback_event(event: dict, db: Optional[Session]):
-    """處理PostBack事件（分頁切換等）"""
-    try:
-        postback = event.get("postback", {})
-        postback_data = postback.get("data", "")
-        user_id = event.get("source", {}).get("userId")
-        
-        logger.info(f"收到PostBack事件 - 用戶: {user_id}, 數據: {postback_data}")
-        
-        # 處理駕駛視窗分頁切換
-        if postback_data.startswith("tab_"):
-            try:
-                from app.utils.driver_view_rich_menu_handler import driver_view_handler
-                
-                # 使用駕駛視窗處理器處理分頁切換
-                success = driver_view_handler.handle_postback_event(user_id, postback_data)
-                
-                if success:
-                    # 靜默切換 - 不發送確認訊息，只記錄日誌
-                    tab_name = postback_data.replace("tab_", "")
-                    tab_info = driver_view_handler.get_tab_info(tab_name)
-                    tab_display_name = tab_info.get("name", tab_name)
-                    
-                    logger.info(f"✅ 用戶 {user_id} 靜默切換到分頁: {tab_display_name}")
-                else:
-                    logger.error(f"❌ 用戶 {user_id} 分頁切換失敗: {postback_data}")
-                    
-            except ImportError as e:
-                logger.warning(f"⚠️ 駕駛視窗處理器未找到，使用備用處理: {e}")
-                # 備用處理邏輯
-                await handle_legacy_tab_switch(user_id, postback_data, db)
-            except Exception as e:
-                logger.error(f"❌ 處理駕駛視窗分頁切換失敗: {e}")
-                # 分頁切換失敗時也不發送錯誤訊息，保持靜默
-                logger.warning(f"⚠️ 分頁切換失敗，但保持靜默: {user_id}")
-        
-        # 處理其他 PostBack 事件
-        else:
-            logger.info(f"📥 收到其他 PostBack 事件: {postback_data}")
-            # 這裡可以添加其他 PostBack 事件的處理邏輯
-            
-    except Exception as e:
-        logger.error(f"❌ 處理PostBack事件失敗: {e}")
+    """處理 Postback 事件"""
+    user_id = event["source"]["userId"]
+    postback_data = event["postback"]["data"]
+    logger.info(f"收到來自 {user_id} 的 Postback 事件，資料: {postback_data}")
 
-async def handle_legacy_tab_switch(user_id: str, postback_data: str, db: Optional[Session]):
-    """備用分頁切換處理（當駕駛視窗處理器不可用時）"""
-    try:
-        tab_mapping = {
-            "tab_basic": "基本功能",
-            "tab_fortune": "運勢", 
-            "tab_advanced": "進階選項"
-        }
-        
-        tab_name = tab_mapping.get(postback_data, "未知分頁")
-        # 備用處理也保持靜默，不發送訊息
-        logger.info(f"使用備用處理靜默切換分頁: {user_id} -> {tab_name}")
-        
-    except Exception as e:
-        logger.error(f"❌ 備用分頁切換處理失敗: {e}")
+    # 優先處理駕駛視窗的分頁切換
+    if postback_data.startswith("tab_"):
+        logger.info(f"偵測到駕駛視窗分頁切換: {postback_data}")
+        success = driver_view_handler.handle_postback_event(user_id, postback_data)
+        if success:
+            logger.info(f"成功處理分頁切換 for {user_id}")
+        else:
+            logger.error(f"處理分頁切換失敗 for {user_id}")
+        return # 處理完畢，直接返回
+
+    # (可選) 在這裡保留或添加其他 postback 邏輯
+    # 例如：處理時間選擇器的 postback
+    if "params" in event["postback"]:
+        params = event["postback"]["params"]
+        if "datetime" in params:
+            # 這是來自 datetime picker 的回調
+            logger.info(f"處理 datetime picker 回調: {params['datetime']}")
+            # 在這裡添加處理 datetime picker 的邏輯
+            # ...
+            return
+
+    logger.warning(f"收到未知的 Postback 資料格式: {postback_data}")
 
 async def handle_message_event(event: dict, db: Optional[Session]):
-    """處理訊息事件（支持可選數據庫）"""
+    """處理 Message 事件"""
     try:
-        message = event.get("message", {})
-        message_type = message.get("type")
-        user_id = event.get("source", {}).get("userId")
+        message_type = event["message"]["type"]
+        user_id = event["source"]["userId"]
         
         if message_type == "text":
-            text = message.get("text", "").strip()
+            text = event["message"].get("text", "").strip()
             
             # 完整模式：使用數據庫和會話管理
             try:
@@ -957,7 +671,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                             # 提供更友善的錯誤訊息
                             send_line_message(user_id, "🔄 系統正在重新初始化您的會員資料\n\n請稍等30秒後重試，或重新加入好友。\n\n如問題持續，請聯繫客服。")
                     return  # 重要：防止觸發默認歡迎訊息
-                    
+                        
                 elif text in ["占卜", "算命", "紫微斗數", "開始占卜", "本週占卜"]:
                     response = handle_divination_request(db, user, session)
                     if response:
@@ -1060,7 +774,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 
 ✨ 讓紫微斗數為您提供更深入的人生指引！""")
                     return  # 重要：防止觸發默認歡迎訊息
-                    
+                        
                 elif session.state == "waiting_for_gender":
                     response = handle_gender_input(db, user, session, text)
                     if response:
@@ -1124,7 +838,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     else:
                         send_line_message(user_id, """❓ 時間格式不正確，請重新輸入：
 
-📝 **支持格式：**
+ **支持格式：**
 • 今天 14:30
 • 昨天 09:15  
 • 2024-01-15 14:30
@@ -1196,7 +910,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                                 # 發送詳細解釋訊息
                                 send_line_flex_messages(user_id, [detail_message])
                             else:
-                                send_line_message(user_id, f"🔮 {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
+                                send_line_message(user_id, f" {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
                                 
                         except Exception as e:
                             logger.error(f"獲取四化詳細解釋失敗: {e}")
@@ -1285,246 +999,188 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 ⭐ 願紫微斗數為您指引人生方向！""")
                     
             except Exception as e:
-                logger.error(f"處理用戶請求失敗：{e}")
+                logger.error(f"處理用戶請求失敗：{e}", exc_info=True)
                 send_line_message(user_id, "系統暫時忙碌，請稍後再試。")
-                
+    
+    # 這個 except 是用來捕捉 message_type 檢查或 user_id 提取的錯誤
     except Exception as e:
-        logger.error(f"處理訊息事件錯誤：{e}")
+        logger.error(f"處理訊息事件的初始階段出錯: {e}", exc_info=True)
+
 
 def handle_follow_event(event: dict, db: Optional[Session]):
-    """處理加好友事件（支持可選數據庫）"""
+    """處理關注事件"""
+    user_id = event["source"]["userId"]
+    logger.info(f"用戶 {user_id} 觸發關注事件，將強制刷新 Rich Menu...")
+
+    # 強制清理所有舊的 DriverView 選單
     try:
-        user_id = event.get("source", {}).get("userId")
-        
-        if db is not None:
-            try:
-                # 嘗試創建用戶記錄
-                user = get_or_create_user(db, user_id)
-                logger.info(f"用戶加入：{user_id}")
-                
-                # 檢查用戶角色並設置對應的 Rich Menu
-                try:
-                    from app.utils.drive_view_rich_menu_manager import set_user_drive_view_menu
-                    user_stats = permission_manager.get_user_stats(db, user)
-                    
-                    # 使用新的駕駛視窗選單系統
-                    user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "user")
-                    success = set_user_drive_view_menu(user_id, user_level, "basic")
-                    
-                    if success:
-                        logger.info(f"✅ 成功為用戶 {user_id} 設置駕駛視窗選單 - 等級: {user_level}")
-                    else:
-                        logger.warning(f"❌ 為用戶 {user_id} 設置駕駛視窗選單失敗")
-                        
-                except Exception as menu_error:
-                    logger.warning(f"❌ 設置用戶駕駛視窗選單失敗: {menu_error}")
-                    
-            except Exception as e:
-                logger.warning(f"創建用戶記錄失敗：{e}")
-        else:
-            logger.info(f"簡化模式：用戶加入 {user_id}")
-
-        # 發送歡迎訊息
-        welcome_message = """🌟 歡迎使用星空紫微斗數系統！ ✨
-
-請點擊下方星球按鈕「本週占卜」開始您的占卜之旅。
-
-🔮 **系統特色：**
-• 即時占卜解析 - 根據當下時間占卜
-• 四化星曜詳解 - 深度解析運勢變化
-• 太極點轉換分析 - 專業命理技術
-• 星空主題介面 - 美觀易用的操作體驗
-
-⭐ 願紫微斗數為您指引人生方向！"""
-        
-        send_line_message(user_id, welcome_message)
-            
+        cleaned_count = driver_view_handler.cleanup_old_driver_menus()
+        logger.info(f"強制清理了 {cleaned_count} 個舊的 DriverView 選單。")
     except Exception as e:
-        logger.error(f"處理加好友事件錯誤：{e}")
+        logger.error(f"清理舊選單時發生錯誤: {e}", exc_info=True)
+
+    # 歡迎訊息
+    welcome_message = """🌟 歡迎加入星空紫微斗數！ ✨
+
+我是您的專屬命理小幫手，運用古老的智慧為您提供現代化的指引。
+
+🔮 **主要功能：**
+• **本週占卜** - 根據當下的「觸機」，為您占卜本週的關鍵運勢。
+• **會員資訊** - 查看您的個人資訊和使用記錄。
+• **命盤綁定** - (即將推出) 綁定您的生辰，獲得更個人化的分析。
+
+👇 **開始您的探索之旅**
+請點擊下方的「**基本功能**」中的「**本週占卜**」，體驗觸機占卜的奧妙！
+
+⭐ 願紫微斗數為您照亮前行的道路！"""
+    
+    send_line_message(user_id, welcome_message)
+    
+    # 為用戶設定全新的預設選單
+    try:
+        # 使用 setup_default_tab 並設定 force_refresh=True
+        success = driver_view_handler.setup_default_tab(user_id, tab_name="basic", force_refresh=True)
+        if success:
+            logger.info(f"✅ 成功為用戶 {user_id} 強制設定了全新的預設 Rich Menu。")
+        else:
+            logger.error(f"❌ 為用戶 {user_id} 強制設定預設 Rich Menu 失敗。")
+        
+    except Exception as e:
+        logger.error(f"關注事件中設定Rich Menu失敗: {e}", exc_info=True)
 
 def handle_unfollow_event(event: dict, db: Optional[Session]):
-    """處理取消好友事件（支持可選數據庫）"""
-    try:
-        user_id = event.get("source", {}).get("userId")
-        
-        if db is not None:
-            try:
-                # 清理用戶會話
-                clear_user_session(db, user_id)
-                logger.info(f"用戶離開，已清理會話：{user_id}")
-            except Exception as e:
-                logger.warning(f"清理用戶會話失敗：{e}")
-        else:
-            logger.info(f"簡化模式：用戶離開 {user_id}")
-        
-    except Exception as e:
-        logger.error(f"處理取消好友事件錯誤：{e}")
+    """處理取消關注事件"""
+    user_id = event["source"]["userId"]
+    logger.info(f"用戶 {user_id} 已取消關注")
+    
+    if db:
+        try:
+            user = db.query(LineBotUser).filter(LineBotUser.line_user_id == user_id).first()
+            if user:
+                user.is_active = False
+                db.commit()
+                logger.info(f"用戶 {user_id} 在數據庫中已標記為非活躍")
+        except Exception as e:
+            logger.error(f"更新用戶取消關注狀態失敗: {e}")
+            db.rollback()
 
 def format_user_info(user_stats: Dict) -> str:
-    """格式化用戶資訊 - 加強錯誤處理"""
-    try:
-        user_info = user_stats.get("user_info", {})
-        stats = user_stats.get("statistics", {}) 
-        membership = user_stats.get("membership_info", {})
+    """格式化會員資訊"""
+    
+    user_info = user_stats.get("user_info", {})
+    membership_info = user_stats.get("membership_info", {})
+    divination_stats = user_stats.get("divination_stats", {})
+    
+    # 基本資料
+    user_id_masked = user_info.get("line_user_id", "未知ID")[:8] + "..."
+    status = "活躍" if user_info.get("is_active") else "非活躍"
+    
+    # 會員等級
+    membership_level = "尊貴會員" if membership_info.get("is_premium") else "免費會員"
+    if user_info.get("is_admin"):
+        membership_level = "👑 管理員"
         
-        # 防護性檢查
-        display_name = user_info.get("display_name", "未設定") or "未設定"
-        level_name = membership.get("level_name", "免費會員")
-        
-        # 處理時間格式
-        created_at_str = user_info.get("created_at", "")
+    # 會員到期日
+    expiry_date = membership_info.get("expires_at")
+    if expiry_date:
         try:
-            if created_at_str:
-                join_date = datetime.fromisoformat(created_at_str).strftime("%Y-%m-%d")
-            else:
-                join_date = "未知"
-        except:
-            join_date = "未知"
+            expiry_date_str = datetime.fromisoformat(expiry_date).strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            expiry_date_str = "永久"
+    else:
+        expiry_date_str = "永久" if membership_info.get("is_premium") else "N/A"
         
-        total_divinations = stats.get("total_divinations", 0)
-        weekly_divinations = stats.get("weekly_divinations", 0)
+    # 占卜統計
+    total_divinations = divination_stats.get("total_divinations", 0)
+    last_divination_time = divination_stats.get("last_divination_time")
+    if last_divination_time:
+        try:
+            last_divination_time_str = datetime.fromisoformat(last_divination_time).strftime("%Y-%m-%d %H:%M")
+        except (ValueError, TypeError):
+            last_divination_time_str = "無記錄"
+    else:
+        last_divination_time_str = "無記錄"
         
-        message = f"""👤 **會員資訊** ✨
-
-🏷️ 暱稱：{display_name}
-🎖️ 等級：{level_name}
-📅 加入時間：{join_date}
-
-📊 **使用統計**
-🔮 總占卜次數：{total_divinations} 次
-📅 本週占卜：{weekly_divinations} 次
-"""
-        
-        is_premium = membership.get("is_premium", False)
-        weekly_limit = stats.get("weekly_limit", 1)
-        
-        if not is_premium:
-            message += f"⏳ 週限制：{weekly_limit} 次\n"
-        else:
-            message += "⏳ 週限制：無限制 ✨\n"
-        
-        return message
-        
-    except Exception as e:
-        logger.error(f"格式化用戶資訊失敗: {e}")
-        return """👤 **會員資訊** ✨
-
-🏷️ 暱稱：系統用戶
-🎖️ 等級：免費會員
-📅 加入時間：未知
-
-📊 **使用統計**
-🔮 總占卜次數：- 次
-📅 本週占卜：- 次
-⏳ 週限制：1 次
-
-⚠️ 資料讀取異常，請重新加入好友或聯繫客服。"""
+    message = (
+        f"👤 **會員資訊**\n\n"
+        f"**用戶ID:** {user_id_masked}\n"
+        f"**狀態:** {status}\n\n"
+        f"💎 **會員等級:** {membership_level}\n"
+        f"**到期日:** {expiry_date_str}\n\n"
+        f"🔮 **占卜統計:**\n"
+        f"**總次數:** {total_divinations} 次\n"
+        f"**上次占卜:** {last_divination_time_str}"
+    )
+    
+    return message
 
 def get_or_create_user(db: Session, user_id: str) -> LineBotUser:
-    """獲取或創建用戶"""
+    """獲取或創建用戶（數據庫模式）"""
+    if not db:
+        # 簡化模式下，返回一個臨時的 LineBotUser 對象
+        return LineBotUser(line_user_id=user_id, is_active=True)
+        
     try:
-        from app.models.linebot_models import LineBotUser
-        
-        # 查找現有用戶
         user = db.query(LineBotUser).filter(LineBotUser.line_user_id == user_id).first()
+        if user:
+            # 如果用戶存在但被標記為非活躍，重新激活
+            if not user.is_active:
+                user.is_active = True
+                db.commit()
+                db.refresh(user)
+                logger.info(f"重新激活用戶: {user_id}")
+            return user
         
-        if not user:
-            # 創建新用戶
-            user = LineBotUser(
-                line_user_id=user_id,
-                display_name="新用戶",
-                membership_level="free",
-                gender="男"  # 默認性別
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            logger.info(f"創建新用戶：{user_id}")
-        
-        return user
+        # 如果用戶不存在，創建新用戶
+        logger.info(f"創建新用戶: {user_id}")
+        new_user = LineBotUser(line_user_id=user_id, is_active=True)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
         
     except Exception as e:
-        logger.error(f"獲取或創建用戶失敗：{e}")
-        raise
+        logger.error(f"獲取或創建用戶失敗: {e}")
+        db.rollback()
+        # 發生錯誤時，返回一個臨時用戶對象以避免崩潰
+        return LineBotUser(line_user_id=user_id, is_active=True)
 
 def clear_user_session(db: Session, user_id: str):
-    """清理用戶會話"""
-    try:
-        # 這裡可以添加清理數據庫中會話記錄的邏輯
-        # 目前主要是記錄日誌
-        logger.info(f"清理用戶會話：{user_id}")
-        
-    except Exception as e:
-        logger.error(f"清理用戶會話失敗：{e}")
+    """清除用戶會話狀態（數據庫模式）"""
+    if user_id in user_sessions:
+        del user_sessions[user_id]
+        logger.info(f"已清除用戶 {user_id} 的記憶體會話")
 
 def verify_line_signature(body: bytes, signature: str) -> bool:
-    """驗證LINE簽名"""
+    """驗證 LINE 簽名"""
     try:
+        from app.config.linebot_config import LineBotConfig
         import hmac
         import hashlib
         import base64
-        
-        # 驗證配置是否正確載入
-        LineBotConfig._validate_line_config()
-        
-        # 使用配置中的 LINE Channel Secret
-        channel_secret = LineBotConfig.CHANNEL_SECRET
-        
-        # 詳細的配置檢查
-        if not channel_secret:
-            logger.error("❌ LINE_CHANNEL_SECRET 環境變數為空")
-            logger.error("請確認在 Railway 環境變數中設定了 LINE_CHANNEL_SECRET")
-            return False
-            
-        if channel_secret == "your_channel_secret_here":
-            logger.error("❌ LINE_CHANNEL_SECRET 仍為預設值，簽名驗證將失敗")
-            logger.error("正確的 Channel Secret 應為: 611969a2b460d46e71648a2c3a6d54fb")
-            logger.error("請在 Railway 專案設定中添加環境變數：")
-            logger.error("變數名: LINE_CHANNEL_SECRET")
-            logger.error("變數值: 611969a2b460d46e71648a2c3a6d54fb")
-            return False
-        
-        # 計算預期的簽名
-        expected_signature = base64.b64encode(
-            hmac.new(
-                channel_secret.encode('utf-8'),
-                body,
-                hashlib.sha256
-            ).digest()
-        ).decode('utf-8')
-        
-        # 比較簽名
-        if signature == expected_signature:
-            logger.info("✅ LINE 簽名驗證成功")
+
+        if not LineBotConfig.CHANNEL_SECRET:
+            logger.warning("未設定 CHANNEL_SECRET，跳過簽名驗證")
             return True
-        else:
-            logger.error("❌ LINE 簽名驗證失敗")
-            logger.error(f"預期簽名: {expected_signature[:20]}...")
-            logger.error(f"實際簽名: {signature[:20]}...")
-            logger.error(f"使用的 Channel Secret: {channel_secret[:8]}...")
-            logger.error(f"請求主體長度: {len(body)} bytes")
-            
-            # 如果是預期的 Channel Secret，提供詳細的除錯資訊
-            if channel_secret == "611969a2b460d46e71648a2c3a6d54fb":
-                logger.info("Channel Secret 正確，但簽名不匹配 - 可能是請求主體差異")
-                logger.debug(f"請求主體內容: {body.decode('utf-8', errors='replace')[:200]}...")
-            else:
-                logger.error("Channel Secret 不正確，請檢查環境變數設定")
-            
-            return False
-            
+
+        hash_obj = hmac.new(
+            LineBotConfig.CHANNEL_SECRET.encode('utf-8'),
+            body,
+            hashlib.sha256
+        ).digest()
+        
+        expected_signature = base64.b64encode(hash_obj).decode('utf-8')
+        
+        return hmac.compare_digest(expected_signature, signature)
+
     except Exception as e:
-        logger.error(f"❌ LINE 簽名驗證過程發生錯誤: {e}")
-        logger.error(f"錯誤詳情: {type(e).__name__}: {str(e)}")
-        import traceback
-        logger.error(f"完整錯誤追蹤: {traceback.format_exc()}")
+        logger.error(f"驗證簽名時發生錯誤: {e}")
         return False
 
-# 健康檢查端點
 @router.get("/health")
 async def health_check():
     """健康檢查端點"""
-    return {"status": "healthy", "service": "LINE Bot Webhook"}
+    return {"status": "healthy"}
 
 # 導出路由器
 __all__ = ["router"] 

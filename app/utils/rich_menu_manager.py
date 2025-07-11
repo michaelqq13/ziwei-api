@@ -10,8 +10,8 @@ import logging
 
 from app.config.linebot_config import LineBotConfig
 from app.utils.image_based_rich_menu_generator import generate_image_based_rich_menu
-# 替換starry相關的引用為driver_view
-from app.utils.driver_view_rich_menu_handler import DriverViewRichMenuHandler
+# 移除此處的全域導入以解決循環依賴問題
+# from app.utils.driver_view_rich_menu_handler import DriverViewRichMenuHandler
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +191,9 @@ class RichMenuManager:
         Returns:
             Dict: Rich Menu 配置
         """
+        # 使用延遲導入來避免循環依賴
+        from app.utils.driver_view_rich_menu_handler import DriverViewRichMenuHandler
+        
         # 使用駕駛視窗處理器
         handler = DriverViewRichMenuHandler()
         

@@ -18,7 +18,25 @@ class DriverViewRichMenuHandler:
     def __init__(self):
         # 移除循環導入，改為在需要時才導入
         self.manager = None  # 延遲初始化
-        self.base_image_path = "rich_menu_images/drive_view.jpg"  # 使用壓縮後的駕駛視窗圖片
+
+        # 動態構建基礎圖片的絕對路徑，以解決不同環境下的路徑問題
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.join(current_dir, '..', '..')
+            self.base_image_path = os.path.join(project_root, 'rich_menu_images', 'drive_view.jpg')
+
+            # 在初始化時立即檢查檔案是否存在，以便快速失敗和調試
+            if not os.path.exists(self.base_image_path):
+                logger.error(f"!!!!!!!!!! FATAL ERROR !!!!!!!!!!")
+                logger.error(f"基礎圖片 'drive_view.jpg' 不存在於預期路徑: {self.base_image_path}")
+                logger.error(f"請檢查檔案是否存在，以及部署時是否已包含 'rich_menu_images' 資料夾。")
+                # 在無法找到關鍵資源時，可以考慮拋出異常來阻止應用繼續運行
+                # raise FileNotFoundError(f"Base image not found at: {self.base_image_path}")
+        except Exception as e:
+            logger.error(f"在構建基礎圖片路徑時發生嚴重錯誤: {e}", exc_info=True)
+            # 設置一個無效路徑，以確保後續操作會失敗並產生日誌
+            self.base_image_path = "invalid/path/drive_view.jpg"
+
         self.rich_menu_cache = {}  # 緩存不同分頁的 Rich Menu ID
         
         # 載入按鈕圖片配置
@@ -70,15 +88,53 @@ class DriverViewRichMenuHandler:
         
         button_width = 400  # 縮小按鈕寬度以適應螢幕
         button_height = 200  # 縮小按鈕高度
-        left_buttons_y = 550  # 左側按鈕調整到合理位置
-        middle_buttons_y = 525  # 中間按鈕調整到合理位置
-        right_buttons_y = 550  # 右側按鈕調整到合理位置
+        left_buttons_y = 580  # 左側按鈕保持不變
+        middle_buttons_y = 525  # 中間按鈕保持不變
+        right_buttons_y = 580  # 右側按鈕與左側對齊
         
         self.button_positions = [
             {"x": left_screen_center_x - button_width // 2, "y": left_buttons_y, "width": button_width, "height": button_height},  # 左側按鈕
             {"x": middle_screen_center_x - button_width // 2, "y": middle_buttons_y, "width": button_width, "height": button_height},  # 中間按鈕
             {"x": right_screen_center_x - button_width // 2, "y": right_buttons_y, "width": button_width, "height": button_height}  # 右側按鈕
         ]
+        
+        # 啟動時從 LINE 同步 Rich Menu
+        self._sync_menus_from_line()
+
+    def _sync_menus_from_line(self):
+        """從 LINE 平台同步符合當前版本的 Rich Menu 到本地快取"""
+        try:
+            self._ensure_manager()
+            logger.info("🔄 正在從 LINE 平台同步 Rich Menu...")
+            all_menus = self.manager.get_rich_menu_list()
+            if not all_menus:
+                logger.info("📋 在 LINE 平台上沒有找到任何 Rich Menu。")
+                return
+
+            synced_count = 0
+            for menu in all_menus:
+                menu_name = menu.get("name", "")
+                if menu_name.startswith("DriverView_") and menu_name.endswith(f"_{self.menu_version}"):
+                    # 從名稱 'DriverView_basic_v2.2' 中提取 'basic'
+                    parts = menu_name.split('_')
+                    if len(parts) == 3:
+                        tab_name = parts[1]
+                        menu_id = menu.get("richMenuId")
+                        cache_key = f"driver_view_{tab_name}"
+                        
+                        # 只有當快取中沒有或 ID 不同時才更新
+                        if self.rich_menu_cache.get(cache_key) != menu_id:
+                            self.rich_menu_cache[cache_key] = menu_id
+                            logger.info(f"  ✅ 同步並快取 '{tab_name}': {menu_id}")
+                            synced_count += 1
+            
+            if synced_count > 0:
+                logger.info(f"🎉 成功同步 {synced_count} 個 Rich Menu。")
+            else:
+                logger.info("🏁 同步完成，本地快取已是最新狀態。")
+
+        except Exception as e:
+            logger.error(f"❌ 從 LINE 同步 Rich Menu 時發生錯誤: {e}", exc_info=True)
     
     def _load_button_images_config(self) -> Dict:
         """載入按鈕圖片配置"""
@@ -157,6 +213,9 @@ class DriverViewRichMenuHandler:
             # 延遲導入 RichMenuManager
             self._ensure_manager()
 
+            # 在打開圖片前，打印出將要使用的路徑，用於最終診斷
+            logger.info(f"DIAGNOSTIC_LOG: Attempting to open base image at path: '{self.base_image_path}'")
+
             # 載入基礎圖片
             base_image = Image.open(self.base_image_path).convert('RGBA')
             
@@ -177,7 +236,7 @@ class DriverViewRichMenuHandler:
             for font_path in chinese_font_paths:
                 try:
                     if os.path.exists(font_path):
-                        font_large = ImageFont.truetype(font_path, 45)  # 分頁字體改回原來大小 45px
+                        font_large = ImageFont.truetype(font_path, 75)  # 分頁字體微調至 75px
                         font_medium = ImageFont.truetype(font_path, 40)  # 分頁字體改回原來大小 40px
                         font_small = ImageFont.truetype(font_path, 48)  # 按鈕字體保持48px
                         logger.info(f"✅ 成功載入中文字體: {font_path}")
@@ -201,18 +260,17 @@ class DriverViewRichMenuHandler:
             for i, (tab_key, tab_name) in enumerate(zip(tabs, tab_names)):
                 pos = self.tab_positions[i]
                 
-                # 重新計算分頁文字位置，確保完全在白色螢幕內
-                if i == 0:  # 左側螢幕 (x=417, y=246, w=500, h=83) - 最小螢幕
-                    # 文字位置稍微往右下移動，確保在螢幕內
-                    center_x = pos["x"] + pos["width"] // 2  # 417 + 250 = 667
-                    center_y = pos["y"] + pos["height"] // 2 + 10  # 246 + 41 + 10 = 297，往下移10px
-                elif i == 1:  # 中間螢幕 (x=1000, y=50, w=500, h=279) - 最大螢幕
-                    center_x = pos["x"] + pos["width"] // 2  # 1000 + 250 = 1250
-                    center_y = pos["y"] + pos["height"] // 2  # 50 + 139 = 189，中心位置
-                else:  # 右側螢幕 (x=1583, y=266, w=500, h=63) - 最小螢幕
-                    # 文字位置稍微往左下移動，確保在螢幕內
-                    center_x = pos["x"] + pos["width"] // 2  # 1583 + 250 = 1833
-                    center_y = pos["y"] + pos["height"] // 2 + 5  # 266 + 31 + 5 = 302，往下移5px
+                # 將文字置於對應螢幕的中心，並根據分頁單獨調整垂直與水平位移
+                center_x = pos["x"] + pos["width"] // 2
+                
+                if i == 0:  # 基本功能
+                    center_y = pos["y"] + pos["height"] // 2 + 150
+                    center_x -= 10  # 向左移動 10px
+                elif i == 1:  # 運勢
+                    center_y = pos["y"] + pos["height"] // 2 + 185  # 向上移動 5px
+                else:  # 進階選項
+                    center_y = pos["y"] + pos["height"] // 2 + 140
+                    center_x += 10  # 向右移動 10px
                 
                 # 創建文字圖片，以支援旋轉
                 if i == 0:  # 左側螢幕 - 基本功能，向右傾斜15度
@@ -230,24 +288,14 @@ class DriverViewRichMenuHandler:
                 
                 # 將文字圖片貼到基礎圖片上
                 if text_img:
+                    # 計算貼上的左上角座標，以使圖片中心對齊螢幕中心
                     text_x = center_x - text_img.width // 2
                     text_y = center_y - text_img.height // 2
                     
-                    # 根據螢幕大小調整文字位置限制
-                    if i == 0:  # 左側螢幕 - 最小螢幕，限制更嚴格
-                        text_x = max(pos["x"] + 10, min(text_x, pos["x"] + pos["width"] - text_img.width - 10))
-                        text_y = max(pos["y"] + 5, min(text_y, pos["y"] + pos["height"] - text_img.height - 5))
-                    elif i == 1:  # 中間螢幕 - 最大螢幕，限制較寬鬆
-                        text_x = max(pos["x"] + 20, min(text_x, pos["x"] + pos["width"] - text_img.width - 20))
-                        text_y = max(pos["y"] + 10, min(text_y, pos["y"] + pos["height"] - text_img.height - 10))
-                    else:  # 右側螢幕 - 最小螢幕，限制更嚴格
-                        text_x = max(pos["x"] + 10, min(text_x, pos["x"] + pos["width"] - text_img.width - 10))
-                        text_y = max(pos["y"] + 5, min(text_y, pos["y"] + pos["height"] - text_img.height - 5))
-                    
                     if text_img.mode == 'RGBA':
-                        base_image.paste(text_img, (text_x, text_y), text_img)
+                        base_image.paste(text_img, (int(text_x), int(text_y)), text_img)
                     else:
-                        base_image.paste(text_img, (text_x, text_y))
+                        base_image.paste(text_img, (int(text_x), int(text_y)))
 
             # 繪製當前分頁的功能按鈕（在底部按鈕區域）
             if active_tab in self.tab_configs:
@@ -317,61 +365,75 @@ class DriverViewRichMenuHandler:
             return None
     
     def _draw_image_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, image_key: str, font_small):
-        """繪製圖片按鈕 - 直接使用user_images中的現有圖片"""
+        """繪製圖片按鈕 - 將圖標和文字作為獨立層處理，確保不重疊"""
         try:
             button_config = self.button_images_config["button_images"][image_key]
             image_file = button_config["image_file"]
             image_path = f"user_images/{image_file}"
             
             if not os.path.exists(image_path):
-                logger.warning(f"⚠️ 按鈕圖片不存在: {image_path}")
+                logger.warning(f"⚠️ 按鈕圖片不存在: {image_path}, 使用文字按鈕替代。")
                 self._draw_text_button(base_image, btn_pos, btn_text, font_small)
                 return
             
-            # 載入按鈕圖片
             button_img = Image.open(image_path).convert("RGBA")
-            
-            # 計算圖片大小 - 使用配置中的尺寸
             image_settings = self.button_images_config.get("image_settings", {})
-            button_size = image_settings.get("button_size", 120)  # 縮小圖片尺寸，為文字留空間
             
-            # 調整圖片大小，保持比例
+            # --- 按鈕尺寸與位置調整 ---
+            # 從設定檔讀取預設尺寸，如果未設定則為 120
+            button_size = image_settings.get("button_size", 120)
+            # 預設Y軸偏移
+            y_offset = 20
+            
+            # --- 特別調整：「命盤綁定」圖示放大並下移 ---
+            if image_key == "chart_binding":
+                button_size += 40  # 在基礎尺寸上增加 40px (例如 380 -> 420)
+                y_offset = 55      # 增加下移距離 (20預設 + 35額外)
+            
             button_img.thumbnail((button_size, button_size), Image.Resampling.LANCZOS)
+
+            # --- 步驟 1: 繪製圖標 ---
+            # 將圖標置於按鈕區域的上半部分，水平居中
+            icon_x = btn_pos["x"] + (btn_pos["width"] - button_img.width) // 2
+            icon_y = btn_pos["y"] + y_offset  # 從按鈕頂部向下偏移
             
-            # 圖片位置 (在按鈕上部)
-            img_x = btn_pos["x"] + (btn_pos["width"] - button_img.width) // 2
-            img_y = btn_pos["y"] + (btn_pos["height"] - button_img.height - 40) // 2  # 向上移動，為文字留空間
-            
-            # 確保圖片在按鈕範圍內
-            img_x = max(btn_pos["x"], min(img_x, btn_pos["x"] + btn_pos["width"] - button_img.width))
-            img_y = max(btn_pos["y"], min(img_y, btn_pos["y"] + btn_pos["height"] - button_img.height))
-            
-            # 直接貼上按鈕圖片
             if button_img.mode == 'RGBA':
-                base_image.paste(button_img, (img_x, img_y), button_img)
+                base_image.paste(button_img, (int(icon_x), int(icon_y)), button_img)
             else:
-                base_image.paste(button_img, (img_x, img_y))
-            
-            # 添加文字標籤 (在按鈕底部)
-            draw = ImageDraw.Draw(base_image)
-            text_x = btn_pos["x"] + btn_pos["width"] // 2  # 文字水平居中於按鈕
-            text_y = btn_pos["y"] + btn_pos["height"] - 30  # 文字在按鈕底部上方30px
-            
-            # 增大字體尺寸，讓說明文字更清楚
+                base_image.paste(button_img, (int(icon_x), int(icon_y)))
+                
+            # --- 步驟 2: 將文字繪製成獨立圖片 ---
             try:
-                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 56)  # 調整說明文字字體到56px
-            except:
-                text_font = font_small if font_small else ImageFont.load_default()
-            
-            # 繪製黑色文字，在按鈕底下居中
-            draw.text((text_x, text_y), btn_text, fill=(0, 0, 0), 
-                     font=text_font, anchor="mb")  # 使用 "mb" 錨點：中間底部對齊
-            
-            logger.debug(f"✅ 圖片按鈕繪製成功: {image_key} at 圖片({img_x}, {img_y}), 文字({text_x}, {text_y})")
-            
+                text_font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 56)
+            except IOError:
+                logger.warning("PingFang字體未找到，使用Hiragino Sans GB替代。")
+                try:
+                    text_font = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", 56)
+                except IOError:
+                    logger.warning("Hiragino Sans GB字體也未找到，使用預設字體。")
+                    text_font = font_small if font_small else ImageFont.load_default()
+
+            # 使用 _create_rotated_text 創建文字圖片 (無旋轉，黑色文字)
+            text_img = self._create_rotated_text(btn_text, text_font, (0, 0, 0), 0)
+
+            # --- 步驟 3: 繪製文字圖片 ---
+            if text_img:
+                # 將文字圖片置於圖標正下方，水平居中
+                text_x = btn_pos["x"] + (btn_pos["width"] - text_img.width) // 2
+                text_y = icon_y + button_img.height + 10  # 圖標下方10px處
+
+                # 針對「命盤綁定」的文字位置做特別調整，使其與左側按鈕對齊
+                if image_key == "chart_binding":
+                    # 增加一個垂直方向的補償值，以修正因圖示大小和位置不同造成的文字不對齊
+                    text_y += 65
+
+                if text_img.mode == 'RGBA':
+                    base_image.paste(text_img, (int(text_x), int(text_y)), text_img)
+                else:
+                    base_image.paste(text_img, (int(text_x), int(text_y)))
+        
         except Exception as e:
-            logger.error(f"❌ 繪製圖片按鈕失敗: {e}")
-            # 失敗時使用文字按鈕
+            logger.error(f"❌ 繪製圖片按鈕時發生嚴重錯誤: {e}", exc_info=True)
             self._draw_text_button(base_image, btn_pos, btn_text, font_small)
     
     def _draw_text_button(self, base_image: Image.Image, btn_pos: Dict, btn_text: str, font_small):
@@ -650,52 +712,40 @@ class DriverViewRichMenuHandler:
 
     def switch_to_tab(self, user_id: str, tab_name: str) -> bool:
         """
-        切換到指定分頁
-        
-        Args:
-            user_id: 用戶 ID
-            tab_name: 分頁名稱 ("basic", "fortune", "advanced")
-            
-        Returns:
-            bool: 是否成功切換
+        切換到指定分頁 - 優化版
+        優先從快取查找，若快取沒有則創建新的
         """
         try:
-            # 確保 manager 已初始化
             self._ensure_manager()
-            
-            # 檢查緩存
             cache_key = f"driver_view_{tab_name}"
-            rich_menu_id = None
-            
-            if cache_key in self.rich_menu_cache:
-                cached_id = self.rich_menu_cache[cache_key]
-                # 驗證緩存的選單是否仍然有效
-                if self.validate_cached_menu(cached_id):
-                    rich_menu_id = cached_id
-                    logger.info(f"✅ 使用有效的緩存 Rich Menu: {rich_menu_id}")
-                else:
-                    logger.info(f"🔄 緩存的選單已無效，將重新創建: {cached_id}")
-                    del self.rich_menu_cache[cache_key]
-            
-            # 如果沒有有效的緩存選單，創建新的
-            if not rich_menu_id:
-                rich_menu_id = self.create_tab_rich_menu(tab_name)
+
+            # 1. 優先從快取中獲取 rich_menu_id
+            rich_menu_id = self.rich_menu_cache.get(cache_key)
+
+            # 2. 如果快取中沒有或經驗證後無效，則創建一個新的
+            if not rich_menu_id or not self.validate_cached_menu(rich_menu_id):
                 if not rich_menu_id:
-                    logger.error(f"❌ 創建分頁 Rich Menu 失敗: {tab_name}")
+                    logger.warning(f"本地快取中未找到 '{tab_name}' 的選單，將嘗試創建一個新的...")
+                else:
+                    logger.warning(f"快取中 '{tab_name}' 的選單ID '{rich_menu_id}' 已失效，將強制刷新...")
+                
+                rich_menu_id = self.force_refresh_menu(tab_name) # 強制刷新
+                if not rich_menu_id:
+                    logger.error(f"❌ 創建/刷新分頁 Rich Menu 失敗: {tab_name}")
                     return False
-                self.rich_menu_cache[cache_key] = rich_menu_id
             
-            # 為用戶設定 Rich Menu
+            # 3. 為用戶設定 Rich Menu
             success = self.manager.set_user_rich_menu(user_id, rich_menu_id)
             if success:
-                logger.info(f"✅ 用戶 {user_id} 成功切換到分頁: {tab_name}")
+                logger.info(f"✅ 用戶 {user_id} 成功切換到分頁: {tab_name} ({rich_menu_id})")
             else:
-                logger.error(f"❌ 用戶 {user_id} 切換分頁失敗: {tab_name}")
-            
+                logger.error(f"❌ 用戶 {user_id} 切換分頁失敗: {tab_name} ({rich_menu_id})。將在下次觸發時驗證並可能刷新。")
+                # 這一步不再直接刪除快取，而是讓下一次的 validate_cached_menu 來處理失效的ID
+
             return success
             
         except Exception as e:
-            logger.error(f"❌ 切換分頁時發生錯誤: {e}")
+            logger.error(f"❌ 切換分頁時發生錯誤: {e}", exc_info=True)
             return False
     
     def create_tab_rich_menu(self, tab_name: str) -> Optional[str]:
@@ -743,6 +793,8 @@ class DriverViewRichMenuHandler:
                 self.manager.delete_rich_menu(rich_menu_id)
                 return None
             
+            # 將新創建的 Rich Menu ID 更新到快取中
+            self.rich_menu_cache[f"driver_view_{tab_name}"] = rich_menu_id
             logger.info(f"✅ 分頁 Rich Menu 創建成功: {tab_name} -> {rich_menu_id}")
             return rich_menu_id
             
