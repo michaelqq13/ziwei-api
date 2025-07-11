@@ -1,23 +1,13 @@
 # nixpacks.toml
 
-[phases.build]
+[phases.setup]
 cmds = [
-    "echo '=== BUILD PHASE: Checking for rich_menu_images ==='",
-    "pwd",
-    "ls -la",
-    "ls -la rich_menu_images/ || echo 'rich_menu_images directory not found'",
-    "mkdir -p /tmp/rich_menu_images_backup",
-    "cp -r rich_menu_images/* /tmp/rich_menu_images_backup/ 2>/dev/null || echo 'Failed to backup rich_menu_images'",
-    "echo '=== BUILD PHASE COMPLETE ==='",
-]
-
-[phases.install]
-cmds = [
-    "echo '=== INSTALL PHASE: Ensuring rich_menu_images exists in app ==='",
-    "mkdir -p /app/rich_menu_images",
-    "cp -r /tmp/rich_menu_images_backup/* /app/rich_menu_images/ 2>/dev/null || echo 'Failed to restore rich_menu_images from backup'",
-    "ls -la /app/rich_menu_images/ || echo '/app/rich_menu_images does not exist'",
-    "echo '=== INSTALL PHASE COMPLETE ==='",
+    "echo '=== SETUP PHASE: Copying rich_menu_images ==='",
+    "ls -la rich_menu_images/ || echo 'rich_menu_images directory not found in source'",
+    "mkdir -p /app/rich_menu_images || echo 'Failed to create /app/rich_menu_images'",
+    "cp -r rich_menu_images/* /app/rich_menu_images/ 2>/dev/null || echo 'Failed to copy images'",
+    "ls -la /app/rich_menu_images/ || echo '/app/rich_menu_images listing failed'",
+    "echo '=== SETUP PHASE COMPLETE ==='",
 ]
 
 [start]
