@@ -12,10 +12,7 @@ import traceback
 from app.logic.purple_star_chart import PurpleStarChart
 from app.config.linebot_config import LineBotConfig
 from app.utils.chinese_calendar import ChineseCalendar
-from app.models.birth_info import BirthInfo
-from app.models.divination import DivinationRecord
-from app.models.user_preferences import UserPreferences
-from app.db.repository import CalendarRepository
+from app.models.linebot_models import DivinationHistory, LineBotUser
 from app.data.heavenly_stems.four_transformations import four_transformations_explanations
 
 # 設置日誌
@@ -70,11 +67,12 @@ class DivinationLogic:
             logger.error(f"計算分鐘地支錯誤：{e}")
             raise
 
-    def perform_divination(self, gender: str, current_time: datetime = None, db: Optional[Session] = None) -> Dict:
+    def perform_divination(self, user: LineBotUser, gender: str, current_time: datetime = None, db: Optional[Session] = None) -> Dict:
         """
         執行占卜邏輯 - 簡化版本，使用太極盤架構
         
         Args:
+            user: 進行占卜的用戶物件
             gender: 性別
             current_time: 指定時間（可選，默認使用當前時間）
             db: 數據庫會話（可選）
@@ -87,7 +85,7 @@ class DivinationLogic:
             if current_time is None:
                 current_time = get_current_taipei_time()
             
-            logger.info(f"開始占卜 - 時間：{current_time}，性別：{gender}，數據庫：{'有' if db else '無'}")
+            logger.info(f"開始占卜 - User: {user.line_user_id if user else 'N/A'}, 時間：{current_time}，性別：{gender}，數據庫：{'有' if db else '無'}")
             
             # 2. 計算分鐘地支（太極點）
             minute_dizhi = self.get_minute_dizhi(current_time)
@@ -122,18 +120,19 @@ class DivinationLogic:
             sihua_results = chart.get_taichi_sihua_explanations(palace_tiangan)
             logger.info(f"四化解釋獲取完成，共 {len(sihua_results)} 個")
             
-            # 7. 保存占卜記錄（僅在有數據庫時）
+            # 7. 保存占卜記錄（僅在有數據庫且用戶存在時）
             divination_id = None
-            if db is not None:
+            if db is not None and user and hasattr(user, 'id') and user.id is not None:
                 try:
-                    from app.models.divination import DivinationRecord
+                    sihua_json = json.dumps(sihua_results, ensure_ascii=False)
                     
-                    divination_record = DivinationRecord(
-                        trigger_time=current_time,
-                        trigger_stem=palace_tiangan,
-                        trigger_branch=minute_dizhi,
+                    divination_record = DivinationHistory(
+                        user_id=user.id,
+                        gender=gender,
+                        divination_time=current_time,
                         taichi_palace=f"{minute_dizhi}宮",
-                        sihua_explanations=str(sihua_results)
+                        minute_dizhi=minute_dizhi,
+                        sihua_results=sihua_json
                     )
                     
                     db.add(divination_record)
@@ -145,7 +144,7 @@ class DivinationLogic:
                     if db:
                         db.rollback()
             else:
-                logger.info("簡化模式：跳過占卜記錄保存")
+                logger.info("簡化模式或無用戶信息：跳過占卜記錄保存")
             
             # 8. 取得太極盤資料
             taichi_chart_data = chart.get_chart()
@@ -189,12 +188,13 @@ class DivinationLogic:
 # 全局實例
 divination_logic = DivinationLogic()
 
-def get_divination_result(db: Optional[Session], gender: str, current_time: datetime = None) -> Dict:
+def get_divination_result(db: Optional[Session], user: LineBotUser, gender: str, current_time: datetime = None) -> Dict:
     """
     執行占卜並返回結果（支持可選數據庫）
     
     Args:
         db: 數據庫會話（可選）
+        user: LineBotUser 物件
         gender: 性別
         current_time: 指定時間（可選）
         
@@ -203,7 +203,7 @@ def get_divination_result(db: Optional[Session], gender: str, current_time: date
     """
     try:
         divination_logic = DivinationLogic()
-        result = divination_logic.perform_divination(gender, current_time, db)
+        result = divination_logic.perform_divination(user, gender, current_time, db)
         
         logger.info(f"占卜結果獲取完成，成功：{result.get('success', False)}")
         return result

@@ -247,8 +247,9 @@ class PermissionManager:
                 "membership_level": user.membership_level,
                 "is_admin": user.is_admin(),
                 "is_premium": user.is_premium(),
-                "created_at": user.created_at.isoformat(),
-                "last_active_at": user.last_active_at.isoformat()
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+                "last_active_at": user.last_active_at.isoformat() if user.last_active_at else None
             },
             "statistics": {
                 "total_divinations": total_divinations,

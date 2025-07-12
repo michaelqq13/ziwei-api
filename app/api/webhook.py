@@ -246,7 +246,7 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
     # 執行占卜
     try:
         current_time = get_current_taipei_time()
-        result = divination_logic.perform_divination(gender, current_time, db)
+        result = divination_logic.perform_divination(user, gender, current_time, db)
         
         if result["success"]:
             # 獲取用戶權限等級
@@ -271,7 +271,7 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
         logger.error(f"執行占卜時發生錯誤: {e}", exc_info=True)
         return "執行占卜時發生未預期的錯誤，請聯繫管理員。"
     finally:
-        session.clear_state()
+        session.clear()
         
     return None # 表示已經發送了 Flex 訊息
 
@@ -482,7 +482,7 @@ def execute_time_divination(db: Optional[Session], user: LineBotUser, session: M
         return "❌ 找不到性別資訊，請重新開始。"
         
     try:
-        result = divination_logic.perform_divination(gender, target_time, db)
+        result = divination_logic.perform_divination(user, gender, target_time, db)
         
         if result["success"]:
             # 使用 Flex Message 產生器
