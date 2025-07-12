@@ -1,7 +1,7 @@
 """
 LINE Bot 資料庫模型
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, UniqueConstraint, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
@@ -17,6 +17,7 @@ class LineBotUser(Base):
     line_user_id = Column(String(255), unique=True, nullable=False, index=True)
     display_name = Column(String(255))
     profile_picture_url = Column(String(500))
+    is_active = Column(Boolean, nullable=False, default=True, server_default=text('true'))
     
     # 會員等級
     membership_level = Column(String(50), default=LineBotConfig.MembershipLevel.FREE)
