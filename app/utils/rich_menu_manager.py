@@ -12,7 +12,7 @@ from io import BytesIO
 # LINE Bot SDK imports
 from linebot import LineBotApi
 from linebot.models import (
-    RichMenuRequest, RichMenuSize, RichMenuArea, RichMenuBounds,
+    RichMenu, RichMenuSize, RichMenuArea, RichMenuBounds,
     PostbackAction, MessageAction, URIAction
 )
 from linebot.exceptions import LineBotApiError
@@ -53,7 +53,7 @@ class RichMenuManager:
                 ) for area in rich_menu_config['areas']
             ]
             
-            rich_menu_to_create = RichMenuRequest(
+            rich_menu_to_create = RichMenu(
                 size=RichMenuSize(width=rich_menu_config['size']['width'], height=rich_menu_config['size']['height']),
                 selected=rich_menu_config['selected'],
                 name=rich_menu_config['name'],
