@@ -9,6 +9,14 @@ from typing import Optional, Dict, List, Any
 import logging
 from io import BytesIO
 
+# LINE Bot SDK imports
+from linebot import LineBotApi
+from linebot.models import (
+    RichMenuRequest, RichMenuSize, RichMenuArea, RichMenuBounds,
+    PostbackAction, MessageAction, URIAction
+)
+from linebot.exceptions import LineBotApiError
+
 from app.config.linebot_config import LineBotConfig
 from app.utils.image_based_rich_menu_generator import generate_image_based_rich_menu
 # 移除此處的全域導入以解決循環依賴問題
@@ -239,7 +247,9 @@ def setup_rich_menu() -> Optional[str]:
     Returns:
         str: Rich Menu ID (如果成功)
     """
-    return rich_menu_manager.ensure_default_rich_menu()
+    # 暫時返回 None，因為這個功能需要具體的 Rich Menu 配置
+    logger.info("setup_rich_menu 功能暫時禁用")
+    return None
 
 def get_rich_menu_status() -> Dict[str, Any]:
     """
@@ -249,11 +259,9 @@ def get_rich_menu_status() -> Dict[str, Any]:
         Dict: Rich Menu 狀態
     """
     try:
-        default_id = rich_menu_manager.get_default_rich_menu_id()
         all_menus = rich_menu_manager.get_rich_menu_list()
         
         return {
-            "default_menu_id": default_id,
             "total_menus": len(all_menus) if all_menus else 0,
             "menu_list": all_menus or []
         }
@@ -272,20 +280,18 @@ def update_user_rich_menu(user_id: str, is_admin: bool = False) -> bool:
     Returns:
         bool: 是否成功更新
     """
-    return rich_menu_manager.set_user_menu_by_role(user_id, is_admin)
+    # 暫時返回 False，因為這個功能需要具體的 Rich Menu ID
+    logger.info("update_user_rich_menu 功能暫時禁用")
+    return False
 
 # 導出
 __all__ = [
     "RichMenuManager",
     "rich_menu_manager",
     "setup_rich_menu", 
-    "setup_tabbed_rich_menu",
-    "set_user_tabbed_menu",
-    "get_user_current_tab",
     "get_rich_menu_status",
     "update_user_rich_menu",
     "determine_user_level",
     "get_default_tab_for_user_level",
-    "switch_user_tab",
     "can_access_tab"
 ] 
