@@ -144,7 +144,7 @@ class DynamicRichMenuManager:
                     db.close()
             
             # 檢查權限 - 駕駛視窗的分頁權限檢查
-            available_tabs = self.driver_handler.list_available_tabs()
+            available_tabs = ["basic", "fortune", "advanced"]  # 硬編碼可用分頁
             if target_tab not in available_tabs:
                 logger.warning(f"無效的分頁: {target_tab}")
                 return False
@@ -189,13 +189,14 @@ class DynamicRichMenuManager:
                 user_permissions = permission_manager.get_user_stats(db, user)
                 user_level = determine_user_level(user_permissions)
             
-            # 獲取當前分頁
-            current_tab = rich_menu_manager.get_user_current_tab(user_id)
+            # 獲取當前分頁 - 暫時返回 None
+            current_tab = None  # 暫時禁用此功能
             
             # 獲取可訪問的分頁
             available_tabs = []
             for tab in ["basic", "fortune", "admin"]:
-                if rich_menu_manager.can_access_tab(tab, user_level):
+                from app.utils.rich_menu_manager import can_access_tab
+                if can_access_tab(tab, user_level):
                     available_tabs.append(tab)
             
             return {
