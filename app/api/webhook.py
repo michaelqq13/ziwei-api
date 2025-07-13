@@ -257,7 +257,7 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
 
             # 使用 Flex Message產生器
             message_generator = DivinationFlexMessageGenerator()
-            flex_messages = message_generator.generate_messages(result, is_admin)
+            flex_messages = message_generator.generate_divination_messages(result, is_admin)
             
             # 發送 Flex 訊息
             if flex_messages:
@@ -487,7 +487,7 @@ def execute_time_divination(db: Optional[Session], user: LineBotUser, session: M
         if result["success"]:
             # 使用 Flex Message 產生器
             message_generator = DivinationFlexMessageGenerator()
-            flex_messages = message_generator.generate_messages(result, True) # 管理員模式
+            flex_messages = message_generator.generate_divination_messages(result, True) # 管理員模式
             
             # 發送 Flex 訊息
             if flex_messages:
