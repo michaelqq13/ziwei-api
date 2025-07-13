@@ -17,7 +17,6 @@ from app.models.linebot_models import LineBotUser, DivinationHistory, ChartBindi
 from app.logic.permission_manager import permission_manager, get_user_with_permissions
 from app.logic.divination_logic import divination_logic, get_divination_result
 from app.utils.rich_menu_manager import rich_menu_manager
-from app.utils.driver_view_rich_menu_handler import driver_view_handler
 from app.utils.divination_flex_message import DivinationFlexMessageGenerator
 import os
 import re
@@ -601,16 +600,6 @@ async def handle_postback_event(event: dict, db: Optional[Session]):
     postback_data = event["postback"]["data"]
     logger.info(f"收到來自 {user_id} 的 Postback 事件，資料: {postback_data}")
 
-    # 優先處理駕駛視窗的分頁切換
-    if postback_data.startswith("tab_"):
-        logger.info(f"偵測到駕駛視窗分頁切換: {postback_data}")
-        success = driver_view_handler.handle_postback_event(user_id, postback_data)
-        if success:
-            logger.info(f"成功處理分頁切換 for {user_id}")
-        else:
-            logger.error(f"處理分頁切換失敗 for {user_id}")
-        return # 處理完畢，直接返回
-
     # (可選) 在這裡保留或添加其他 postback 邏輯
     # 例如：處理時間選擇器的 postback
     if "params" in event["postback"]:
@@ -786,28 +775,6 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     response = handle_time_divination_request(db, user, session)
                     if response:
                         send_line_message(user_id, response)
-                    return  # 重要：防止觸發默認歡迎訊息
-                
-                # 處理分頁切換請求 - 靜默切換，不發送訊息
-                elif text in ["切換到基本功能", "基本功能", "切換到基本"]:
-                    from app.utils.dynamic_rich_menu import handle_tab_switch_request
-                    success = handle_tab_switch_request(user_id, "basic")
-                    # 靜默切換，不發送訊息
-                    logger.info(f"用戶 {user_id} 切換到基本功能分頁: {'成功' if success else '失敗'}")
-                    return  # 重要：防止觸發默認歡迎訊息
-                
-                elif text in ["切換到運勢", "運勢", "切換到運勢分頁"]:
-                    from app.utils.dynamic_rich_menu import handle_tab_switch_request
-                    success = handle_tab_switch_request(user_id, "fortune")
-                    # 靜默切換，不發送訊息
-                    logger.info(f"用戶 {user_id} 切換到運勢分頁: {'成功' if success else '失敗'}")
-                    return  # 重要：防止觸發默認歡迎訊息
-                
-                elif text in ["切換到進階選項", "進階選項", "管理員選項", "切換到進階"]:
-                    from app.utils.dynamic_rich_menu import handle_tab_switch_request
-                    success = handle_tab_switch_request(user_id, "admin")
-                    # 靜默切換，不發送訊息
-                    logger.info(f"用戶 {user_id} 切換到進階選項分頁: {'成功' if success else '失敗'}")
                     return  # 重要：防止觸發默認歡迎訊息
                 
                 elif session.state == "waiting_for_time_divination_gender":
@@ -1010,14 +977,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 def handle_follow_event(event: dict, db: Optional[Session]):
     """處理關注事件"""
     user_id = event["source"]["userId"]
-    logger.info(f"用戶 {user_id} 觸發關注事件，將強制刷新 Rich Menu...")
-
-    # 強制清理所有舊的 DriverView 選單
-    try:
-        cleaned_count = driver_view_handler.cleanup_old_driver_menus()
-        logger.info(f"強制清理了 {cleaned_count} 個舊的 DriverView 選單。")
-    except Exception as e:
-        logger.error(f"清理舊選單時發生錯誤: {e}", exc_info=True)
+    logger.info(f"用戶 {user_id} 觸發關注事件...")
 
     # 歡迎訊息
     welcome_message = """🌟 歡迎加入星空紫微斗數！ ✨
@@ -1038,12 +998,11 @@ def handle_follow_event(event: dict, db: Optional[Session]):
     
     # 為用戶設定全新的預設選單
     try:
-        # 使用 setup_default_tab 並設定 force_refresh=True
-        success = driver_view_handler.setup_default_tab(user_id, tab_name="basic", force_refresh=True)
-        if success:
-            logger.info(f"✅ 成功為用戶 {user_id} 強制設定了全新的預設 Rich Menu。")
-        else:
-            logger.error(f"❌ 為用戶 {user_id} 強制設定預設 Rich Menu 失敗。")
+        # TODO: 實作設定單一、固定的 Rich Menu 的邏輯
+        # success = rich_menu_manager.set_default_rich_menu(user_id)
+        logger.info(f"✅ (未來將在此處) 成功為用戶 {user_id} 設定全新的預設 Rich Menu。")
+        # if not success:
+        #     logger.error(f"❌ 為用戶 {user_id} 設定預設 Rich Menu 失敗。")
         
     except Exception as e:
         logger.error(f"關注事件中設定Rich Menu失敗: {e}", exc_info=True)
