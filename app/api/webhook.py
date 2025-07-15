@@ -491,9 +491,14 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
         import threading
         
         def delayed_send():
-            import time
-            time.sleep(2)  # 延迟2秒发送
-            send_line_message(user_id, guidance_message, quick_reply_items)
+            try:
+                import time
+                time.sleep(2)  # 延迟2秒发送
+                send_line_message(user_id, guidance_message, quick_reply_items)
+                logger.info(f"成功延迟发送智能 Quick Reply 给用户 {user_id}")
+            except Exception as delay_error:
+                logger.error(f"延迟发送智能 Quick Reply 失败: {delay_error}")
+                # 如果延迟发送失败，不要显示错误消息给用户
         
         # 在后台线程中发送延迟消息
         thread = threading.Thread(target=delayed_send)
@@ -1104,25 +1109,25 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                 # 檢查是否為四化更多解釋請求  
                 elif "查看" in text and ("星更多解釋" in text or "星完整解釋" in text):
                     # 檢查用戶權限
-                    from app.logic.permission_manager import permission_manager
-                    user_stats = permission_manager.get_user_stats(db, user)
-                    user_type = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
-                    
-                    # 解析四化類型
-                    sihua_type = None
-                    for st in ["祿", "權", "科", "忌"]:
-                        if f"查看{st}星更多解釋" in text or f"查看{st}星完整解釋" in text:
-                            sihua_type = st
-                            break
-                    
-                    # 管理員和付費會員可以查看更多解釋
-                    if user_type not in ["admin", "premium"]:
-                        send_line_message(user_id, "🔒 詳細解釋功能需要升級會員\n\n💎 **升級會員享有：**\n• 查看四化完整解釋\n• 獲得詳細運勢分析\n• 專業命理詳細解讀\n\n✨ 升級即可享受更深度的紫微斗數解析！")
-                        return  # 重要：防止觸發默認歡迎訊息
-                    
-                    if sihua_type:
-                        # 處理四化更多解釋查看請求（僅限管理員）
-                        try:
+                    try:
+                        from app.logic.permission_manager import permission_manager
+                        user_stats = permission_manager.get_user_stats(db, user)
+                        user_type = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
+                        
+                        # 解析四化類型
+                        sihua_type = None
+                        for st in ["祿", "權", "科", "忌"]:
+                            if f"查看{st}星更多解釋" in text or f"查看{st}星完整解釋" in text:
+                                sihua_type = st
+                                break
+                        
+                        # 管理員和付費會員可以查看更多解釋
+                        if user_type not in ["admin", "premium"]:
+                            send_line_message(user_id, "🔒 詳細解釋功能需要升級會員\n\n💎 **升級會員享有：**\n• 查看四化完整解釋\n• 獲得詳細運勢分析\n• 專業命理詳細解讀\n\n✨ 升級即可享受更深度的紫微斗數解析！")
+                            return  # 重要：防止觸發默認歡迎訊息
+                        
+                        if sihua_type:
+                            # 處理四化更多解釋查看請求（僅限管理員和付費會員）
                             # 獲取用戶最近的占卜結果
                             from app.models.linebot_models import DivinationHistory
                             from app.utils.divination_flex_message import DivinationFlexMessageGenerator
@@ -1163,13 +1168,13 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                                 # 發送詳細解釋訊息
                                 send_line_flex_messages(user_id, [detail_message])
                             else:
-                                send_line_message(user_id, f" {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
+                                send_line_message(user_id, f"❌ {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
                                 
-                        except Exception as e:
-                            logger.error(f"獲取四化詳細解釋失敗: {e}")
-                            send_line_message(user_id, f"🔮 {sihua_type}星詳細解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
-                        return  # 重要：防止觸發默認歡迎訊息
-                
+                    except Exception as e:
+                        logger.error(f"獲取四化詳細解釋失敗: {e}", exc_info=True)
+                        send_line_message(user_id, f"🔮 {sihua_type if 'sihua_type' in locals() else '四化'}星詳細解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
+                    return  # 重要：防止觸發默認歡迎訊息
+
                 # 處理會員升級相關查詢
                 elif text in ["如何升級會員", "升級會員", "會員升級", "付費會員", "會員方案"]:
                     upgrade_message = """💎 **會員升級方案** ✨
