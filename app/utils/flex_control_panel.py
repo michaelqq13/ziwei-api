@@ -7,6 +7,7 @@ Flex Message 控制面板生成器
 import json
 from typing import Dict, Any, List, Optional
 import logging
+from linebot.v3.messaging import FlexMessage, FlexContainer
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class FlexControlPanelGenerator:
             "border": "#2C3E50"        # 邊框顏色
         }
     
-    def generate_control_panel(self, user_stats: Dict[str, Any]) -> Optional[Dict]:
+    def generate_control_panel(self, user_stats: Dict[str, Any]) -> Optional[FlexMessage]:
         """
         生成星空主題控制面板
         
@@ -38,40 +39,45 @@ class FlexControlPanelGenerator:
             user_stats: 用戶統計資訊，包含權限和會員資訊
             
         Returns:
-            Flex Message 字典格式
+            FlexMessage 物件或 None
         """
         try:
             is_admin = user_stats.get("user_info", {}).get("is_admin", False)
             is_premium = user_stats.get("membership_info", {}).get("is_premium", False)
             
             # 構建星空主題控制面板
-            flex_message = {
-                "type": "flex",
-                "altText": "🌌 星空功能面板",
-                "contents": {
-                    "type": "bubble",
-                    "size": "giga",
-                    "header": self._create_starry_header(is_admin, is_premium),
-                    "body": self._create_starry_body(is_admin, is_premium),
-                    "footer": self._create_starry_footer(),
-                    "styles": {
-                        "header": {
-                            "backgroundColor": self.colors["background"]
-                        },
-                        "body": {
-                            "backgroundColor": self.colors["background"]
-                        },
-                        "footer": {
-                            "backgroundColor": self.colors["background"]
-                        }
+            bubble_dict = {
+                "type": "bubble",
+                "size": "giga",
+                "header": self._create_starry_header(is_admin, is_premium),
+                "body": self._create_starry_body(is_admin, is_premium),
+                "footer": self._create_starry_footer(),
+                "styles": {
+                    "header": {
+                        "backgroundColor": self.colors["background"]
+                    },
+                    "body": {
+                        "backgroundColor": self.colors["background"]
+                    },
+                    "footer": {
+                        "backgroundColor": self.colors["background"]
                     }
                 }
             }
             
+            # 將字典轉換為 FlexContainer
+            flex_container = FlexContainer.from_dict(bubble_dict)
+            
+            # 創建 FlexMessage
+            flex_message = FlexMessage(
+                alt_text="🌌 星空功能面板",
+                contents=flex_container
+            )
+            
             return flex_message
             
         except Exception as e:
-            logger.error(f"生成星空控制面板失敗: {e}")
+            logger.error(f"生成星空控制面板失敗: {e}", exc_info=True)
             return None
     
     def _create_header(self, is_admin: bool, is_premium: bool) -> Dict:

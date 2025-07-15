@@ -118,15 +118,15 @@ class DivinationFlexMessageGenerator:
                 messages.append(summary_message)
                 logger.info("✅ 基本資訊摘要生成成功")
             
-            # 2. 基本命盤資訊 (僅管理員可見)
-            if user_type == "admin":
-                logger.info("生成基本命盤資訊Carousel...")
-                basic_chart_message = self._create_basic_chart_carousel(result)
-                if basic_chart_message:
-                    messages.append(basic_chart_message)
-                    logger.info("✅ 基本命盤資訊Carousel生成成功")
-                else:
-                    logger.warning("⚠️ 基本命盤資訊Carousel生成失敗")
+            # 2. 基本命盤資訊 (僅管理員可見) -> 已改為手動按鈕觸發
+            # if user_type == "admin":
+            #     logger.info("生成基本命盤資訊Carousel...")
+            #     basic_chart_message = self._create_basic_chart_carousel(result)
+            #     if basic_chart_message:
+            #         messages.append(basic_chart_message)
+            #         logger.info("✅ 基本命盤資訊Carousel生成成功")
+            #     else:
+            #         logger.warning("⚠️ 基本命盤資訊Carousel生成失敗")
             
             # 3. 太極點命宮資訊 已移除自動顯示，改為透過按鈕調用
             # 管理員可以透過快速按鈕「🏛️ 太極十二宮」查看詳細資訊
@@ -203,17 +203,9 @@ class DivinationFlexMessageGenerator:
                 )
             ]
             
-            # 管理員顯示完整資訊
+            # 管理員顯示部分額外資訊，但排除太極宮，因其已有專屬按鈕
             if user_type == "admin":
                 basic_info_contents.extend([
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexText(text="🏰 太極宮", size="sm", color="#666666", flex=1),
-                            FlexText(text=taichi_palace, size="sm", weight="bold", flex=2, align="end")
-                        ],
-                        margin="sm"
-                    ),
                     FlexBox(
                         layout="horizontal",
                         contents=[

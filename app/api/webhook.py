@@ -1169,10 +1169,15 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                                 send_line_flex_messages(user_id, [detail_message])
                             else:
                                 send_line_message(user_id, f"❌ {sihua_type}星詳細解釋暫時無法顯示，請稍後再試。")
+                            # 重要：處理完畢後必須返回，避免流程繼續
+                            return
                                 
                     except Exception as e:
                         logger.error(f"獲取四化詳細解釋失敗: {e}", exc_info=True)
                         send_line_message(user_id, f"🔮 {sihua_type if 'sihua_type' in locals() else '四化'}星詳細解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
+                        # 同樣需要返回
+                        return
+                    # 此處 return 已存在，但為了邏輯清晰，上面的 return 更佳
                     return  # 重要：防止觸發默認歡迎訊息
 
                 # 處理會員升級相關查詢
