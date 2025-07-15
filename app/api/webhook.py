@@ -324,9 +324,9 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
     return None  # 返回 None 表示訊息已經發送，不需要再次發送
 
 def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dict[str, Any], user_type: str):
-    """在占卜結果後發送智能 Quick Reply"""
+    """在占卜结果后发送智能 Quick Reply"""
     try:
-        # 分析占卜結果中的四化類型
+        # 分析占卜结果中的四化类型
         sihua_results = divination_result.get("sihua_results", [])
         sihua_types = set()
         
@@ -335,23 +335,36 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
             if sihua_type in ["祿", "權", "科", "忌"]:
                 sihua_types.add(sihua_type)
         
-        # 構建 Quick Reply 按鈕
+        # 构建 Quick Reply 按钮
         quick_reply_items = []
         
-        # 根據用戶類型和四化結果提供不同選項
+        # 添加太极十二宫查看选项（管理员专用）
+        if user_type == "admin":
+            quick_reply_items.append({
+                "type": "action",
+                "action": {
+                    "type": "postback",
+                    "label": "🏛️ 太極十二宮",
+                    "data": "action=show_taichi_palaces",
+                    "displayText": "🏛️ 查看太極十二宮"
+                }
+            })
+        
+        # 根据用户类型和四化结果提供不同选项
         if user_type in ["admin", "premium"]:
-            # 付費會員和管理員：提供四化詳細解釋選項
+            # 付费会员和管理员：提供四化详细解释选项
             for sihua_type in sorted(sihua_types):
-                quick_reply_items.append({
-                    "type": "action",
-                    "action": {
-                        "type": "message",
-                        "label": f"✨ {sihua_type}星詳解",
-                        "text": f"查看{sihua_type}星更多解釋"
-                    }
-                })
+                if len(quick_reply_items) < 11:  # 限制按钮数量
+                    quick_reply_items.append({
+                        "type": "action",
+                        "action": {
+                            "type": "message",
+                            "label": f"✨ {sihua_type}星詳解",
+                            "text": f"查看{sihua_type}星更多解釋"
+                        }
+                    })
             
-            # 其他功能選項
+            # 其他功能选项
             quick_reply_items.extend([
                 {
                     "type": "action",
@@ -373,7 +386,7 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
                 }
             ])
         else:
-            # 免費會員：提供升級提示和基本選項
+            # 免费会员：提供升级提示和基本选项
             quick_reply_items.extend([
                 {
                     "type": "action",
@@ -403,7 +416,7 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
                 }
             ])
         
-        # 添加通用選項
+        # 添加通用选项
         quick_reply_items.extend([
             {
                 "type": "action",
@@ -425,11 +438,25 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
             }
         ])
         
-        # 限制 Quick Reply 按鈕數量（LINE 限制最多 13 個）
+        # 限制 Quick Reply 按钮数量（LINE 限制最多 13 个）
         quick_reply_items = quick_reply_items[:13]
         
-        # 構建情境式引導訊息
-        if user_type in ["admin", "premium"]:
+        # 构建情境式引导消息
+        if user_type == "admin":
+            guidance_message = """🌟 **占卜完成！** ✨
+
+您的紫微斗數分析已經完成。接下來您可以：
+
+🏛️ **專屬功能**
+• 查看太極十二宮詳細結構
+• 四化完整解釋和深度分析
+
+🎯 **探索更多**  
+• 重新占卜或使用其他功能
+• 查看管理員專屬的進階分析
+
+💫 請選擇您想要的下一步操作："""
+        elif user_type == "premium":
             guidance_message = """🌟 **占卜完成！** ✨
 
 您的紫微斗數分析已經完成。接下來您可以：
@@ -459,13 +486,24 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
 
 💫 請選擇您想要的下一步操作："""
         
-        # 發送帶有 Quick Reply 的引導訊息
-        send_line_message(user_id, guidance_message, quick_reply_items)
+        # 延迟发送带有 Quick Reply 的引导消息，避免与Flex消息冲突
+        import asyncio
+        import threading
         
-        logger.info(f"已發送智能 Quick Reply 給用戶 {user_id}，用戶類型: {user_type}")
+        def delayed_send():
+            import time
+            time.sleep(2)  # 延迟2秒发送
+            send_line_message(user_id, guidance_message, quick_reply_items)
+        
+        # 在后台线程中发送延迟消息
+        thread = threading.Thread(target=delayed_send)
+        thread.daemon = True
+        thread.start()
+        
+        logger.info(f"已安排延迟发送智能 Quick Reply 给用户 {user_id}，用户类型: {user_type}")
         
     except Exception as e:
-        logger.error(f"發送智能 Quick Reply 失敗: {e}", exc_info=True)
+        logger.error(f"发送智能 Quick Reply 失败: {e}", exc_info=True)
 
 def format_divination_result_text(result: Dict, is_admin: bool = False) -> str:
     """格式化占卜結果為純文字（備用）"""
@@ -814,6 +852,10 @@ async def handle_postback_event(event: dict, db: Optional[Session]):
         elif postback_data == "action=show_instructions":
             # 顯示使用說明
             await handle_show_instructions(user_id, user, db)
+            
+        elif postback_data == "action=show_taichi_palaces":
+            # 顯示太極十二宮資訊
+            await handle_show_taichi_palaces(user_id, user, db)
             
         # 處理來自控制面板的動作
         elif postback_data.startswith("control_panel="):
@@ -1751,11 +1793,33 @@ async def handle_datetime_picker_callback(user_id: str, user: LineBotUser, sessi
             # 設置為指定時間占卜模式
             session.set_data("callback_type", "time_divination")
         
-        # 解析時間字符串
-        target_time = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
-        if target_time.tzinfo is None:
-            target_time = target_time.replace(tzinfo=timezone.utc)
-        target_time = target_time.astimezone(TAIPEI_TZ)
+        # 解析時間字符串 - 改進时区处理
+        try:
+            # LINE 的 datetime picker 返回的格式通常是 "YYYY-MM-DDTHH:MM" 
+            # 可能没有时区信息，假设用户选择的是台北当地时间
+            if 'T' in datetime_str and '+' not in datetime_str and 'Z' not in datetime_str:
+                # 没有时区信息，假设是台北时间
+                target_time = datetime.fromisoformat(datetime_str)
+                target_time = target_time.replace(tzinfo=TAIPEI_TZ)
+                logger.info(f"解析为台北时间（无时区信息）: {target_time}")
+            else:
+                # 有时区信息的情况
+                if datetime_str.endswith('Z'):
+                    target_time = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+                else:
+                    target_time = datetime.fromisoformat(datetime_str)
+                
+                # 如果时区为None，设为UTC然后转为台北时间
+                if target_time.tzinfo is None:
+                    target_time = target_time.replace(tzinfo=timezone.utc)
+                
+                # 转换为台北时间
+                target_time = target_time.astimezone(TAIPEI_TZ)
+                logger.info(f"转换后的台北时间: {target_time}")
+        except Exception as parse_error:
+            logger.error(f"时间解析失败: {parse_error}")
+            send_line_message(user_id, "時間格式解析失敗，請重新選擇時間。")
+            return
         
         # 要求選擇性別
         session.set_state("waiting_for_divination_gender")
@@ -1771,7 +1835,7 @@ async def handle_datetime_picker_callback(user_id: str, user: LineBotUser, sessi
         time_str = target_time.strftime("%Y年%m月%d日 %H:%M")
         message = f"""⏰ **指定時間占卜** ✨
 
-🎯 **選定時間：** {time_str}
+🎯 **選定時間：** {time_str} (台北時間)
 
 請選擇進行占卜的性別："""
         
@@ -1868,8 +1932,8 @@ def create_datetime_picker_message() -> Optional[FlexMessage]:
         from linebot.v3.messaging import DatetimePickerAction
         from datetime import datetime, timedelta
         
-        # 計算預設時間範圍
-        now = datetime.now()
+        # 計算預設時間範圍 - 使用台北時間
+        now = get_current_taipei_time()  # 使用台北時間而不是本地時間
         min_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")  # 30天前
         max_date = (now + timedelta(days=7)).strftime("%Y-%m-%d")   # 7天後
         initial_datetime = now.strftime("%Y-%m-%dT%H:%M")
@@ -1912,7 +1976,7 @@ def create_datetime_picker_message() -> Optional[FlexMessage]:
                         margin="lg"
                     ),
                     FlexText(
-                        text="💫 可查詢範圍：過去30天至未來7天",
+                        text=f"💫 可查詢範圍：過去30天至未來7天\n🕰️ 當前台北時間：{now.strftime('%Y-%m-%d %H:%M')}",
                         size="sm",
                         color="#999999",
                         wrap=True,
@@ -1953,7 +2017,7 @@ def create_datetime_picker_message() -> Optional[FlexMessage]:
                     # 底部說明
                     FlexSeparator(margin="lg"),
                     FlexText(
-                        text="⚡ 這是管理員專屬功能",
+                        text="⚡ 這是管理員專屬功能 | 🌏 使用台北時區 (UTC+8)",
                         size="sm",
                         color="#999999",
                         align="center",
@@ -2079,6 +2143,73 @@ async def handle_menu_management(user_id: str, user: LineBotUser, db: Optional[S
     except Exception as e:
         logger.error(f"❌ 更新駕駛視窗選單失敗: {e}")
         send_line_message(user_id, "❌ 更新選單時發生錯誤")
+
+async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理太極十二宮查看請求"""
+    try:
+        # 檢查權限
+        if not db:
+            send_line_message(user_id, "太極十二宮功能暫時無法使用，請稍後再試。")
+            return
+            
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_admin = user_stats["user_info"]["is_admin"]
+        
+        if not is_admin:
+            send_line_message(user_id, "🔒 太極十二宮資訊僅限管理員查看。")
+            return
+            
+        # 獲取最近的占卜結果
+        from app.models.linebot_models import DivinationHistory
+        recent_divination = db.query(DivinationHistory).filter(
+            DivinationHistory.user_id == user.id
+        ).order_by(DivinationHistory.divination_time.desc()).first()
+        
+        if not recent_divination:
+            send_line_message(user_id, "🔮 請先進行占卜，才能查看太極十二宮資訊。\n\n💫 點擊「本週占卜」開始您的占卜之旅。")
+            return
+            
+        # 重新生成占卜結果以獲取太極十二宮資訊
+        try:
+            import json
+            from app.logic.divination_logic import divination_logic
+            from app.utils.divination_flex_message import DivinationFlexMessageGenerator
+            
+            # 重新執行占卜邏輯以獲取完整資訊
+            target_time = recent_divination.divination_time
+            result = divination_logic.perform_divination(user, recent_divination.gender, target_time, db)
+            
+            if result["success"]:
+                # 生成太極十二宮 Carousel
+                message_generator = DivinationFlexMessageGenerator()
+                taichi_message = message_generator._create_taichi_palace_carousel(result)
+                
+                if taichi_message:
+                    # 發送說明文字
+                    explanation_text = f"""🏛️ **太極十二宮結構** ✨
+
+📅 占卜時間：{target_time.strftime('%Y年%m月%d日 %H:%M')}
+🎯 太極點命宮：{result.get('taichi_palace', '未知')}
+
+💫 **太極十二宮說明：**
+以太極點命宮為新的命宮，重新分佈十二宮位，展現另一層面的命運結構。每個宮位保持原有星曜配置，但具有新的宮位意義。
+
+👆 請左右滑動查看各宮位詳細資訊："""
+                    
+                    send_line_message(user_id, explanation_text)
+                    send_line_flex_messages(user_id, [taichi_message])
+                else:
+                    send_line_message(user_id, "❌ 太極十二宮資訊生成失敗，請稍後再試。")
+            else:
+                send_line_message(user_id, "❌ 無法重新獲取占卜資訊，請重新進行占卜。")
+                
+        except Exception as detail_error:
+            logger.error(f"重新生成太極十二宮資訊失敗: {detail_error}")
+            send_line_message(user_id, "❌ 處理太極十二宮資訊時發生錯誤，請重新進行占卜。")
+            
+    except Exception as e:
+        logger.error(f"顯示太極十二宮失敗: {e}", exc_info=True)
+        send_line_message(user_id, "太極十二宮功能暫時無法使用，請稍後再試。")
 
 @router.get("/health")
 async def health_check():

@@ -266,6 +266,23 @@ class FlexControlPanelGenerator:
     
     def _create_admin_functions_section(self) -> Dict:
         """創建管理員功能區塊"""
+        buttons = [
+            self._create_function_button(
+                "⏰ 指定時間占卜",
+                "回溯特定時間點進行占卜",
+                "⏰",
+                "admin_action=time_divination_start",
+                self.colors["primary"]
+            ),
+            self._create_function_button(
+                "管理員工具",
+                "系統管理與數據分析",
+                "⚙️",
+                "control_panel=admin_functions",
+                self.colors["admin"]
+            )
+        ]
+        
         return {
             "type": "box",
             "layout": "vertical",
@@ -281,15 +298,7 @@ class FlexControlPanelGenerator:
                 {
                     "type": "box",
                     "layout": "vertical",
-                    "contents": [
-                        self._create_function_button(
-                            "管理員工具",
-                            "系統管理與數據分析",
-                            "⚙️",
-                            "control_panel=admin_functions",
-                            self.colors["admin"]
-                        )
-                    ],
+                    "contents": buttons,
                     "spacing": "sm",
                     "margin": "sm"
                 }

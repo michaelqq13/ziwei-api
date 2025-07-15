@@ -128,15 +128,8 @@ class DivinationFlexMessageGenerator:
                 else:
                     logger.warning("⚠️ 基本命盤資訊Carousel生成失敗")
             
-            # 3. 太極點命宮資訊 (僅管理員可見)
-            if user_type == "admin":
-                logger.info("生成太極點命宮資訊Carousel...")
-                taichi_message = self._create_taichi_palace_carousel(result)
-                if taichi_message:
-                    messages.append(taichi_message)
-                    logger.info("✅ 太極點命宮資訊Carousel生成成功")
-                else:
-                    logger.warning("⚠️ 太極點命宮資訊Carousel生成失敗")
+            # 3. 太極點命宮資訊 已移除自動顯示，改為透過按鈕調用
+            # 管理員可以透過快速按鈕「🏛️ 太極十二宮」查看詳細資訊
             
             # 4. 四化解析 (所有用戶可見，但內容不同)
             logger.info("生成四化解析Carousel...")
