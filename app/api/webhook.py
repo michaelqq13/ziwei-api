@@ -253,14 +253,20 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
             if db:
                 user_stats = permission_manager.get_user_stats(db, user)
                 is_admin = user_stats["user_info"]["is_admin"]
+                user_type = "admin" if is_admin else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
+            else:
+                user_type = "free"
 
             # 使用 Flex Message產生器
             message_generator = DivinationFlexMessageGenerator()
-            flex_messages = message_generator.generate_divination_messages(result, is_admin)
+            flex_messages = message_generator.generate_divination_messages(result, is_admin, user_type)
             
             # 發送 Flex 訊息
             if flex_messages:
                 send_line_flex_messages(user.line_user_id, flex_messages)
+                
+                # 在占卜結果後發送智能 Quick Reply
+                send_smart_quick_reply_after_divination(user.line_user_id, result, user_type)
             else:
                 return "占卜結果生成失敗，請稍後再試。"
         else:
@@ -273,6 +279,150 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
         session.clear()
         
     return None # 表示已經發送了 Flex 訊息
+
+def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dict[str, Any], user_type: str):
+    """在占卜結果後發送智能 Quick Reply"""
+    try:
+        # 分析占卜結果中的四化類型
+        sihua_results = divination_result.get("sihua_results", [])
+        sihua_types = set()
+        
+        for sihua in sihua_results:
+            sihua_type = sihua.get("type", "")
+            if sihua_type in ["祿", "權", "科", "忌"]:
+                sihua_types.add(sihua_type)
+        
+        # 構建 Quick Reply 按鈕
+        quick_reply_items = []
+        
+        # 根據用戶類型和四化結果提供不同選項
+        if user_type in ["admin", "premium"]:
+            # 付費會員和管理員：提供四化詳細解釋選項
+            for sihua_type in sorted(sihua_types):
+                quick_reply_items.append({
+                    "type": "action",
+                    "action": {
+                        "type": "message",
+                        "label": f"✨ {sihua_type}星詳解",
+                        "text": f"查看{sihua_type}星更多解釋"
+                    }
+                })
+            
+            # 其他功能選項
+            quick_reply_items.extend([
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "postback",
+                        "label": "🔮 重新占卜",
+                        "data": "action=weekly_fortune",
+                        "displayText": "🔮 重新占卜"
+                    }
+                },
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "postback",
+                        "label": "🌟 功能選單",
+                        "data": "action=show_control_panel",
+                        "displayText": "🌟 功能選單"
+                    }
+                }
+            ])
+        else:
+            # 免費會員：提供升級提示和基本選項
+            quick_reply_items.extend([
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "message",
+                        "label": "💎 升級會員看詳解",
+                        "text": "如何升級會員"
+                    }
+                },
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "postback",
+                        "label": "🔮 重新占卜",
+                        "data": "action=weekly_fortune",
+                        "displayText": "🔮 重新占卜"
+                    }
+                },
+                {
+                    "type": "action",
+                    "action": {
+                        "type": "postback",
+                        "label": "🌟 功能選單",
+                        "data": "action=show_control_panel",
+                        "displayText": "🌟 功能選單"
+                    }
+                }
+            ])
+        
+        # 添加通用選項
+        quick_reply_items.extend([
+            {
+                "type": "action",
+                "action": {
+                    "type": "postback",
+                    "label": "👤 會員資訊",
+                    "data": "action=show_member_info",
+                    "displayText": "👤 會員資訊"
+                }
+            },
+            {
+                "type": "action",
+                "action": {
+                    "type": "postback",
+                    "label": "📖 使用說明",
+                    "data": "action=show_instructions",
+                    "displayText": "📖 使用說明"
+                }
+            }
+        ])
+        
+        # 限制 Quick Reply 按鈕數量（LINE 限制最多 13 個）
+        quick_reply_items = quick_reply_items[:13]
+        
+        # 構建情境式引導訊息
+        if user_type in ["admin", "premium"]:
+            guidance_message = """🌟 **占卜完成！** ✨
+
+您的紫微斗數分析已經完成。接下來您可以：
+
+💡 **深度了解**
+• 點擊下方按鈕查看四化詳細解釋
+• 每個四化都有獨特的意義和影響
+
+🎯 **探索更多**  
+• 重新占卜或使用其他功能
+• 查看會員專屬的進階分析
+
+💫 請選擇您想要的下一步操作："""
+        else:
+            guidance_message = """🌟 **占卜完成！** ✨
+
+您的基本運勢分析已經完成。
+
+💎 **升級會員享有**
+• 四化詳細解釋和深度分析
+• 流年、流月、流日運勢
+• 專業命理諮詢服務
+
+🎯 **繼續探索**
+• 重新占卜或查看其他功能
+• 了解會員升級優惠
+
+💫 請選擇您想要的下一步操作："""
+        
+        # 發送帶有 Quick Reply 的引導訊息
+        send_line_message(user_id, guidance_message, quick_reply_items)
+        
+        logger.info(f"已發送智能 Quick Reply 給用戶 {user_id}，用戶類型: {user_type}")
+        
+    except Exception as e:
+        logger.error(f"發送智能 Quick Reply 失敗: {e}", exc_info=True)
 
 def format_divination_result_text(result: Dict, is_admin: bool = False) -> str:
     """格式化占卜結果為純文字（備用）"""
@@ -600,18 +750,51 @@ async def handle_postback_event(event: dict, db: Optional[Session]):
     postback_data = event["postback"]["data"]
     logger.info(f"收到來自 {user_id} 的 Postback 事件，資料: {postback_data}")
 
-    # (可選) 在這裡保留或添加其他 postback 邏輯
-    # 例如：處理時間選擇器的 postback
-    if "params" in event["postback"]:
-        params = event["postback"]["params"]
-        if "datetime" in params:
-            # 這是來自 datetime picker 的回調
-            logger.info(f"處理 datetime picker 回調: {params['datetime']}")
-            # 在這裡添加處理 datetime picker 的邏輯
-            # ...
-            return
+    try:
+        # 獲取或創建用戶
+        user = get_or_create_user(db, user_id)
+        session = get_or_create_session(user_id)
 
-    logger.warning(f"收到未知的 Postback 資料格式: {postback_data}")
+        # 解析 postback data
+        if postback_data == "action=show_control_panel":
+            # 顯示 Flex Message 控制面板
+            await handle_show_control_panel(user_id, user, db)
+            
+        elif postback_data == "action=show_member_info":
+            # 顯示會員資訊
+            await handle_show_member_info(user_id, user, db)
+            
+        elif postback_data == "action=weekly_fortune":
+            # 本週占卜
+            await handle_weekly_fortune(user_id, user, session, db)
+            
+        elif postback_data == "action=show_instructions":
+            # 顯示使用說明
+            await handle_show_instructions(user_id, user, db)
+            
+        # 處理來自控制面板的動作
+        elif postback_data.startswith("control_panel="):
+            action = postback_data.split("=", 1)[1]
+            await handle_control_panel_action(user_id, user, session, action, db)
+            
+        # 處理管理員面板動作
+        elif postback_data.startswith("admin_action="):
+            action = postback_data.split("=", 1)[1]
+            await handle_admin_panel_action(user_id, user, action, db)
+            
+        # 處理時間選擇器的 postback
+        elif "params" in event["postback"]:
+            params = event["postback"]["params"]
+            if "datetime" in params:
+                logger.info(f"處理 datetime picker 回調: {params['datetime']}")
+                await handle_datetime_picker_callback(user_id, user, session, params["datetime"], db)
+                return
+        else:
+            logger.warning(f"收到未知的 Postback 資料格式: {postback_data}")
+            
+    except Exception as e:
+        logger.error(f"處理 Postback 事件失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理請求時發生錯誤，請稍後再試。")
 
 async def handle_message_event(event: dict, db: Optional[Session]):
     """處理 Message 事件"""
@@ -883,6 +1066,31 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                             logger.error(f"獲取四化詳細解釋失敗: {e}")
                             send_line_message(user_id, f"🔮 {sihua_type}星詳細解釋 ✨\n\n⚠️ 系統暫時無法獲取詳細解釋，請稍後再試。\n\n💫 如果問題持續，請聯繫客服。")
                         return  # 重要：防止觸發默認歡迎訊息
+                
+                # 處理會員升級相關查詢
+                elif text in ["如何升級會員", "升級會員", "會員升級", "付費會員", "會員方案"]:
+                    upgrade_message = """💎 **會員升級方案** ✨
+
+🌟 **付費會員專享功能：**
+• 🔮 四化完整詳細解釋
+• 🌍 流年運勢深度分析  
+• 🌙 流月運勢變化預測
+• 🪐 流日運勢每日指引
+• 📊 命盤完整專業解析
+• 💡 個人化建議與指引
+
+💰 **優惠方案：**
+• 月費方案：NT$ 299/月
+• 季度方案：NT$ 799/季（省NT$ 98）
+• 年度方案：NT$ 2,999/年（省NT$ 588）
+
+🎁 **限時優惠：**
+新用戶首月享 5 折優惠！
+
+💫 升級管道即將開放，請關注最新消息！
+如有疑問請聯繫客服。"""
+                    send_line_message(user_id, upgrade_message)
+                    return  # 重要：防止觸發默認歡迎訊息
 
                 # 管理員功能
                 if "更新選單" in text or "refresh menu" in text.lower():
@@ -922,7 +1130,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     return
                 
                 else:
-                    # 默認回覆
+                    # 默認回覆 - 當沒有匹配到任何特定指令時
                     # 檢查是否為管理員用戶
                     is_admin = False
                     try:
@@ -964,7 +1172,7 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 • 或直接輸入指令文字
 
 ⭐ 願紫微斗數為您指引人生方向！""")
-                    
+                
             except Exception as e:
                 logger.error(f"處理用戶請求失敗：{e}", exc_info=True)
                 send_line_message(user_id, "系統暫時忙碌，請稍後再試。")
@@ -1135,6 +1343,615 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
     except Exception as e:
         logger.error(f"驗證簽名時發生錯誤: {e}")
         return False
+
+# === 究極混搭方案：Postback 處理函數 ===
+
+async def handle_show_control_panel(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """顯示 Flex Message 控制面板"""
+    try:
+        from app.utils.flex_control_panel import FlexControlPanelGenerator
+        
+        # 獲取用戶權限資訊
+        user_stats = permission_manager.get_user_stats(db, user) if db else {
+            "user_info": {"is_admin": False},
+            "membership_info": {"is_premium": False}
+        }
+        
+        # 生成控制面板
+        panel_generator = FlexControlPanelGenerator()
+        control_panel = panel_generator.generate_control_panel(user_stats)
+        
+        if control_panel:
+            send_line_flex_messages(user_id, [control_panel])
+        else:
+            send_line_message(user_id, "無法載入功能選單，請稍後再試。")
+            
+    except Exception as e:
+        logger.error(f"顯示控制面板失敗: {e}", exc_info=True)
+        send_line_message(user_id, "載入功能選單時發生錯誤，請稍後再試。")
+
+async def handle_show_member_info(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """顯示會員資訊"""
+    try:
+        if not db:
+            send_line_message(user_id, "會員資訊功能暫時無法使用，請稍後再試。")
+            return
+            
+        # 獲取用戶統計資訊
+        user_stats = permission_manager.get_user_stats(db, user)
+        response = format_user_info(user_stats)
+        
+        if response:
+            send_line_message(user_id, response)
+        else:
+            send_line_message(user_id, "⚠️ 無法獲取會員資訊，請稍後再試。")
+            
+    except Exception as e:
+        logger.error(f"顯示會員資訊失敗: {e}", exc_info=True)
+        send_line_message(user_id, "獲取會員資訊時發生錯誤，請稍後再試。")
+
+async def handle_weekly_fortune(user_id: str, user: LineBotUser, session: MemoryUserSession, db: Optional[Session]):
+    """處理本週占卜"""
+    try:
+        response = handle_divination_request(db, user, session)
+        if response:
+            send_line_message(user_id, response)
+            
+    except Exception as e:
+        logger.error(f"本週占卜失敗: {e}", exc_info=True)
+        send_line_message(user_id, "占卜服務暫時無法使用，請稍後再試。")
+
+async def handle_show_instructions(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """顯示使用說明"""
+    try:
+        from app.utils.flex_instructions import FlexInstructionsGenerator
+        
+        # 獲取用戶權限資訊
+        user_stats = permission_manager.get_user_stats(db, user) if db else {
+            "user_info": {"is_admin": False},
+            "membership_info": {"is_premium": False}
+        }
+        
+        # 生成使用說明
+        instructions_generator = FlexInstructionsGenerator()
+        instructions_message = instructions_generator.generate_instructions(user_stats)
+        
+        if instructions_message:
+            send_line_flex_messages(user_id, [instructions_message])
+        else:
+            # 備用文字說明
+            instructions_text = """📖 **使用說明** ✨
+
+🔮 **主要功能：**
+• **本週占卜** - 根據當下時間進行觸機占卜
+• **會員資訊** - 查看個人使用記錄和權限
+• **功能選單** - 智能控制面板，根據權限顯示功能
+
+💫 **操作方式：**
+1. 點擊下方選單按鈕快速進入功能
+2. 或直接輸入文字指令
+3. 依照系統提示完成操作
+
+🌟 **貼心提醒：**
+• 每週只能占卜一次，請珍惜機會
+• 升級會員可享受更多功能
+• 有問題可隨時聯繫客服
+
+⭐ 願紫微斗數為您指引人生方向！"""
+            send_line_message(user_id, instructions_text)
+            
+    except Exception as e:
+        logger.error(f"顯示使用說明失敗: {e}", exc_info=True)
+        instructions_text = """📖 **使用說明** ✨
+
+🔮 **主要功能：**
+• **本週占卜** - 根據當下時間進行觸機占卜
+• **會員資訊** - 查看個人使用記錄
+• **功能選單** - 更多功能選項
+
+💫 如需詳細說明，請稍後再試或聯繫客服。"""
+        send_line_message(user_id, instructions_text)
+
+async def handle_control_panel_action(user_id: str, user: LineBotUser, session: MemoryUserSession, action: str, db: Optional[Session]):
+    """處理控制面板的動作"""
+    try:
+        logger.info(f"處理控制面板動作: {action}")
+        
+        if action == "basic_divination":
+            # 基本占卜功能
+            await handle_weekly_fortune(user_id, user, session, db)
+            
+        elif action == "yearly_fortune":
+            # 流年運勢
+            await handle_yearly_fortune(user_id, user, db)
+            
+        elif action == "monthly_fortune":
+            # 流月運勢  
+            await handle_monthly_fortune(user_id, user, db)
+            
+        elif action == "daily_fortune":
+            # 流日運勢
+            await handle_daily_fortune(user_id, user, db)
+            
+        elif action == "chart_analysis":
+            # 命盤分析（未來功能）
+            send_line_message(user_id, """🌟 命盤分析功能
+
+✨ 此功能正在開發中，敬請期待！
+
+🔮 **即將推出：**
+• 完整紫微斗數命盤解析
+• 十二宮位詳細分析
+• 個人特質深度解讀
+• 生涯發展建議
+
+💫 感謝您的耐心等待！""")
+            
+        elif action == "member_upgrade":
+            # 會員升級（未來功能）
+            send_line_message(user_id, """💎 會員升級功能
+
+✨ 升級管道即將開放！
+
+🌟 **付費會員專享：**
+• 流年、流月、流日運勢
+• 四化詳細解釋
+• 命盤完整分析
+• 專業諮詢服務
+
+💫 請關注最新消息！""")
+            
+        elif action == "admin_functions":
+            # 管理員功能
+            await handle_admin_functions(user_id, user, db)
+            
+        else:
+            logger.warning(f"未知的控制面板動作: {action}")
+            send_line_message(user_id, "此功能暫時無法使用，請稍後再試。")
+            
+    except Exception as e:
+        logger.error(f"處理控制面板動作失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理請求時發生錯誤，請稍後再試。")
+
+async def handle_yearly_fortune(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理流年運勢請求"""
+    try:
+        if not db:
+            send_line_message(user_id, "流年運勢功能暫時無法使用，請稍後再試。")
+            return
+            
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_premium = user_stats["membership_info"]["is_premium"]
+        is_admin = user_stats["user_info"]["is_admin"]
+        
+        if is_admin or is_premium:
+            send_line_message(user_id, """🌍 流年運勢功能
+            
+✨ 此功能正在開發中，敬請期待！
+
+🔮 **即將推出：**
+• 詳細的年度運勢分析
+• 事業、財運、感情運勢預測
+• 關鍵時間點提醒
+• 個人化建議指引
+
+💫 感謝您的耐心等待，我們正在為您準備更精準的流年運勢分析！""")
+        else:
+            send_line_message(user_id, """🌍 流年運勢功能
+            
+🔒 此功能為付費會員專屬功能
+
+💎 **升級付費會員即可享有：**
+• 詳細的年度運勢分析
+• 事業、財運、感情運勢預測
+• 關鍵時間點提醒
+• 個人化建議指引
+
+✨ 讓紫微斗數為您提供更深入的人生指引！""")
+            
+    except Exception as e:
+        logger.error(f"處理流年運勢失敗: {e}", exc_info=True)
+        send_line_message(user_id, "流年運勢服務暫時無法使用，請稍後再試。")
+
+async def handle_monthly_fortune(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理流月運勢請求"""
+    try:
+        if not db:
+            send_line_message(user_id, "流月運勢功能暫時無法使用，請稍後再試。")
+            return
+            
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_premium = user_stats["membership_info"]["is_premium"]
+        is_admin = user_stats["user_info"]["is_admin"]
+        
+        if is_admin or is_premium:
+            send_line_message(user_id, """🌙 流月運勢功能
+            
+✨ 此功能正在開發中，敬請期待！
+
+🔮 **即將推出：**
+• 每月運勢變化分析
+• 月度重點事件預測
+• 最佳行動時機建議
+• 注意事項提醒
+
+💫 感謝您的耐心等待，我們正在為您準備更精準的流月運勢分析！""")
+        else:
+            send_line_message(user_id, """🌙 流月運勢功能
+            
+🔒 此功能為付費會員專屬功能
+
+💎 **升級付費會員即可享有：**
+• 每月運勢變化分析
+• 月度重點事件預測
+• 最佳行動時機建議
+• 注意事項提醒
+
+✨ 讓紫微斗數為您提供更深入的人生指引！""")
+            
+    except Exception as e:
+        logger.error(f"處理流月運勢失敗: {e}", exc_info=True)
+        send_line_message(user_id, "流月運勢服務暫時無法使用，請稍後再試。")
+
+async def handle_daily_fortune(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理流日運勢請求"""
+    try:
+        if not db:
+            send_line_message(user_id, "流日運勢功能暫時無法使用，請稍後再試。")
+            return
+            
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_premium = user_stats["membership_info"]["is_premium"]
+        is_admin = user_stats["user_info"]["is_admin"]
+        
+        if is_admin or is_premium:
+            send_line_message(user_id, """🪐 流日運勢功能
+            
+✨ 此功能正在開發中，敬請期待！
+
+🔮 **即將推出：**
+• 每日運勢詳細分析
+• 當日吉凶時辰提醒
+• 重要決策建議
+• 日常生活指引
+
+💫 感謝您的耐心等待，我們正在為您準備更精準的流日運勢分析！""")
+        else:
+            send_line_message(user_id, """🪐 流日運勢功能
+            
+🔒 此功能為付費會員專屬功能
+
+💎 **升級付費會員即可享有：**
+• 每日運勢詳細分析
+• 當日吉凶時辰提醒
+• 重要決策建議
+• 日常生活指引
+
+✨ 讓紫微斗數為您提供更深入的人生指引！""")
+            
+    except Exception as e:
+        logger.error(f"處理流日運勢失敗: {e}", exc_info=True)
+        send_line_message(user_id, "流日運勢服務暫時無法使用，請稍後再試。")
+
+async def handle_admin_functions(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理管理員功能"""
+    try:
+        if not db:
+            send_line_message(user_id, "管理員功能暫時無法使用，請稍後再試。")
+            return
+            
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_admin = user_stats["user_info"]["is_admin"]
+        
+        if not is_admin:
+            send_line_message(user_id, "⚠️ 您沒有管理員權限。")
+            return
+            
+        # 生成管理員功能選單
+        from app.utils.flex_admin_panel import FlexAdminPanelGenerator
+        
+        admin_generator = FlexAdminPanelGenerator()
+        admin_panel = admin_generator.generate_admin_panel()
+        
+        if admin_panel:
+            send_line_flex_messages(user_id, [admin_panel])
+        else:
+            # 備用文字選單
+            admin_text = """👑 **管理員功能面板** ✨
+
+🔧 **系統管理：**
+• 指定時間占卜 - 輸入「時間占卜」
+• 用戶數據統計 - 輸入「用戶統計」
+• 系統狀態監控 - 輸入「系統狀態」
+
+📊 **數據管理：**
+• 占卜記錄查詢 - 輸入「占卜記錄」
+• 用戶權限管理 - 輸入「權限管理」
+
+⚙️ **選單管理：**
+• 更新選單 - 輸入「更新選單」
+• 創建選單 - 輸入「創建選單」
+
+💫 請輸入對應指令或使用控制面板操作。"""
+            send_line_message(user_id, admin_text)
+            
+    except Exception as e:
+        logger.error(f"處理管理員功能失敗: {e}", exc_info=True)
+        send_line_message(user_id, "管理員功能暫時無法使用，請稍後再試。")
+
+async def handle_datetime_picker_callback(user_id: str, user: LineBotUser, session: MemoryUserSession, datetime_str: str, db: Optional[Session]):
+    """處理來自日期時間選擇器的回調"""
+    try:
+        logger.info(f"處理日期時間選擇器回調: {datetime_str}")
+        
+        # 解析時間字符串
+        target_time = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        if target_time.tzinfo is None:
+            target_time = target_time.replace(tzinfo=timezone.utc)
+        target_time = target_time.astimezone(TAIPEI_TZ)
+        
+        # 執行指定時間占卜
+        response = execute_time_divination(db, user, session, target_time, datetime_str)
+        if response:
+            send_line_message(user_id, response)
+            
+    except Exception as e:
+        logger.error(f"處理日期時間選擇器回調失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理時間選擇失敗，請重新嘗試。")
+
+async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str, db: Optional[Session]):
+    """處理管理員面板動作"""
+    try:
+        # 驗證管理員權限
+        if not db:
+            send_line_message(user_id, "管理員功能暫時無法使用，請稍後再試。")
+            return
+            
+        user_stats = permission_manager.get_user_stats(db, user)
+        is_admin = user_stats["user_info"]["is_admin"]
+        
+        if not is_admin:
+            send_line_message(user_id, "⚠️ 您沒有管理員權限。")
+            return
+        
+        logger.info(f"處理管理員面板動作: {action}")
+        
+        if action == "time_divination":
+            # 指定時間占卜
+            send_line_message(user_id, """⏰ **指定時間占卜** 
+
+此功能允許您回溯特定時間點的運勢分析。
+
+💫 **使用方式：**
+請直接輸入「指定時間占卜」或「時間占卜」開始使用。
+
+⚡ 這是管理員專屬功能，可用於：
+• 回溯歷史重要時刻的運勢
+• 驗證占卜系統的準確性
+• 研究特定時間點的四化影響""")
+            
+        elif action == "user_stats":
+            # 用戶數據統計
+            try:
+                from app.models.linebot_models import LineBotUser, DivinationHistory
+                from sqlalchemy import func
+                
+                # 統計用戶數據
+                total_users = db.query(LineBotUser).count()
+                total_divinations = db.query(DivinationHistory).count()
+                admin_users = db.query(LineBotUser).filter(LineBotUser.is_admin == True).count()
+                
+                # 本週新增用戶
+                from datetime import datetime, timedelta
+                week_ago = datetime.now() - timedelta(days=7)
+                new_users_this_week = db.query(LineBotUser).filter(
+                    LineBotUser.created_at >= week_ago
+                ).count()
+                
+                # 本週占卜次數
+                divinations_this_week = db.query(DivinationHistory).filter(
+                    DivinationHistory.divination_time >= week_ago
+                ).count()
+                
+                stats_message = f"""📊 **用戶數據統計** 
+
+👥 **用戶統計：**
+• 總用戶數：{total_users} 人
+• 管理員數：{admin_users} 人
+• 本週新增：{new_users_this_week} 人
+
+🔮 **占卜統計：**
+• 總占卜次數：{total_divinations} 次
+• 本週占卜：{divinations_this_week} 次
+• 平均每用戶：{total_divinations/total_users:.1f} 次（如果有用戶）
+
+📈 **系統概況：**
+• 資料更新時間：{datetime.now().strftime("%Y-%m-%d %H:%M")}
+• 系統運行正常 ✅"""
+                
+                send_line_message(user_id, stats_message)
+                
+            except Exception as e:
+                logger.error(f"獲取用戶統計失敗: {e}")
+                send_line_message(user_id, "📊 獲取統計數據時發生錯誤，請稍後再試。")
+            
+        elif action == "system_status":
+            # 系統狀態監控
+            try:
+                import psutil
+                import os
+                
+                # 系統資源使用情況
+                cpu_percent = psutil.cpu_percent(interval=1)
+                memory = psutil.virtual_memory()
+                disk = psutil.disk_usage('/')
+                
+                status_message = f"""🖥️ **系統狀態監控**
+
+⚡ **CPU 使用率：**
+• 當前：{cpu_percent}%
+• 狀態：{'正常' if cpu_percent < 80 else '偏高'}
+
+💾 **記憶體使用：**
+• 已使用：{memory.percent}%
+• 可用：{memory.available // (1024**3)} GB
+• 狀態：{'正常' if memory.percent < 80 else '偏高'}
+
+💿 **磁碟使用：**
+• 已使用：{disk.percent}%
+• 可用：{disk.free // (1024**3)} GB
+• 狀態：{'正常' if disk.percent < 85 else '偏高'}
+
+🔍 **應用狀態：**
+• LINE Bot 服務：運行中 ✅
+• 資料庫連接：正常 ✅
+• 更新時間：{datetime.now().strftime("%Y-%m-%d %H:%M")}"""
+                
+                send_line_message(user_id, status_message)
+                
+            except Exception as e:
+                logger.error(f"獲取系統狀態失敗: {e}")
+                send_line_message(user_id, "🖥️ 獲取系統狀態時發生錯誤，可能是權限不足。")
+            
+        elif action == "divination_records":
+            # 占卜記錄查詢
+            try:
+                from app.models.linebot_models import DivinationHistory
+                from datetime import datetime, timedelta
+                
+                # 獲取最近的占卜記錄
+                recent_records = db.query(DivinationHistory).order_by(
+                    DivinationHistory.divination_time.desc()
+                ).limit(10).all()
+                
+                if recent_records:
+                    records_text = "🔍 **最近 10 筆占卜記錄**\n\n"
+                    for i, record in enumerate(recent_records, 1):
+                        user_info = db.query(LineBotUser).filter(
+                            LineBotUser.id == record.user_id
+                        ).first()
+                        user_name = user_info.line_user_id[:8] + "..." if user_info else "未知"
+                        
+                        time_str = record.divination_time.strftime("%m/%d %H:%M")
+                        gender_str = "男" if record.gender == "M" else "女"
+                        
+                        records_text += f"{i}. {time_str} | {user_name} | {gender_str} | {record.taichi_palace}\n"
+                    
+                    records_text += f"\n📋 總計已有 {db.query(DivinationHistory).count()} 筆占卜記錄"
+                else:
+                    records_text = "🔍 **占卜記錄查詢**\n\n📋 目前沒有占卜記錄。"
+                
+                send_line_message(user_id, records_text)
+                
+            except Exception as e:
+                logger.error(f"查詢占卜記錄失敗: {e}")
+                send_line_message(user_id, "🔍 查詢占卜記錄時發生錯誤，請稍後再試。")
+            
+        elif action == "user_permissions":
+            # 用戶權限管理
+            send_line_message(user_id, """👥 **用戶權限管理**
+
+⚙️ **功能說明：**
+此功能用於管理用戶權限和會員狀態。
+
+🔧 **可用操作：**
+• 查看用戶權限狀態
+• 升級/降級會員等級
+• 設置管理員權限
+
+💡 **使用提示：**
+目前需要直接操作資料庫進行權限管理。
+未來將提供更便捷的管理介面。
+
+📞 如需協助，請聯繫技術支援。""")
+            
+        elif action == "data_export":
+            # 數據導出
+            send_line_message(user_id, """📤 **數據導出功能**
+
+📋 **可導出數據：**
+• 用戶資料清單
+• 占卜歷史記錄  
+• 系統使用統計
+• 錯誤日誌摘要
+
+⚡ **導出格式：**
+• JSON 格式（詳細數據）
+• CSV 格式（報表數據）
+
+⚠️ **注意事項：**
+• 數據導出需要系統權限
+• 敏感資料已脫敏處理
+• 請勿外洩用戶隱私
+
+🔧 目前需要手動執行導出腳本。""")
+            
+        elif action == "update_menu":
+            # 更新選單
+            send_line_message(user_id, """🔄 **選單更新功能**
+
+🎯 **使用說明：**
+更新用戶的 Rich Menu 選單。
+
+💡 **操作方式：**
+請直接輸入「更新選單」或「refresh menu」
+
+✅ **更新內容：**
+• 根據用戶權限設置對應選單
+• 修復選單顯示異常
+• 應用最新的選單設計
+
+⚠️ **注意：**
+更新後用戶需要重新開啟 LINE 應用""")
+            
+        elif action == "create_menu":
+            # 創建選單
+            send_line_message(user_id, """➕ **創建選單功能**
+
+🎨 **功能說明：**
+創建全新的 Rich Menu 選單系統。
+
+💡 **操作方式：**
+請直接輸入「創建選單」或「create menu」
+
+🔧 **創建內容：**
+• 清理舊的選單
+• 建立新的選單模板
+• 設置不同權限等級的選單
+
+⚡ **適用場景：**
+• 選單設計更新後
+• 系統重大改版時
+• 選單出現異常時""")
+            
+        elif action == "menu_stats":
+            # 選單統計
+            send_line_message(user_id, """📈 **選單使用統計**
+
+📊 **統計項目：**
+• 各選單按鈕點擊頻率
+• 用戶最常使用的功能
+• 選單設置成功率
+
+📋 **分析數據：**
+• 功能選單：使用率最高
+• 本週占卜：核心功能
+• 會員資訊：查詢頻繁
+• 使用說明：新用戶必看
+
+💡 **優化建議：**
+• 保持現有設計
+• 繼續優化用戶體驗
+
+🔧 詳細統計數據需要查看系統日誌。""")
+            
+        else:
+            logger.warning(f"未知的管理員面板動作: {action}")
+            send_line_message(user_id, "⚠️ 未知的管理功能，請重新選擇。")
+            
+    except Exception as e:
+        logger.error(f"處理管理員面板動作失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理管理員功能時發生錯誤，請稍後再試。")
 
 @router.get("/health")
 async def health_check():

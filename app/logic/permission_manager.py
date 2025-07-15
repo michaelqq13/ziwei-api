@@ -152,7 +152,7 @@ class PermissionManager:
         
         weekly_count = db.query(DivinationHistory).filter(
             DivinationHistory.user_id == user.id,  # 使用 user.id 而不是 line_user_id
-            DivinationHistory.created_at >= week_start
+            DivinationHistory.divination_time >= week_start  # 修正：使用 divination_time 而不是 created_at
         ).count()
         
         if weekly_count < LineBotConfig.FREE_DIVINATION_WEEKLY_LIMIT:
@@ -234,7 +234,7 @@ class PermissionManager:
         
         weekly_divinations = db.query(DivinationHistory).filter(
             DivinationHistory.user_id == user.id,  # 使用 user.id 而不是 line_user_id
-            DivinationHistory.created_at >= week_start
+            DivinationHistory.divination_time >= week_start  # 修正：使用 divination_time 而不是 created_at
         ).count()
         
         # 權限檢查
@@ -247,6 +247,7 @@ class PermissionManager:
                 "membership_level": user.membership_level,
                 "is_admin": user.is_admin(),
                 "is_premium": user.is_premium(),
+                "is_active": user.is_active,  # 添加活躍狀態
                 "created_at": user.created_at.isoformat() if user.created_at else None,
                 "updated_at": user.updated_at.isoformat() if user.updated_at else None,
                 "last_active_at": user.last_active_at.isoformat() if user.last_active_at else None
@@ -266,7 +267,12 @@ class PermissionManager:
             "membership_info": {
                 "is_admin": user.is_admin(),
                 "is_premium": user.is_premium(),
-                "level_name": self._get_level_name(user.membership_level)
+                "level_name": self._get_level_name(user.membership_level),
+                "expires_at": None  # 添加會員到期日（目前為永久）
+            },
+            "divination_stats": {
+                "total_divinations": total_divinations,
+                "last_divination_time": self._get_last_divination_time(db, user)
             }
         }
     
@@ -344,6 +350,20 @@ class PermissionManager:
                 logger.warning(f"更新用戶 {line_user_id} Rich Menu 失敗")
         except Exception as e:
             logger.error(f"更新用戶 {line_user_id} Rich Menu 時發生錯誤: {e}")
+
+    def _get_last_divination_time(self, db: Session, user: LineBotUser) -> Optional[str]:
+        """獲取最後一次占卜時間"""
+        try:
+            last_record = db.query(DivinationHistory).filter(
+                DivinationHistory.user_id == user.id
+            ).order_by(DivinationHistory.divination_time.desc()).first()
+            
+            if last_record:
+                return last_record.divination_time.isoformat()
+            return None
+        except Exception as e:
+            logger.error(f"獲取最後占卜時間失敗: {e}")
+            return None
 
 # 全局實例
 permission_manager = PermissionManager()
