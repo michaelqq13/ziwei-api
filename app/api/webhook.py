@@ -25,6 +25,7 @@ from app.config.database_config import DatabaseConfig
 from starlette.background import BackgroundTasks
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from linebot.v3.messaging import FlexBubble, FlexBox, FlexText, FlexSeparator, FlexMessage
 
 # 設定日誌
 logging.basicConfig(level=logging.INFO)
@@ -242,7 +243,49 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
 • 回覆「男」或「M」代表男性  
 • 回覆「女」或「F」代表女性"""
     
-    # 執行占卜
+    # 檢查是否為指定時間占卜
+    target_time_str = session.get_data("target_time")
+    if target_time_str:
+        # 指定時間占卜流程
+        try:
+            target_time = datetime.fromisoformat(target_time_str)
+            original_input = session.get_data("original_input", "")
+            
+            result = divination_logic.perform_divination(user, gender, target_time, db)
+            
+            if result["success"]:
+                # 獲取用戶權限等級
+                user_stats = permission_manager.get_user_stats(db, user)
+                is_admin = user_stats["user_info"]["is_admin"]
+                user_type = "admin" if is_admin else ("premium" if user_stats["membership_info"]["is_premium"] else "free")
+
+                # 使用 Flex Message產生器 - 確保管理員看到太極十二宮
+                message_generator = DivinationFlexMessageGenerator()
+                flex_messages = message_generator.generate_divination_messages(result, is_admin, user_type)
+                
+                # 發送 Flex 訊息
+                if flex_messages:
+                    # 附加時間信息
+                    time_info_message = f"⏰ **指定時間占卜結果**\n\n📅 查詢時間：{target_time.strftime('%Y年%m月%d日 %H:%M')}\n👤 性別：{'男性' if gender == 'M' else '女性'}\n\n💫 以下是該時間點的詳細分析："
+                    send_line_message(user.line_user_id, time_info_message)
+                    send_line_flex_messages(user.line_user_id, flex_messages)
+                    
+                    # 在占卜結果後發送智能 Quick Reply
+                    send_smart_quick_reply_after_divination(user.line_user_id, result, user_type)
+                else:
+                    return "占卜結果生成失敗，請稍後再試。"
+            else:
+                return result.get("error", "占卜失敗，請稍後再試。")
+        except Exception as e:
+            logger.error(f"執行指定時間占卜失敗: {e}", exc_info=True)
+            return "執行指定時間占卜時發生錯誤。"
+        finally:
+            session.clear_state()
+            session.clear_data()
+        
+        return None  # 訊息已發送，不需要再次發送
+    
+    # 一般占卜流程
     try:
         current_time = get_current_taipei_time()
         result = divination_logic.perform_divination(user, gender, current_time, db)
@@ -257,7 +300,7 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
             else:
                 user_type = "free"
 
-            # 使用 Flex Message產生器
+            # 使用 Flex Message產生器 - 確保管理員看到太極十二宮
             message_generator = DivinationFlexMessageGenerator()
             flex_messages = message_generator.generate_divination_messages(result, is_admin, user_type)
             
@@ -273,12 +316,12 @@ def handle_gender_input(db: Optional[Session], user: LineBotUser, session: Memor
             return result.get("error", "占卜失敗，請稍後再試。")
             
     except Exception as e:
-        logger.error(f"執行占卜時發生錯誤: {e}", exc_info=True)
-        return "執行占卜時發生未預期的錯誤，請聯繫管理員。"
-    finally:
-        session.clear()
-        
-    return None # 表示已經發送了 Flex 訊息
+        logger.error(f"執行占卜失敗: {e}", exc_info=True)
+        return "占卜服務暫時不可用，請稍後再試。"
+    
+    # 清理狀態
+    session.clear_state()
+    return None  # 返回 None 表示訊息已經發送，不需要再次發送
 
 def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dict[str, Any], user_type: str):
     """在占卜結果後發送智能 Quick Reply"""
@@ -782,15 +825,26 @@ async def handle_postback_event(event: dict, db: Optional[Session]):
             action = postback_data.split("=", 1)[1]
             await handle_admin_panel_action(user_id, user, action, db)
             
-        # 處理時間選擇器的 postback
+        # 處理日期時間選擇器的 postback
+        elif postback_data.startswith("datetime_picker="):
+            action = postback_data.split("=", 1)[1]
+            if action == "time_divination" and "params" in event["postback"]:
+                params = event["postback"]["params"]
+                if "datetime" in params:
+                    logger.info(f"處理日期時間選擇器回調: {params['datetime']}")
+                    await handle_datetime_picker_callback(user_id, user, session, params["datetime"], db)
+                    return
+            
+        # 處理時間選擇器的 postback（舊版兼容）
         elif "params" in event["postback"]:
             params = event["postback"]["params"]
             if "datetime" in params:
                 logger.info(f"處理 datetime picker 回調: {params['datetime']}")
                 await handle_datetime_picker_callback(user_id, user, session, params["datetime"], db)
                 return
+                
         else:
-            logger.warning(f"收到未知的 Postback 資料格式: {postback_data}")
+            logger.warning(f"未知的 postback 資料: {postback_data}")
             
     except Exception as e:
         logger.error(f"處理 Postback 事件失敗: {e}", exc_info=True)
@@ -948,6 +1002,13 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     return  # 重要：防止觸發默認歡迎訊息
                         
                 elif session.state == "waiting_for_gender":
+                    response = handle_gender_input(db, user, session, text)
+                    if response:
+                        send_line_message(user_id, response)
+                    return  # 重要：防止觸發默認歡迎訊息
+                
+                # 處理指定時間占卜的性別輸入
+                elif session.state == "waiting_for_divination_gender":
                     response = handle_gender_input(db, user, session, text)
                     if response:
                         send_line_message(user_id, response)
@@ -1684,16 +1745,37 @@ async def handle_datetime_picker_callback(user_id: str, user: LineBotUser, sessi
     try:
         logger.info(f"處理日期時間選擇器回調: {datetime_str}")
         
+        # 檢查是否為指定時間占卜的回調
+        data = session.get_data("callback_type")
+        if data != "time_divination":
+            # 設置為指定時間占卜模式
+            session.set_data("callback_type", "time_divination")
+        
         # 解析時間字符串
         target_time = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
         if target_time.tzinfo is None:
             target_time = target_time.replace(tzinfo=timezone.utc)
         target_time = target_time.astimezone(TAIPEI_TZ)
         
-        # 執行指定時間占卜
-        response = execute_time_divination(db, user, session, target_time, datetime_str)
-        if response:
-            send_line_message(user_id, response)
+        # 要求選擇性別
+        session.set_state("waiting_for_divination_gender")
+        session.set_data("target_time", target_time.isoformat())
+        session.set_data("original_input", datetime_str)
+        
+        # 發送性別選擇訊息
+        quick_reply_items = [
+            {"type": "action", "action": {"type": "message", "label": "👨 男性", "text": "男"}},
+            {"type": "action", "action": {"type": "message", "label": "👩 女性", "text": "女"}}
+        ]
+        
+        time_str = target_time.strftime("%Y年%m月%d日 %H:%M")
+        message = f"""⏰ **指定時間占卜** ✨
+
+🎯 **選定時間：** {time_str}
+
+請選擇進行占卜的性別："""
+        
+        send_line_message(user_id, message, quick_reply_items)
             
     except Exception as e:
         logger.error(f"處理日期時間選擇器回調失敗: {e}", exc_info=True)
@@ -1716,8 +1798,12 @@ async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str
         
         logger.info(f"處理管理員面板動作: {action}")
         
-        if action == "time_divination":
-            # 指定時間占卜
+        if action == "time_divination_start":
+            # 使用 datetime picker 開始指定時間占卜
+            await handle_time_divination_with_picker(user_id, user, db)
+            
+        elif action == "time_divination":
+            # 舊版處理方式 - 文字輸入
             send_line_message(user_id, """⏰ **指定時間占卜** 
 
 此功能允許您回溯特定時間點的運勢分析。
@@ -1732,28 +1818,191 @@ async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str
             
         elif action == "user_stats":
             # 用戶數據統計
-            try:
-                from app.models.linebot_models import LineBotUser, DivinationHistory
-                from sqlalchemy import func
-                
-                # 統計用戶數據
-                total_users = db.query(LineBotUser).count()
-                total_divinations = db.query(DivinationHistory).count()
-                admin_users = db.query(LineBotUser).filter(LineBotUser.is_admin == True).count()
-                
-                # 本週新增用戶
-                from datetime import datetime, timedelta
-                week_ago = datetime.now() - timedelta(days=7)
-                new_users_this_week = db.query(LineBotUser).filter(
-                    LineBotUser.created_at >= week_ago
-                ).count()
-                
-                # 本週占卜次數
-                divinations_this_week = db.query(DivinationHistory).filter(
-                    DivinationHistory.divination_time >= week_ago
-                ).count()
-                
-                stats_message = f"""📊 **用戶數據統計** 
+            await handle_user_statistics(user_id, user, db)
+            
+        elif action == "system_status":
+            # 系統狀態監控
+            await handle_system_status(user_id, user, db)
+            
+        elif action == "menu_management":
+            # 選單管理
+            await handle_menu_management(user_id, user, db)
+            
+        else:
+            logger.warning(f"未知的管理員面板動作: {action}")
+            send_line_message(user_id, "此功能暫時無法使用，請稍後再試。")
+            
+    except Exception as e:
+        logger.error(f"處理管理員面板動作失敗: {e}", exc_info=True)
+        send_line_message(user_id, "管理員功能暫時無法使用，請稍後再試。")
+
+async def handle_time_divination_with_picker(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """使用 DateTime Picker 處理指定時間占卜"""
+    try:
+        # 創建 DateTime Picker 的 Flex Message
+        datetime_picker_message = create_datetime_picker_message()
+        
+        if datetime_picker_message:
+            send_line_flex_messages(user_id, [datetime_picker_message])
+        else:
+            # 備用方案：使用文字說明
+            send_line_message(user_id, """⏰ **指定時間占卜** 
+
+🎯 **快速選擇：**
+• 現在：查看當前時刻運勢
+• 今天：選擇今天的特定時間
+• 昨天：查看昨天的運勢
+• 本週：選擇本週任一時間
+• 自訂：手動輸入特定日期時間
+
+💫 請選擇您想要查詢的時間點，或直接輸入時間格式：
+例如：「今天 14:30」、「昨天 09:00」、「2024-01-15 18:30」""")
+            
+    except Exception as e:
+        logger.error(f"創建時間選擇器失敗: {e}", exc_info=True)
+        send_line_message(user_id, "時間選擇功能暫時無法使用，請輸入「指定時間占卜」使用文字版本。")
+
+def create_datetime_picker_message() -> Optional[FlexMessage]:
+    """創建包含 DateTime Picker 的 Flex Message"""
+    try:
+        from linebot.v3.messaging import DatetimePickerAction
+        from datetime import datetime, timedelta
+        
+        # 計算預設時間範圍
+        now = datetime.now()
+        min_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")  # 30天前
+        max_date = (now + timedelta(days=7)).strftime("%Y-%m-%d")   # 7天後
+        initial_datetime = now.strftime("%Y-%m-%dT%H:%M")
+        
+        bubble = FlexBubble(
+            size="kilo",
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 標題
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexText(
+                                text="⏰",
+                                size="xxl",
+                                flex=0
+                            ),
+                            FlexText(
+                                text="指定時間占卜",
+                                weight="bold",
+                                size="xl",
+                                color="#2E86AB",
+                                flex=1,
+                                margin="md"
+                            )
+                        ],
+                        backgroundColor="#F8F9FA",
+                        cornerRadius="md",
+                        paddingAll="lg"
+                    ),
+                    FlexSeparator(margin="lg"),
+                    
+                    # 說明文字
+                    FlexText(
+                        text="選擇您想要查詢的日期和時間",
+                        size="md",
+                        color="#666666",
+                        wrap=True,
+                        margin="lg"
+                    ),
+                    FlexText(
+                        text="💫 可查詢範圍：過去30天至未來7天",
+                        size="sm",
+                        color="#999999",
+                        wrap=True,
+                        margin="md"
+                    ),
+                    
+                    # DateTime Picker 按鈕
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexBox(
+                                layout="horizontal",
+                                contents=[
+                                    FlexText(
+                                        text="📅 選擇日期時間",
+                                        size="lg",
+                                        color="#FFFFFF",
+                                        weight="bold",
+                                        align="center",
+                                        flex=1
+                                    )
+                                ],
+                                backgroundColor="#2E86AB",
+                                cornerRadius="md",
+                                paddingAll="lg",
+                                margin="lg",
+                                action=DatetimePickerAction(
+                                    data="datetime_picker=time_divination",
+                                    mode="datetime",
+                                    initial=initial_datetime,
+                                    max=max_date + "T23:59",
+                                    min=min_date + "T00:00"
+                                )
+                            )
+                        ]
+                    ),
+                    
+                    # 底部說明
+                    FlexSeparator(margin="lg"),
+                    FlexText(
+                        text="⚡ 這是管理員專屬功能",
+                        size="sm",
+                        color="#999999",
+                        align="center",
+                        margin="md"
+                    )
+                ],
+                spacing="none",
+                paddingAll="xl"
+            ),
+            styles={
+                "body": {
+                    "backgroundColor": "#FFFFFF"
+                }
+            }
+        )
+        
+        return FlexMessage(
+            alt_text="⏰ 指定時間占卜 - 選擇日期時間",
+            contents=bubble
+        )
+        
+    except Exception as e:
+        logger.error(f"創建日期時間選擇器失敗: {e}")
+        return None
+
+async def handle_user_statistics(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理用戶數據統計"""
+    try:
+        from app.models.linebot_models import LineBotUser, DivinationHistory
+        from sqlalchemy import func
+        
+        # 統計用戶數據
+        total_users = db.query(LineBotUser).count()
+        total_divinations = db.query(DivinationHistory).count()
+        admin_users = db.query(LineBotUser).filter(LineBotUser.is_admin == True).count()
+        
+        # 本週新增用戶
+        from datetime import datetime, timedelta
+        week_ago = datetime.now() - timedelta(days=7)
+        new_users_this_week = db.query(LineBotUser).filter(
+            LineBotUser.created_at >= week_ago
+        ).count()
+        
+        # 本週占卜次數
+        divinations_this_week = db.query(DivinationHistory).filter(
+            DivinationHistory.divination_time >= week_ago
+        ).count()
+        
+        stats_message = f"""📊 **用戶數據統計** 
 
 👥 **用戶統計：**
 • 總用戶數：{total_users} 人
@@ -1768,25 +2017,25 @@ async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str
 📈 **系統概況：**
 • 資料更新時間：{datetime.now().strftime("%Y-%m-%d %H:%M")}
 • 系統運行正常 ✅"""
-                
-                send_line_message(user_id, stats_message)
-                
-            except Exception as e:
-                logger.error(f"獲取用戶統計失敗: {e}")
-                send_line_message(user_id, "📊 獲取統計數據時發生錯誤，請稍後再試。")
-            
-        elif action == "system_status":
-            # 系統狀態監控
-            try:
-                import psutil
-                import os
-                
-                # 系統資源使用情況
-                cpu_percent = psutil.cpu_percent(interval=1)
-                memory = psutil.virtual_memory()
-                disk = psutil.disk_usage('/')
-                
-                status_message = f"""🖥️ **系統狀態監控**
+        
+        send_line_message(user_id, stats_message)
+        
+    except Exception as e:
+        logger.error(f"獲取用戶統計失敗: {e}")
+        send_line_message(user_id, "📊 獲取統計數據時發生錯誤，請稍後再試。")
+
+async def handle_system_status(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理系統狀態監控"""
+    try:
+        import psutil
+        import os
+        
+        # 系統資源使用情況
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        status_message = f"""🖥️ **系統狀態監控**
 
 ⚡ **CPU 使用率：**
 • 當前：{cpu_percent}%
@@ -1806,152 +2055,30 @@ async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str
 • LINE Bot 服務：運行中 ✅
 • 資料庫連接：正常 ✅
 • 更新時間：{datetime.now().strftime("%Y-%m-%d %H:%M")}"""
-                
-                send_line_message(user_id, status_message)
-                
-            except Exception as e:
-                logger.error(f"獲取系統狀態失敗: {e}")
-                send_line_message(user_id, "🖥️ 獲取系統狀態時發生錯誤，可能是權限不足。")
-            
-        elif action == "divination_records":
-            # 占卜記錄查詢
-            try:
-                from app.models.linebot_models import DivinationHistory
-                from datetime import datetime, timedelta
-                
-                # 獲取最近的占卜記錄
-                recent_records = db.query(DivinationHistory).order_by(
-                    DivinationHistory.divination_time.desc()
-                ).limit(10).all()
-                
-                if recent_records:
-                    records_text = "🔍 **最近 10 筆占卜記錄**\n\n"
-                    for i, record in enumerate(recent_records, 1):
-                        user_info = db.query(LineBotUser).filter(
-                            LineBotUser.id == record.user_id
-                        ).first()
-                        user_name = user_info.line_user_id[:8] + "..." if user_info else "未知"
-                        
-                        time_str = record.divination_time.strftime("%m/%d %H:%M")
-                        gender_str = "男" if record.gender == "M" else "女"
-                        
-                        records_text += f"{i}. {time_str} | {user_name} | {gender_str} | {record.taichi_palace}\n"
-                    
-                    records_text += f"\n📋 總計已有 {db.query(DivinationHistory).count()} 筆占卜記錄"
-                else:
-                    records_text = "🔍 **占卜記錄查詢**\n\n📋 目前沒有占卜記錄。"
-                
-                send_line_message(user_id, records_text)
-                
-            except Exception as e:
-                logger.error(f"查詢占卜記錄失敗: {e}")
-                send_line_message(user_id, "🔍 查詢占卜記錄時發生錯誤，請稍後再試。")
-            
-        elif action == "user_permissions":
-            # 用戶權限管理
-            send_line_message(user_id, """👥 **用戶權限管理**
-
-⚙️ **功能說明：**
-此功能用於管理用戶權限和會員狀態。
-
-🔧 **可用操作：**
-• 查看用戶權限狀態
-• 升級/降級會員等級
-• 設置管理員權限
-
-💡 **使用提示：**
-目前需要直接操作資料庫進行權限管理。
-未來將提供更便捷的管理介面。
-
-📞 如需協助，請聯繫技術支援。""")
-            
-        elif action == "data_export":
-            # 數據導出
-            send_line_message(user_id, """📤 **數據導出功能**
-
-📋 **可導出數據：**
-• 用戶資料清單
-• 占卜歷史記錄  
-• 系統使用統計
-• 錯誤日誌摘要
-
-⚡ **導出格式：**
-• JSON 格式（詳細數據）
-• CSV 格式（報表數據）
-
-⚠️ **注意事項：**
-• 數據導出需要系統權限
-• 敏感資料已脫敏處理
-• 請勿外洩用戶隱私
-
-🔧 目前需要手動執行導出腳本。""")
-            
-        elif action == "update_menu":
-            # 更新選單
-            send_line_message(user_id, """🔄 **選單更新功能**
-
-🎯 **使用說明：**
-更新用戶的 Rich Menu 選單。
-
-💡 **操作方式：**
-請直接輸入「更新選單」或「refresh menu」
-
-✅ **更新內容：**
-• 根據用戶權限設置對應選單
-• 修復選單顯示異常
-• 應用最新的選單設計
-
-⚠️ **注意：**
-更新後用戶需要重新開啟 LINE 應用""")
-            
-        elif action == "create_menu":
-            # 創建選單
-            send_line_message(user_id, """➕ **創建選單功能**
-
-🎨 **功能說明：**
-創建全新的 Rich Menu 選單系統。
-
-💡 **操作方式：**
-請直接輸入「創建選單」或「create menu」
-
-🔧 **創建內容：**
-• 清理舊的選單
-• 建立新的選單模板
-• 設置不同權限等級的選單
-
-⚡ **適用場景：**
-• 選單設計更新後
-• 系統重大改版時
-• 選單出現異常時""")
-            
-        elif action == "menu_stats":
-            # 選單統計
-            send_line_message(user_id, """📈 **選單使用統計**
-
-📊 **統計項目：**
-• 各選單按鈕點擊頻率
-• 用戶最常使用的功能
-• 選單設置成功率
-
-📋 **分析數據：**
-• 功能選單：使用率最高
-• 本週占卜：核心功能
-• 會員資訊：查詢頻繁
-• 使用說明：新用戶必看
-
-💡 **優化建議：**
-• 保持現有設計
-• 繼續優化用戶體驗
-
-🔧 詳細統計數據需要查看系統日誌。""")
-            
-        else:
-            logger.warning(f"未知的管理員面板動作: {action}")
-            send_line_message(user_id, "⚠️ 未知的管理功能，請重新選擇。")
-            
+        
+        send_line_message(user_id, status_message)
+        
     except Exception as e:
-        logger.error(f"處理管理員面板動作失敗: {e}", exc_info=True)
-        send_line_message(user_id, "處理管理員功能時發生錯誤，請稍後再試。")
+        logger.error(f"獲取系統狀態失敗: {e}")
+        send_line_message(user_id, "🖥️ 獲取系統狀態時發生錯誤，可能是權限不足。")
+
+async def handle_menu_management(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """處理選單管理"""
+    try:
+        from app.utils.drive_view_rich_menu_manager import set_user_drive_view_menu
+        user_stats = permission_manager.get_user_stats(db, user)
+        user_level = "admin" if user_stats["user_info"]["is_admin"] else ("premium" if user_stats["membership_info"]["is_premium"] else "user")
+        
+        success = set_user_drive_view_menu(user_id, user_level, "basic")
+        
+        if success:
+            send_line_message(user_id, f"✅ 駕駛視窗選單更新成功！\n\n用戶等級: {user_level}\n分頁: 基本功能\n\n如果選單沒有立即更新，請：\n1. 關閉並重新開啟 LINE 應用\n2. 或者重新進入本聊天室")
+        else:
+            send_line_message(user_id, "❌ 駕駛視窗選單更新失敗，請稍後再試")
+        
+    except Exception as e:
+        logger.error(f"❌ 更新駕駛視窗選單失敗: {e}")
+        send_line_message(user_id, "❌ 更新選單時發生錯誤")
 
 @router.get("/health")
 async def health_check():

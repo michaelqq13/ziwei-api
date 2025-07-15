@@ -1,11 +1,13 @@
 """
-Flex Message 管理員面板生成器
-用於生成管理員專用的功能面板
+管理員 Flex Message 面板生成器
+提供管理員專用的控制面板和功能選單
 """
 
-import json
-from typing import Dict, Any, List, Optional
 import logging
+from typing import Dict, List, Optional
+from linebot.v3.messaging import (
+    FlexMessage, FlexBubble, FlexBox, FlexText, FlexSeparator, PostbackAction
+)
 
 logger = logging.getLogger(__name__)
 
@@ -13,242 +15,146 @@ class FlexAdminPanelGenerator:
     """Flex Message 管理員面板生成器"""
     
     def __init__(self):
+        # 色彩主題
         self.colors = {
-            "primary": "#1DB446",      # LINE 綠色
-            "secondary": "#FFD700",    # 金色
-            "accent": "#FF6B6B",       # 珊瑚紅
-            "premium": "#9B59B6",      # 紫色
-            "admin": "#E74C3C",        # 紅色
-            "text_primary": "#333333",
-            "text_secondary": "#666666",
-            "text_light": "#999999"
+            "admin": "#8B0000",      # 深紅色 - 管理員主色
+            "primary": "#2E86AB",    # 深藍色 - 主要功能
+            "secondary": "#A23B72",  # 紫紅色 - 次要功能  
+            "accent": "#F18F01",     # 橙色 - 強調色
+            "success": "#C73E1D",    # 深紅色 - 成功狀態
+            "background": "#F8F9FA"  # 淺灰色 - 背景
         }
     
-    def generate_admin_panel(self) -> Optional[Dict]:
-        """
-        生成管理員面板
-        
-        Returns:
-            Flex Message 字典格式
-        """
+    def generate_admin_panel(self) -> Optional[FlexMessage]:
+        """生成管理員功能面板"""
         try:
-            # 構建管理員面板
-            flex_message = {
-                "type": "flex",
-                "altText": "👑 管理員功能面板",
-                "contents": {
-                    "type": "bubble",
-                    "size": "kilo",
-                    "header": self._create_header(),
-                    "body": self._create_body(),
-                    "footer": self._create_footer()
+            # 創建主要功能按鈕 - 將指定時間占卜放在最前面
+            main_buttons = [
+                self._create_main_admin_button(
+                    "⏰ 指定時間占卜",
+                    "回溯特定時間點進行占卜",
+                    "admin_action=time_divination_start",
+                    self.colors["primary"]
+                ),
+                self._create_main_admin_button(
+                    "📊 用戶數據統計", 
+                    "查看系統使用情況",
+                    "admin_action=user_stats",
+                    self.colors["secondary"]
+                ),
+                self._create_main_admin_button(
+                    "🖥️ 系統狀態監控",
+                    "監控系統運行狀態", 
+                    "admin_action=system_status",
+                    self.colors["accent"]
+                ),
+                self._create_main_admin_button(
+                    "⚙️ 選單管理",
+                    "管理Rich Menu設定",
+                    "admin_action=menu_management", 
+                    self.colors["success"]
+                )
+            ]
+
+            bubble = FlexBubble(
+                size="giga",
+                body=FlexBox(
+                    layout="vertical",
+                    contents=[
+                        # 標題區域
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text="👑",
+                                    size="xxl",
+                                    flex=0
+                                ),
+                                FlexText(
+                                    text="管理員控制面板",
+                                    weight="bold",
+                                    size="xxl",
+                                    color=self.colors["admin"],
+                                    flex=1,
+                                    margin="md"
+                                )
+                            ],
+                            backgroundColor=self.colors["background"],
+                            cornerRadius="md",
+                            paddingAll="lg"
+                        ),
+                        FlexSeparator(margin="xl"),
+                        
+                        # 主要功能區域
+                        FlexBox(
+                            layout="vertical",
+                            contents=main_buttons,
+                            spacing="md",
+                            margin="lg"
+                        ),
+                        
+                        # 底部說明
+                        FlexSeparator(margin="xl"),
+                        FlexText(
+                            text="💫 管理員專屬功能面板",
+                            size="sm",
+                            color="#999999",
+                            align="center",
+                            margin="md"
+                        )
+                    ],
+                    spacing="none",
+                    paddingAll="xl"
+                ),
+                styles={
+                    "body": {
+                        "backgroundColor": "#FFFFFF"
+                    }
                 }
-            }
+            )
             
-            return flex_message
+            return FlexMessage(
+                alt_text="👑 管理員控制面板",
+                contents=bubble
+            )
             
         except Exception as e:
             logger.error(f"生成管理員面板失敗: {e}")
             return None
     
-    def _create_header(self) -> Dict:
-        """創建管理員面板標題區域"""
-        return {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "👑 管理員功能面板",
-                    "weight": "bold",
-                    "size": "xl",
-                    "color": self.colors["admin"],
-                    "align": "center"
-                },
-                {
-                    "type": "text",
-                    "text": "⚙️ 系統管理與數據分析",
-                    "size": "sm",
-                    "color": self.colors["text_secondary"],
-                    "align": "center",
-                    "margin": "xs"
-                }
+    def _create_main_admin_button(self, title: str, description: str, action: str, color: str) -> FlexBox:
+        """創建主要管理員功能按鈕"""
+        return FlexBox(
+            layout="vertical",
+            contents=[
+                FlexBox(
+                    layout="horizontal",
+                    contents=[
+                        FlexText(
+                            text=title,
+                            weight="bold",
+                            size="lg",
+                            color="#FFFFFF",
+                            flex=1
+                        )
+                    ],
+                    backgroundColor=color,
+                    cornerRadius="md",
+                    paddingAll="lg",
+                    action=PostbackAction(
+                        data=action
+                    )
+                ),
+                FlexText(
+                    text=description,
+                    size="sm",
+                    color="#666666",
+                    margin="sm"
+                )
             ],
-            "paddingBottom": "md"
-        }
-    
-    def _create_body(self) -> Dict:
-        """創建管理員面板主體內容"""
-        contents = []
-        
-        # 系統管理區塊
-        system_section = self._create_system_management_section()
-        contents.append(system_section)
-        
-        # 分隔線
-        contents.append(self._create_separator())
-        
-        # 數據管理區塊
-        data_section = self._create_data_management_section()
-        contents.append(data_section)
-        
-        # 分隔線
-        contents.append(self._create_separator())
-        
-        # 選單管理區塊
-        menu_section = self._create_menu_management_section()
-        contents.append(menu_section)
-        
-        return {
-            "type": "box",
-            "layout": "vertical",
-            "contents": contents,
-            "spacing": "md"
-        }
-    
-    def _create_system_management_section(self) -> Dict:
-        """創建系統管理區塊"""
-        return {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "🔧 系統管理",
-                    "weight": "bold",
-                    "size": "md",
-                    "color": self.colors["admin"],
-                    "margin": "none"
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        self._create_admin_button(
-                            "指定時間占卜",
-                            "回溯特定時間點運勢分析",
-                            "⏰",
-                            "admin_action=time_divination"
-                        ),
-                        self._create_admin_button(
-                            "用戶數據統計",
-                            "查看系統用戶使用情況",
-                            "📊", 
-                            "admin_action=user_stats"
-                        ),
-                        self._create_admin_button(
-                            "系統狀態監控",
-                            "監控系統運行狀態",
-                            "🖥️",
-                            "admin_action=system_status"
-                        )
-                    ],
-                    "spacing": "sm",
-                    "margin": "sm"
-                }
-            ]
-        }
-    
-    def _create_data_management_section(self) -> Dict:
-        """創建數據管理區塊"""
-        return {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "📊 數據管理",
-                    "weight": "bold",
-                    "size": "md",
-                    "color": self.colors["secondary"],
-                    "margin": "none"
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        self._create_admin_button(
-                            "占卜記錄查詢",
-                            "查看用戶占卜歷史記錄",
-                            "🔍",
-                            "admin_action=divination_records"
-                        ),
-                        self._create_admin_button(
-                            "用戶權限管理",
-                            "管理用戶權限和會員狀態",
-                            "👥",
-                            "admin_action=user_permissions"
-                        ),
-                        self._create_admin_button(
-                            "數據導出",
-                            "導出系統數據報表",
-                            "📤",
-                            "admin_action=data_export"
-                        )
-                    ],
-                    "spacing": "sm",
-                    "margin": "sm"
-                }
-            ]
-        }
-    
-    def _create_menu_management_section(self) -> Dict:
-        """創建選單管理區塊"""
-        return {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "⚙️ 選單管理",
-                    "weight": "bold",
-                    "size": "md",
-                    "color": self.colors["accent"],
-                    "margin": "none"
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        self._create_admin_button(
-                            "更新選單",
-                            "更新用戶Rich Menu",
-                            "🔄",
-                            "admin_action=update_menu"
-                        ),
-                        self._create_admin_button(
-                            "創建選單",
-                            "創建新的Rich Menu",
-                            "➕",
-                            "admin_action=create_menu"
-                        ),
-                        self._create_admin_button(
-                            "選單統計",
-                            "查看選單使用統計",
-                            "📈",
-                            "admin_action=menu_stats"
-                        )
-                    ],
-                    "spacing": "sm",
-                    "margin": "sm"
-                }
-            ]
-        }
-    
-    def _create_admin_button(self, title: str, description: str, icon: str, action_data: str) -> Dict:
-        """創建管理員功能按鈕"""
-        return {
-            "type": "button",
-            "style": "primary",
-            "height": "sm",
-            "action": {
-                "type": "postback",
-                "label": f"{icon} {title}",
-                "data": action_data,
-                "displayText": f"{icon} {title}"
-            },
-            "color": self.colors["admin"]
-        }
+            spacing="none",
+            margin="md"
+        )
     
     def _create_separator(self) -> Dict:
         """創建分隔線"""
