@@ -493,7 +493,7 @@ def send_smart_quick_reply_after_divination(user_id: str, divination_result: Dic
         def delayed_send():
             try:
                 import time
-                time.sleep(2)  # 延迟2秒发送
+                time.sleep(3)  # 延迟3秒发送，避免与占卜结果冲突
                 send_line_message(user_id, guidance_message, quick_reply_items)
                 logger.info(f"成功延迟发送智能 Quick Reply 给用户 {user_id}")
             except Exception as delay_error:
@@ -1250,40 +1250,49 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     
                     if is_admin:
                         # 管理員專用訊息
-                        send_line_message(user_id, """🌟 歡迎使用星空紫微斗數系統！ ✨ (管理員)
+                        send_line_message(user_id, """✨ 星空紫微斗數 ✨ (管理員模式)
 
-🔮 **主要功能：**
-• 本週占卜 - 根據當下時間占卜運勢
-• 會員資訊 - 查看個人資訊和使用統計
+🔮 主要功能：
+• 本週占卜 — 根據當下時間為您解讀運勢
+• 會員資訊 — 查看個人資料與使用記錄
 
-👑 **管理員專屬功能：**
-• 指定時間占卜 - 回溯特定時間點運勢
+👑 管理員專屬功能：
+• 指定時間占卜 — 回溯特定時間點的運勢
 
-💫 **使用方式：**
-• 點擊下方星球按鈕快速操作
-• 或直接輸入指令文字：
+💫 使用方式：
+• 點擊下方功能按鈕快速操作
+• 或直接輸入指令：
   - 「本週占卜」或「占卜」
   - 「指定時間占卜」或「時間占卜」
   - 「會員資訊」
 
-⭐ 願紫微斗數為您指引人生方向！""")
+⸻
+
+✨ 我會陪伴您探索星象的奧祕。""")
                     else:
                         # 一般用戶訊息
-                        send_line_message(user_id, """🌟 歡迎使用星空紫微斗數系統！ ✨
+                        send_line_message(user_id, """✨ 星空紫微斗數 ✨
 
-🔮 **主要功能：**
-• 本週占卜 - 根據當下時間占卜運勢
-• 會員資訊 - 查看個人資訊和使用統計
+🔮 主要功能：
+• 本週占卜 — 根據當下時間為您解讀運勢
+• 會員資訊 — 查看個人資料與使用記錄
 
-💫 **使用方式：**
-• 點擊下方星球按鈕快速操作
+💫 使用方式：
+• 點擊下方功能按鈕快速操作
 • 或直接輸入指令文字
 
-⭐ 願紫微斗數為您指引人生方向！""")
+⸻
+
+✨ 當您需要指引時，我會靜靜在這裡等您。""")
                 
             except Exception as e:
                 logger.error(f"處理用戶請求失敗：{e}", exc_info=True)
-                send_line_message(user_id, "系統暫時忙碌，請稍後再試。")
+                # 只在嚴重的系統錯誤時才發送忙碌訊息，並增加錯誤類型檢查
+                if not isinstance(e, (KeyError, AttributeError, ValueError)):
+                    logger.error(f"發送系統忙碌訊息給用戶 {user_id}，錯誤類型: {type(e).__name__}")
+                    send_line_message(user_id, "系統暫時忙碌，請稍後再試。")
+                else:
+                    logger.warning(f"輕微錯誤，不發送忙碌訊息: {e}")
     
     # 這個 except 是用來捕捉 message_type 檢查或 user_id 提取的錯誤
     except Exception as e:
@@ -1296,19 +1305,32 @@ def handle_follow_event(event: dict, db: Optional[Session]):
     logger.info(f"用戶 {user_id} 觸發關注事件...")
 
     # 歡迎訊息
-    welcome_message = """🌟 歡迎加入星空紫微斗數！ ✨
+    welcome_message = """✨ 歡迎加入星空紫微斗數✨
+我是您的專屬命理小幫手，運用古老的智慧，為日常忙碌的您，帶來溫柔而深刻的指引。
 
-我是您的專屬命理小幫手，運用古老的智慧為您提供現代化的指引。
+白天有正職在身，晚上還要陪伴孩子，一直到深夜孩子熟睡，世界終於安靜下來，我才有片刻能與星盤對話——靜靜傾聽宇宙要傳遞的訊息，也希望透過這裡，把這份指引分享給正在尋找答案的你。
 
-🔮 **主要功能：**
-• **本週占卜** - 根據當下的「觸機」，為您占卜本週的關鍵運勢。
-• **會員資訊** - 查看您的個人資訊和使用記錄。
-• **命盤綁定** - (即將推出) 綁定您的生辰，獲得更個人化的分析。
+⸻
 
-👇 **開始您的探索之旅**
-請點擊下方的「**基本功能**」中的「**本週占卜**」，體驗觸機占卜的奧妙！
+🔮 主要功能：
+• 本週占卜 — 根據「現在的時間」，為你揭示此刻內心真正在意的課題，即使你沒說出口，我也會陪你一起發現正在煩心的方向。
 
-⭐ 願紫微斗數為您照亮前行的道路！"""
+• 會員資訊 — 查看您的個人資料與占卜紀錄。
+
+• 命盤綁定 — (即將推出) 綁定您的出生資訊，獲得專屬的紫微命盤與分析。
+
+⸻
+
+👇 開始您的星語之旅：
+請點擊下方的「本週占卜」，讓我陪你看見內心真正的方向。
+
+⸻
+
+✨ 無論你正經歷什麼，請記得——
+這裡是你忙碌生活中的一處星光，當你感到迷惘、疲憊或只是想靜靜喘口氣，
+我會一直在這裡，靜靜陪你，等你回來。
+
+— 星語引路人"""
     
     send_line_message(user_id, welcome_message)
     
