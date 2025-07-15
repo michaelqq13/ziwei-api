@@ -170,10 +170,40 @@ class ChineseCalendar:
 
     @classmethod
     def get_minute_branch(cls, hour: int, minute: int) -> str:
-        """計算分鐘地支 - 將由6tail系統替代"""
-        # 暫時保留接口，實際計算將由6tail系統處理
-        hour_branch = cls.get_hour_branch(hour)
-        return hour_branch
+        """
+        計算分鐘地支 - 根據分鐘數計算對應地支
+        每10分鐘為一個地支單位：
+        0-9分鐘 -> 子, 10-19分鐘 -> 丑, 20-29分鐘 -> 寅, 30-39分鐘 -> 卯,
+        40-49分鐘 -> 辰, 50-59分鐘 -> 巳
+        然後循環：60-69分鐘 -> 午, 70-79分鐘 -> 未, 80-89分鐘 -> 申,
+        90-99分鐘 -> 酉, 100-109分鐘 -> 戌, 110-119分鐘 -> 亥
+        """
+        # 計算在整個時辰內的總分鐘數
+        # 每個時辰是2個小時，需要確定是時辰的第一個小時還是第二個小時
+        
+        # 特殊處理子時（23:00-1:00）
+        if hour == 23:
+            total_minutes_in_shichen = minute
+        elif hour == 0:
+            total_minutes_in_shichen = minute + 60
+        else:
+            # 其他時辰：每個時辰是連續的兩個小時
+            # 時辰對照：1-3丑時，3-5寅時，5-7卯時，7-9辰時，9-11巳時，11-13午時
+            # 13-15未時，15-17申時，17-19酉時，19-21戌時，21-23亥時
+            
+            # 判斷是時辰的第一個小時還是第二個小時
+            # 奇數小時（1,3,5,7,9,11,13,15,17,19,21）是第一個小時
+            # 偶數小時（2,4,6,8,10,12,14,16,18,20,22）是第二個小時
+            if hour % 2 == 0:  # 偶數小時是第二個小時
+                total_minutes_in_shichen = minute + 60
+            else:  # 奇數小時是第一個小時
+                total_minutes_in_shichen = minute
+        
+        # 根據總分鐘數計算地支索引
+        # 每10分鐘一個地支，從子開始
+        branch_index = (total_minutes_in_shichen // 10) % 12
+        
+        return cls.EARTHLY_BRANCHES[branch_index]
 
     @classmethod
     def get_hour_stem(cls, hour: int, day_stem: str = None) -> str:
