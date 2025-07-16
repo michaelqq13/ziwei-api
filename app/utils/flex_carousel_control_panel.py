@@ -36,11 +36,18 @@ class FlexCarouselControlPanelGenerator:
             "star_silver": "#C0C0C0"     # 星星銀色
         }
         
-        # 星空背景圖片 URL (可以放在靜態資源中)
+        # 星空背景圖片 URL - 使用真實的星空圖片
         self.background_images = {
-            "basic": "https://via.placeholder.com/800x400/1A1A2E/FFD700?text=✨+基本功能",
-            "premium": "https://via.placeholder.com/800x400/2C3E50/E67E22?text=🌟+進階功能", 
-            "admin": "https://via.placeholder.com/800x400/8B0000/FFD700?text=👑+管理功能"
+            "basic": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80",      # 深藍星空
+            "premium": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80",    # 紫色星雲
+            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"        # 金色星空
+        }
+        
+        # 如果無法存取 Unsplash，備用星空圖片 URL
+        self.fallback_images = {
+            "basic": "https://via.placeholder.com/1040x600/1A1A2E/FFD700?text=✨+基本功能+✨",
+            "premium": "https://via.placeholder.com/1040x600/2C3E50/E67E22?text=🌟+進階功能+🌟", 
+            "admin": "https://via.placeholder.com/1040x600/8B0000/FFD700?text=👑+管理功能+👑"
         }
     
     def generate_carousel_control_panel(self, user_stats: Dict[str, Any]) -> Optional[FlexMessage]:
@@ -119,334 +126,364 @@ class FlexCarouselControlPanelGenerator:
     
     def _create_page_bubble(self, page_type: str, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
         """
-        創建分頁 bubble
+        創建單個分頁的 bubble
         
         Args:
-            page_type: 分頁類型 ("basic", "premium", "admin")
+            page_type: 分頁類型 ('basic', 'premium', 'admin')
             is_admin: 是否為管理員
             is_premium: 是否為付費會員
             
         Returns:
-            FlexBubble 物件或 None
+            FlexBubble 物件
         """
         try:
+            # 根據分頁類型設定內容
             if page_type == "basic":
-                return self._create_basic_page_bubble()
+                return self._create_basic_page(is_admin, is_premium)
             elif page_type == "premium":
-                return self._create_premium_page_bubble(is_admin, is_premium)
+                return self._create_premium_page(is_admin, is_premium)
             elif page_type == "admin":
-                return self._create_admin_page_bubble()
+                return self._create_admin_page(is_admin, is_premium)
             else:
                 return None
-                
         except Exception as e:
             logger.error(f"創建 {page_type} 分頁失敗: {e}")
             return None
     
-    def _create_basic_page_bubble(self) -> FlexBubble:
+    def _create_basic_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
         """創建基本功能分頁"""
-        return FlexBubble(
-            size="giga",
-            body=FlexBox(
+        
+        # 設定背景圖片和主題色彩
+        background_image = self.background_images.get("basic", self.fallback_images["basic"])
+        
+        bubble = FlexBubble(
+            size="mega",
+            hero=FlexBox(
                 layout="vertical",
                 contents=[
                     # 標題區域
-                    self._create_page_header("🔮 基本功能", "免費使用・觸機占卜", self.colors["primary"]),
-                    
-                    FlexSeparator(margin="lg", color=self.colors["border"]),
-                    
-                    # 功能按鈕區域
                     FlexBox(
                         layout="vertical",
                         contents=[
-                            self._create_star_button(
-                                "🔮 本週占卜",
-                                "根據當下時間進行觸機占卜",
-                                "control_panel=basic_divination",
-                                self.colors["primary"],
-                                "⭐⭐⭐"
+                            FlexText(
+                                text="✨ 基本功能",
+                                weight="bold",
+                                size="xl",
+                                color=self.colors["star_gold"],
+                                align="center"
                             ),
-                            
-                            self._create_star_button(
-                                "👤 會員資訊",
-                                "查看個人資料和占卜記錄",
-                                "action=show_member_info", 
-                                self.colors["accent"],
-                                "⭐⭐"
+                            FlexText(
+                                text="Essential Features",
+                                size="sm",
+                                color=self.colors["text_secondary"],
+                                align="center",
+                                margin="xs"
                             ),
-                            
-                            self._create_star_button(
-                                "📖 使用說明",
-                                "了解如何使用紫微斗數占卜",
-                                "action=show_instructions",
-                                self.colors["secondary"],
-                                "⭐"
+                            FlexText(
+                                text="1/3",
+                                size="xs",
+                                color=self.colors["text_light"],
+                                align="center",
+                                margin="sm"
                             )
                         ],
-                        spacing="md",
-                        margin="lg"
-                    ),
-                    
-                    # 分頁指示器和說明
-                    self._create_page_footer("1/3", "左右滑動查看更多功能"),
+                        spacing="none",
+                        margin="md"
+                    )
                 ],
-                spacing="sm",
-                paddingAll="lg"
+                background_image=background_image,
+                background_size="cover",
+                background_position="center",
+                padding_all="20px",
+                height="120px",
+                # 添加半透明遮罩效果
+                background_color="#1A1A2ECC"  # CC = 80% 透明度
             ),
-            styles={
-                "body": {"backgroundColor": self.colors["background"]}
-            }
-        )
-    
-    def _create_premium_page_bubble(self, is_admin: bool, is_premium: bool) -> FlexBubble:
-        """創建進階功能分頁"""
-        # 根據權限決定按鈕是否可用
-        can_access = is_premium or is_admin
-        
-        # 創建按鈕列表
-        buttons = [
-            self._create_star_button(
-                "🌍 流年運勢",
-                "年度整體運勢分析" if can_access else "🔒 需要付費會員解鎖",
-                "control_panel=yearly_fortune" if can_access else "control_panel=upgrade_required",
-                self.colors["premium"] if can_access else self.colors["disabled"],
-                "⭐⭐⭐⭐" if can_access else "🔒🔒🔒🔒",
-                disabled=not can_access
-            ),
-            
-            self._create_star_button(
-                "🌙 流月運勢", 
-                "月度運勢變化分析" if can_access else "🔒 需要付費會員解鎖",
-                "control_panel=monthly_fortune" if can_access else "control_panel=upgrade_required",
-                self.colors["accent"] if can_access else self.colors["disabled"],
-                "⭐⭐⭐⭐" if can_access else "🔒🔒🔒🔒",
-                disabled=not can_access
-            ),
-            
-            self._create_star_button(
-                "🪐 流日運勢",
-                "每日運勢詳細分析" if can_access else "🔒 需要付費會員解鎖", 
-                "control_panel=daily_fortune" if can_access else "control_panel=upgrade_required",
-                self.colors["primary"] if can_access else self.colors["disabled"],
-                "⭐⭐⭐⭐" if can_access else "🔒🔒🔒🔒",
-                disabled=not can_access
-            )
-        ]
-        
-        # 會員升級按鈕（非管理員才顯示）
-        if not is_admin:
-            upgrade_button = self._create_star_button(
-                "💎 會員升級",
-                "升級享受更多專業功能" if not can_access else "管理會員狀態",
-                "control_panel=member_upgrade",
-                self.colors["star_gold"],
-                "💫💫💫💫💫"
-            )
-            if upgrade_button:
-                buttons.append(upgrade_button)
-        
-        return FlexBubble(
-            size="giga", 
             body=FlexBox(
                 layout="vertical",
                 contents=[
-                    # 標題區域
-                    self._create_page_header(
-                        "🌟 進階功能", 
-                        "付費會員專享・深度分析" if can_access else "🔒 需要付費會員",
-                        self.colors["premium"] if can_access else self.colors["disabled"]
-                    ),
-                    
-                    FlexSeparator(margin="lg", color=self.colors["border"]),
-                    
-                    # 功能按鈕區域
+                    # 功能按鈕
                     FlexBox(
                         layout="vertical",
-                        contents=buttons,
-                        spacing="md",
-                        margin="lg"
+                        contents=[
+                            self._create_function_button("🔮", "週運占卜", "本週觸機占卜算命", "control_panel=basic_divination", True),
+                            self._create_function_button("👤", "會員資訊", "查看個人資料", "action=show_member_info", True),
+                            self._create_function_button("📖", "使用說明", "功能說明與教學", "action=show_instructions", True)
+                        ],
+                        spacing="sm"
                     ),
-                    
-                    # 分頁指示器和說明
-                    self._create_page_footer("2/3", "左右滑動查看其他功能"),
+                    FlexSeparator(margin="lg"),
+                    # 頁面指示器
+                    FlexText(
+                        text="← 滑動查看更多功能 →" if (is_premium or is_admin) else "✨ 所有可用功能 ✨",
+                        size="xs",
+                        color=self.colors["text_light"],
+                        align="center",
+                        margin="md"
+                    )
                 ],
-                spacing="sm",
-                paddingAll="lg"
-            ),
-            styles={
-                "body": {"backgroundColor": self.colors["background"]}
-            }
+                spacing="md",
+                background_color=self.colors["card_bg"],
+                corner_radius="15px",
+                padding_all="16px"
+            )
         )
-    
-    def _create_admin_page_bubble(self) -> FlexBubble:
+        
+        return bubble
+
+    def _create_premium_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
+        """創建付費功能分頁"""
+        
+        # 設定背景圖片
+        background_image = self.background_images.get("premium", self.fallback_images["premium"])
+        
+        bubble = FlexBubble(
+            size="mega",
+            hero=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 標題區域
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexText(
+                                text="🌟 進階功能",
+                                weight="bold",
+                                size="xl",
+                                color=self.colors["premium"],
+                                align="center"
+                            ),
+                            FlexText(
+                                text="Premium Features",
+                                size="sm",
+                                color=self.colors["text_secondary"],
+                                align="center",
+                                margin="xs"
+                            ),
+                            FlexText(
+                                text="2/3",
+                                size="xs",
+                                color=self.colors["text_light"],
+                                align="center",
+                                margin="sm"
+                            )
+                        ],
+                        spacing="none",
+                        margin="md"
+                    )
+                ],
+                background_image=background_image,
+                background_size="cover",
+                background_position="center",
+                padding_all="20px",
+                height="120px",
+                # 添加半透明遮罩效果
+                background_color="#2C3E50CC"  # CC = 80% 透明度
+            ),
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 功能按鈕
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            self._create_function_button("🌍", "流年運勢", "年度運勢深度分析", "control_panel=yearly_fortune", is_premium or is_admin),
+                            self._create_function_button("🌙", "流月運勢", "月度運勢變化預測", "control_panel=monthly_fortune", is_premium or is_admin),
+                            self._create_function_button("🪐", "流日運勢", "每日運勢精準解析", "control_panel=daily_fortune", is_premium or is_admin),
+                            self._create_function_button("💎", "會員升級", "享受完整功能", "control_panel=member_upgrade", True)
+                        ],
+                        spacing="sm"
+                    ),
+                    FlexSeparator(margin="lg"),
+                    # 頁面指示器和升級提示
+                    FlexText(
+                        text="← 滑動瀏覽功能分頁 →" if is_admin else "💎 升級享受完整功能",
+                        size="xs",
+                        color=self.colors["premium"] if not (is_premium or is_admin) else self.colors["text_light"],
+                        align="center",
+                        margin="md"
+                    )
+                ],
+                spacing="md",
+                background_color=self.colors["card_bg"],
+                corner_radius="15px",
+                padding_all="16px"
+            )
+        )
+        
+        return bubble
+
+    def _create_admin_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
         """創建管理員功能分頁"""
-        return FlexBubble(
-            size="giga",
-            body=FlexBox(
-                layout="vertical", 
+        
+        # 設定背景圖片
+        background_image = self.background_images.get("admin", self.fallback_images["admin"])
+        
+        bubble = FlexBubble(
+            size="mega",
+            hero=FlexBox(
+                layout="vertical",
                 contents=[
                     # 標題區域
-                    self._create_page_header("👑 管理功能", "管理員專用・系統控制", self.colors["admin"]),
-                    
-                    FlexSeparator(margin="lg", color=self.colors["border"]),
-                    
-                    # 功能按鈕區域
                     FlexBox(
                         layout="vertical",
                         contents=[
-                            self._create_star_button(
-                                "⏰ 指定時間占卜",
-                                "回溯特定時間點進行占卜",
-                                "admin_action=time_divination_start",
-                                self.colors["admin"],
-                                "👑👑👑👑👑"
+                            FlexText(
+                                text="👑 管理功能",
+                                weight="bold",
+                                size="xl",
+                                color=self.colors["admin"],
+                                align="center"
                             ),
-                            
-                            self._create_star_button(
-                                "📊 用戶數據統計",
-                                "查看系統使用情況和統計",
-                                "admin_action=user_stats",
-                                self.colors["accent"],
-                                "👑👑👑👑"
+                            FlexText(
+                                text="Administrator Panel",
+                                size="sm",
+                                color=self.colors["text_secondary"],
+                                align="center",
+                                margin="xs"
                             ),
-                            
-                            self._create_star_button(
-                                "🖥️ 系統狀態監控",
-                                "監控系統運行狀態",
-                                "admin_action=system_status", 
-                                self.colors["primary"],
-                                "👑👑👑"
-                            ),
-                            
-                            self._create_star_button(
-                                "⚙️ 選單管理",
-                                "管理 Rich Menu 和功能設定",
-                                "admin_action=menu_management",
-                                self.colors["secondary"],
-                                "👑👑"
+                            FlexText(
+                                text="3/3",
+                                size="xs",
+                                color=self.colors["text_light"],
+                                align="center",
+                                margin="sm"
                             )
                         ],
-                        spacing="md",
-                        margin="lg"
-                    ),
-                    
-                    # 分頁指示器和說明
-                    self._create_page_footer("3/3", "管理員專屬功能面板"),
+                        spacing="none",
+                        margin="md"
+                    )
                 ],
-                spacing="sm",
-                paddingAll="lg"
+                background_image=background_image,
+                background_size="cover",
+                background_position="center",
+                padding_all="20px",
+                height="120px",
+                # 添加半透明遮罩效果
+                background_color="#8B0000CC"  # CC = 80% 透明度
             ),
-            styles={
-                "body": {"backgroundColor": self.colors["background"]}
-            }
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 功能按鈕
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            self._create_function_button("⏰", "指定時間占卜", "回溯特定時間點占卜", "admin_action=time_divination_start", is_admin),
+                            self._create_function_button("📊", "用戶統計", "數據分析與報表", "admin_action=user_stats", is_admin),
+                            self._create_function_button("🖥️", "系統監控", "服務狀態監控", "admin_action=system_status", is_admin),
+                            self._create_function_button("⚙️", "選單管理", "功能配置管理", "admin_action=menu_management", is_admin)
+                        ],
+                        spacing="sm"
+                    ),
+                    FlexSeparator(margin="lg"),
+                    # 頁面指示器
+                    FlexText(
+                        text="← 滑動返回其他功能 →",
+                        size="xs",
+                        color=self.colors["text_light"],
+                        align="center",
+                        margin="md"
+                    )
+                ],
+                spacing="md",
+                background_color=self.colors["card_bg"],
+                corner_radius="15px",
+                padding_all="16px"
+            )
         )
-    
-    def _create_page_header(self, title: str, subtitle: str, color: str) -> FlexBox:
-        """創建分頁標題區域"""
+        
+        return bubble
+
+    def _create_function_button(self, icon: str, title: str, description: str, action_data: str, is_enabled: bool) -> FlexBox:
+        """創建單一功能按鈕 - 半透明立體效果"""
+        
+        # 半透明按鈕色彩 - 使用 RGBA 格式創造立體感
+        if is_enabled:
+            # 啟用狀態：半透明藍色背景
+            button_bg = "rgba(74, 144, 226, 0.15)"  # 主色的15%透明度
+            border_color = "rgba(255, 215, 0, 0.8)"  # 金邊 80% 透明度
+            text_color = self.colors["text_primary"]
+            icon_color = self.colors["star_gold"]
+            stars = "⭐⭐⭐"
+        else:
+            # 禁用狀態：更透明的灰色背景
+            button_bg = "rgba(108, 123, 127, 0.1)"  # 禁用色的10%透明度
+            border_color = "rgba(128, 128, 128, 0.3)"  # 灰邊 30% 透明度
+            text_color = self.colors["disabled"]
+            icon_color = self.colors["disabled"]
+            stars = "🔒🔒🔒"
+        
         return FlexBox(
             layout="vertical",
             contents=[
-                FlexText(
-                    text=title,
-                    weight="bold",
-                    size="xl",
-                    color=color,
-                    align="center"
+                # 主按鈕區域 - 使用半透明效果和邊框
+                FlexBox(
+                    layout="vertical",
+                    contents=[
+                        # 上半部：圖標和標題
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text=icon,
+                                    size="xl",
+                                    color=icon_color,
+                                    flex=0,
+                                    weight="bold"
+                                ),
+                                FlexText(
+                                    text=title,
+                                    weight="bold",
+                                    size="lg",
+                                    color=text_color,
+                                    flex=1,
+                                    margin="sm"
+                                ),
+                                FlexText(
+                                    text=stars,
+                                    size="sm",
+                                    color=self.colors["star_gold"] if is_enabled else self.colors["disabled"],
+                                    flex=0,
+                                    align="end"
+                                )
+                            ],
+                            spacing="sm"
+                        ),
+                        # 下半部：描述文字
+                        FlexText(
+                            text=description,
+                            size="xs",
+                            color=self.colors["text_secondary"] if is_enabled else self.colors["disabled"],
+                            wrap=True,
+                            margin="xs"
+                        )
+                    ],
+                    # 半透明背景 + 邊框效果
+                    backgroundColor=button_bg,
+                    cornerRadius="12px",
+                    paddingAll="16px",
+                    borderWidth="1px",
+                    borderColor=border_color,
+                    action=PostbackAction(
+                        data=action_data,
+                        displayText=title
+                    ) if is_enabled else None
                 ),
-                FlexText(
-                    text=subtitle,
-                    size="sm",
-                    color=self.colors["text_secondary"],
-                    align="center",
-                    margin="xs"
+                
+                # 底部陰影效果（模擬立體感）
+                FlexBox(
+                    layout="vertical",
+                    contents=[],
+                    height="3px",
+                    backgroundColor="rgba(0, 0, 0, 0.1)",  # 淺色陰影
+                    cornerRadius="0px 0px 8px 8px",
+                    margin="none"
                 )
             ],
-            backgroundColor=self.colors["card_bg"],
-            cornerRadius="md",
-            paddingAll="md"
+            spacing="none",
+            margin="sm"
         )
-    
-    def _create_star_button(self, title: str, description: str, action_data: str, 
-                           color: str, stars: str, disabled: bool = False) -> Optional[FlexBox]:
-        """創建星空主題功能按鈕"""
-        if disabled:
-            return FlexBox(
-                layout="vertical",
-                contents=[
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexText(
-                                text=title,
-                                weight="bold",
-                                size="md",
-                                color=self.colors["text_light"],
-                                flex=1
-                            ),
-                            FlexText(
-                                text=stars,
-                                size="sm",
-                                color=self.colors["disabled"],
-                                flex=0,
-                                align="end"
-                            )
-                        ],
-                        backgroundColor=self.colors["disabled"],
-                        cornerRadius="md",
-                        paddingAll="md"
-                    ),
-                    FlexText(
-                        text=description,
-                        size="xs",
-                        color=self.colors["text_light"],
-                        wrap=True,
-                        margin="xs"
-                    )
-                ],
-                spacing="none",
-                margin="sm"
-            )
-        else:
-            return FlexBox(
-                layout="vertical",
-                contents=[
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexText(
-                                text=title,
-                                weight="bold",
-                                size="md",
-                                color=self.colors["text_primary"],
-                                flex=1
-                            ),
-                            FlexText(
-                                text=stars,
-                                size="sm",
-                                color=self.colors["star_gold"],
-                                flex=0,
-                                align="end"
-                            )
-                        ],
-                        backgroundColor=color,
-                        cornerRadius="md",
-                        paddingAll="md",
-                        action=PostbackAction(
-                            data=action_data,
-                            displayText=title
-                        )
-                    ),
-                    FlexText(
-                        text=description,
-                        size="xs",
-                        color=self.colors["text_secondary"],
-                        wrap=True,
-                        margin="xs"
-                    )
-                ],
-                spacing="none",
-                margin="sm"
-            )
     
     def _create_page_footer(self, page_indicator: str, instruction: str) -> FlexBox:
         """創建分頁底部區域"""

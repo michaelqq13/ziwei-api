@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone, timedelta
 from linebot.v3.messaging import (
     FlexMessage, FlexContainer, FlexBubble, FlexBox, FlexText, 
-    FlexSeparator, FlexFiller, FlexButton, FlexSpacer
+    FlexSeparator, FlexFiller, FlexButton
 )
 from linebot.v3.messaging.models import (
     Action, MessageAction, DatetimePickerAction, PostbackAction
@@ -24,6 +24,29 @@ class TimePickerFlexMessageGenerator:
     
     def __init__(self):
         self.current_time = datetime.now(TAIPEI_TZ)
+        
+        # 星空主題色彩配置
+        self.colors = {
+            "primary": "#4A90E2",
+            "secondary": "#FFD700", 
+            "accent": "#9B59B6",
+            "background": "#1A1A2E",
+            "card_bg": "#16213E",
+            "text_primary": "#FFFFFF",
+            "text_secondary": "#B0C4DE",
+            "star_gold": "#FFD700",
+            "admin": "#E74C3C"
+        }
+        
+        # 星空背景圖片
+        self.background_images = {
+            "time_picker": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=400&q=80"  # 時間星空
+        }
+        
+        # 備用背景圖片
+        self.fallback_images = {
+            "time_picker": "https://via.placeholder.com/1040x400/1A1A2E/FFD700?text=⏰+時間選擇器+⏰"
+        }
     
     def create_time_selection_message(self, gender: str) -> FlexMessage:
         """
@@ -41,51 +64,80 @@ class TimePickerFlexMessageGenerator:
             max_time = (self.current_time + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M")
             initial_time = (self.current_time - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
             
+            # 選擇背景圖片
+            background_image = self.background_images.get("time_picker", self.fallback_images["time_picker"])
+            
             # 創建主要的時間選擇區域
             main_contents = [
                 # 標題
-                FlexText(
-                    text="⏰ 選擇占卜時間",
-                    weight="bold",
-                    size="xl",
-                    color="#FF6B6B",
-                    align="center"
+                FlexBox(
+                    layout="vertical",
+                    contents=[
+                        FlexText(
+                            text="⏰ 選擇占卜時間",
+                            weight="bold",
+                            size="xl",
+                            color=self.colors["star_gold"],
+                            align="center"
+                        ),
+                        FlexText(
+                            text="Time Selection",
+                            size="sm",
+                            color=self.colors["text_secondary"],
+                            align="center",
+                            margin="xs"
+                        )
+                    ],
+                    background_image=background_image,
+                    background_size="cover",
+                    background_position="center",
+                    padding_all="20px",
+                    height="100px",
+                    # 添加半透明遮罩效果
+                    background_color="#1A1A2ECC"  # CC = 80% 透明度
                 ),
                 
                 FlexSeparator(margin="lg"),
                 
                 # 說明文字
-                FlexText(
-                    text="請選擇您想要占卜的時間點",
-                    size="md",
-                    color="#666666",
-                    align="center",
-                    wrap=True,
-                    margin="md"
-                ),
-                
-                FlexSeparator(margin="lg"),
-                
-                # 當前時間顯示
                 FlexBox(
-                    layout="horizontal",
+                    layout="vertical",
                     contents=[
                         FlexText(
-                            text="📅 當前時間",
-                            size="sm",
-                            color="#888888",
-                            flex=1
+                            text="請選擇您想要占卜的時間點",
+                            size="md",
+                            color=self.colors["text_primary"],
+                            align="center",
+                            wrap=True,
+                            margin="md"
                         ),
-                        FlexText(
-                            text=self.current_time.strftime("%Y-%m-%d %H:%M"),
-                            size="sm",
-                            weight="bold",
-                            color="#333333",
-                            flex=2,
-                            align="end"
+                        
+                        # 當前時間顯示
+                        FlexBox(
+                            layout="horizontal",
+                            contents=[
+                                FlexText(
+                                    text="📅 當前時間",
+                                    size="sm",
+                                    color=self.colors["text_secondary"],
+                                    flex=1
+                                ),
+                                FlexText(
+                                    text=self.current_time.strftime("%Y-%m-%d %H:%M"),
+                                    size="sm",
+                                    weight="bold",
+                                    color=self.colors["star_gold"],
+                                    flex=2,
+                                    align="end"
+                                )
+                            ],
+                            margin="md",
+                            background_color=self.colors["card_bg"],
+                            corner_radius="5px",
+                            padding_all="8px"
                         )
                     ],
-                    margin="md"
+                    spacing="sm"
                 ),
                 
                 FlexSeparator(margin="lg"),
@@ -113,7 +165,7 @@ class TimePickerFlexMessageGenerator:
                             color="#4ECDC4",
                             flex=1
                         ),
-                        FlexSpacer(size="sm"),
+                        FlexFiller(),
                         FlexButton(
                             action=PostbackAction(
                                 label="2小時前",
@@ -124,7 +176,7 @@ class TimePickerFlexMessageGenerator:
                             color="#4ECDC4",
                             flex=1
                         ),
-                        FlexSpacer(size="sm"),
+                        FlexFiller(),
                         FlexButton(
                             action=PostbackAction(
                                 label="3小時前",
@@ -154,7 +206,7 @@ class TimePickerFlexMessageGenerator:
                             color="#4ECDC4",
                             flex=1
                         ),
-                        FlexSpacer(size="sm"),
+                        FlexFiller(),
                         FlexButton(
                             action=PostbackAction(
                                 label="昨天同時",
@@ -165,7 +217,7 @@ class TimePickerFlexMessageGenerator:
                             color="#4ECDC4",
                             flex=1
                         ),
-                        FlexSpacer(size="sm"),
+                        FlexFiller(),
                         FlexButton(
                             action=PostbackAction(
                                 label="一週前",

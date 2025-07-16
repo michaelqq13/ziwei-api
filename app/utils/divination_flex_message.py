@@ -51,6 +51,32 @@ class DivinationFlexMessageGenerator:
     }
     
     def __init__(self):
+        # 星空主題色彩配置
+        self.colors = {
+            "primary": "#4A90E2",
+            "secondary": "#FFD700", 
+            "accent": "#9B59B6",
+            "background": "#1A1A2E",
+            "card_bg": "#16213E",
+            "text_primary": "#FFFFFF",
+            "text_secondary": "#B0C4DE",
+            "star_gold": "#FFD700"
+        }
+        
+        # 星空背景圖片
+        self.background_images = {
+            "basic": "https://images.unsplash.com/photo-1446776877081-d282a0f896e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80",     # 星空
+            "premium": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80",   # 星雲
+            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"      # 金色星空
+        }
+        
+        # 備用背景圖片
+        self.fallback_images = {
+            "basic": "https://via.placeholder.com/1040x600/1A1A2E/FFD700?text=🔮+占卜結果+🔮",
+            "premium": "https://via.placeholder.com/1040x600/2C3E50/E67E22?text=💎+會員結果+💎",
+            "admin": "https://via.placeholder.com/1040x600/8B0000/FFD700?text=��+管理員+👑"
+        }
+        
         self.palace_order = [
             "命宮", "兄弟宮", "夫妻宮", "子女宮", "財帛宮", "疾厄宮",
             "遷移宮", "奴僕宮", "官祿宮", "田宅宮", "福德宮", "父母宮"
@@ -1314,3 +1340,127 @@ class DivinationFlexMessageGenerator:
             "忌": "忌星代表阻礙、困難與挑戰。化忌會帶來考驗，但也能促使成長學習。關鍵在於如何化解和轉化困難。"
         }
         return descriptions.get(sihua_type, "四化星對運勢產生重要影響，需要仔細分析。") 
+
+    def _create_basic_result_bubble(self, result: Dict[str, Any], user_type: str = "free") -> FlexBubble:
+        """創建基本占卜結果泡泡"""
+        
+        # 根據用戶類型選擇背景圖片
+        if user_type == "admin":
+            background_image = self.background_images.get("admin", self.fallback_images["admin"])
+        elif user_type == "premium":
+            background_image = self.background_images.get("premium", self.fallback_images["premium"])
+        else:
+            background_image = self.background_images.get("basic", self.fallback_images["basic"])
+        
+        # 基本資訊
+        gender_text = "男性" if result.get("gender") == "M" else "女性"
+        divination_time = result.get("divination_time", "")
+        taichi_palace = result.get("taichi_palace", "")
+        minute_dizhi = result.get("minute_dizhi", "")
+        palace_tiangan = result.get("palace_tiangan", "")
+        
+        # 解析時間
+        from datetime import datetime
+        if divination_time:
+            try:
+                if '+' in divination_time:
+                    dt = datetime.fromisoformat(divination_time)
+                else:
+                    dt = datetime.fromisoformat(divination_time.replace('Z', '+00:00'))
+                time_str = dt.strftime("%m/%d %H:%M")
+            except:
+                time_str = "現在"
+        else:
+            time_str = "現在"
+        
+        # 根據用戶類型設置標識
+        if user_type == "admin":
+            badge = "👑 管理員"
+            badge_color = "#FFD700"
+        elif user_type == "premium":
+            badge = "💎 付費會員"
+            badge_color = "#9B59B6"
+        else:
+            badge = ""
+            badge_color = "#666666"
+        
+        # 創建標題區域內容
+        header_contents = [
+            FlexText(
+                text="🔮 占卜結果 ✨",
+                weight="bold",
+                size="xl",
+                color=self.colors["star_gold"],
+                align="center"
+            )
+        ]
+        
+        # 如果有會員標識，添加到標題
+        if badge:
+            header_contents.append(
+                FlexText(
+                    text=badge,
+                    size="xs",
+                    color=badge_color,
+                    align="center",
+                    margin="xs"
+                )
+            )
+        
+        bubble = FlexBubble(
+            size="mega",
+            hero=FlexBox(
+                layout="vertical",
+                contents=header_contents,
+                background_image=background_image,
+                background_size="cover",
+                background_position="center",
+                padding_all="20px",
+                height="100px",
+                # 添加半透明遮罩效果
+                background_color="#1A1A2ECC"  # CC = 80% 透明度
+            ),
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 基本資訊
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexText(
+                                text="📊 基本資訊",
+                                weight="bold",
+                                size="md",
+                                color=self.colors["star_gold"],
+                                margin="none"
+                            ),
+                            self._create_info_row("📅", "時間", time_str),
+                            self._create_info_row("👤", "性別", gender_text),
+                            self._create_info_row("☯️", "太極點", taichi_palace),
+                            self._create_info_row("🌌", "宮干", palace_tiangan)
+                        ],
+                        spacing="sm",
+                        background_color=self.colors["card_bg"],
+                        corner_radius="10px",
+                        padding_all="12px"
+                    )
+                ],
+                spacing="md",
+                background_color=self.colors["background"],
+                padding_all="16px"
+            )
+        )
+        
+        return bubble
+
+    def _create_info_row(self, emoji: str, label: str, value: str) -> FlexBox:
+        """創建基本資訊行"""
+        return FlexBox(
+            layout="horizontal",
+            contents=[
+                FlexText(text=emoji, size="sm", color="#666666", flex=0),
+                FlexText(text=f"{label}:", size="sm", color="#666666", flex=1),
+                FlexText(text=value, size="sm", weight="bold", flex=2, align="end")
+            ],
+            margin="sm"
+        ) 

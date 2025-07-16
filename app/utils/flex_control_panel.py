@@ -30,6 +30,16 @@ class FlexControlPanelGenerator:
             "text_light": "#87CEEB",   # 淺藍色
             "border": "#2C3E50"        # 邊框顏色
         }
+        
+        # 星空背景圖片 - 與 carousel 保持一致
+        self.background_images = {
+            "panel": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"  # 深藍星空
+        }
+        
+        # 備用背景圖片
+        self.fallback_images = {
+            "panel": "https://via.placeholder.com/1040x600/1A1A2E/FFD700?text=🌌+功能面板+🌌"
+        }
     
     def generate_control_panel(self, user_stats: Dict[str, Any]) -> Optional[FlexMessage]:
         """
@@ -110,91 +120,217 @@ class FlexControlPanelGenerator:
         }
     
     def _create_starry_header(self, is_admin: bool, is_premium: bool) -> Dict:
-        """創建星空主題控制面板標題區域"""
-        user_type = "👑 管理員" if is_admin else ("💎 付費會員" if is_premium else "✨ 免費會員")
-        user_color = self.colors["admin"] if is_admin else (self.colors["premium"] if is_premium else self.colors["primary"])
+        """創建星空主題頭部 - 添加背景圖片支援"""
+        
+        # 根據用戶等級設定標題和顏色
+        if is_admin:
+            title = "👑 管理員面板"
+            title_color = "#FFD700"
+        elif is_premium:
+            title = "💎 付費會員面板"
+            title_color = "#9B59B6"
+        else:
+            title = "✨ 功能面板"
+            title_color = "#4A90E2"
+        
+        # 選擇背景圖片
+        background_image = self.background_images.get("panel", self.fallback_images["panel"])
         
         return {
             "type": "box",
             "layout": "vertical",
             "contents": [
                 {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": "🌌",
-                            "size": "xxl",
-                            "flex": 0,
-                            "color": self.colors["secondary"]
-                        },
-                        {
-                            "type": "text",
-                            "text": "星空功能面板",
-                            "weight": "bold",
-                            "size": "xl",
-                            "color": self.colors["text_primary"],
-                            "flex": 1,
-                            "margin": "md"
-                        },
-                        {
-                            "type": "text",
-                            "text": "⭐",
-                            "size": "lg",
-                            "flex": 0,
-                            "color": self.colors["secondary"]
-                        }
-                    ],
-                    "paddingAll": "lg",
-                    "backgroundColor": self.colors["card_bg"],
-                    "cornerRadius": "md"
+                    "type": "text",
+                    "text": title,
+                    "weight": "bold",
+                    "size": "xxl",
+                    "color": title_color,
+                    "align": "center"
                 },
                 {
                     "type": "text",
-                    "text": user_type,
-                    "size": "md",
-                    "color": user_color,
+                    "text": "🌌 Star Control Panel",
+                    "size": "sm",
+                    "color": self.colors["text_secondary"],
                     "align": "center",
-                    "margin": "md",
-                    "weight": "bold"
+                    "margin": "xs"
                 }
             ],
-            "paddingBottom": "md"
+            "backgroundColor": "#1A1A2ECC",  # 半透明深藍遮罩
+            "cornerRadius": "12px",
+            "paddingAll": "20px",
+            "backgroundImage": background_image,
+            "backgroundSize": "cover",
+            "backgroundPosition": "center"
         }
     
     def _create_starry_body(self, is_admin: bool, is_premium: bool) -> Dict:
         """創建星空主題控制面板主體內容"""
-        contents = []
+        # 基本功能按鈕
+        basic_buttons = []
+        basic_buttons.append(
+            self._create_starry_button(
+                "🔮",
+                "本週占卜",
+                "control_panel=basic_divination",
+                True,
+                False,
+                False
+            )
+        )
         
-        # 基本功能區塊
-        basic_section = self._create_starry_basic_section()
-        contents.append(basic_section)
+        # 進階功能按鈕
+        advanced_buttons = []
+        advanced_buttons.append(
+            self._create_starry_button(
+                "🌍",
+                "流年運勢" if (is_admin or is_premium) else "🔒 需要付費會員",
+                "control_panel=yearly_fortune",
+                (is_admin or is_premium),
+                is_premium,
+                is_admin
+            )
+        )
+        advanced_buttons.append(
+            self._create_starry_button(
+                "🌙",
+                "流月運勢" if (is_admin or is_premium) else "🔒 需要付費會員",
+                "control_panel=monthly_fortune",
+                (is_admin or is_premium),
+                is_premium,
+                is_admin
+            )
+        )
+        advanced_buttons.append(
+            self._create_starry_button(
+                "🪐",
+                "流日運勢" if (is_admin or is_premium) else "🔒 需要付費會員",
+                "control_panel=daily_fortune",
+                (is_admin or is_premium),
+                is_premium,
+                is_admin
+            )
+        )
         
-        # 星空分隔線
-        contents.append(self._create_starry_separator())
+        # 其他功能按鈕
+        other_buttons = []
+        other_buttons.append(
+            self._create_starry_button(
+                "📊",
+                "命盤解析",
+                "control_panel=chart_analysis",
+                True,
+                False,
+                False
+            )
+        )
+        other_buttons.append(
+            self._create_starry_button(
+                "💎",
+                "會員升級",
+                "control_panel=member_upgrade",
+                True,
+                False,
+                False
+            )
+        )
         
-        # 運勢功能區塊
-        fortune_section = self._create_starry_fortune_section(is_admin, is_premium)
-        contents.append(fortune_section)
-        
-        # 如果是付費會員或管理員，添加進階功能
-        if is_premium or is_admin:
-            contents.append(self._create_starry_separator())
-            advanced_section = self._create_starry_advanced_section(is_admin)
-            contents.append(advanced_section)
-        
-        # 如果是管理員，添加管理功能
+        # 管理員功能按鈕
+        admin_buttons = []
         if is_admin:
-            contents.append(self._create_starry_separator())
-            admin_section = self._create_starry_admin_section()
-            contents.append(admin_section)
+            admin_buttons.append(
+                self._create_starry_button(
+                    "⏰",
+                    "指定時間占卜",
+                    "admin_action=time_divination_start",
+                    True,
+                    False,
+                    True
+                )
+            )
+            admin_buttons.append(
+                self._create_starry_button(
+                    "⚙️",
+                    "管理員工具",
+                    "control_panel=admin_functions",
+                    True,
+                    False,
+                    True
+                )
+            )
+        
+        # 組合所有按鈕到分區
+        all_sections = []
+        
+        # 基本功能區
+        if basic_buttons:
+            all_sections.append({
+                "type": "text",
+                "text": "✨ 基本功能",
+                "weight": "bold",
+                "size": "lg",
+                "color": "#FFD700",
+                "margin": "md"
+            })
+            all_sections.extend(basic_buttons)
+        
+        # 進階功能區
+        if advanced_buttons:
+            all_sections.append({
+                "type": "separator",
+                "margin": "xl",
+                "color": "rgba(255, 215, 0, 0.3)"
+            })
+            all_sections.append({
+                "type": "text",
+                "text": "🌟 進階功能",
+                "weight": "bold",
+                "size": "lg",
+                "color": "#E67E22",
+                "margin": "md"
+            })
+            all_sections.extend(advanced_buttons)
+        
+        # 其他功能區
+        if other_buttons:
+            all_sections.append({
+                "type": "separator",
+                "margin": "xl",
+                "color": "rgba(255, 215, 0, 0.3)"
+            })
+            all_sections.append({
+                "type": "text",
+                "text": "🎯 其他功能",
+                "weight": "bold",
+                "size": "lg",
+                "color": "#9B59B6",
+                "margin": "md"
+            })
+            all_sections.extend(other_buttons)
+        
+        # 管理員功能區
+        if admin_buttons:
+            all_sections.append({
+                "type": "separator",
+                "margin": "xl",
+                "color": "rgba(255, 215, 0, 0.3)"
+            })
+            all_sections.append({
+                "type": "text",
+                "text": "👑 管理功能",
+                "weight": "bold",
+                "size": "lg",
+                "color": "#E74C3C",
+                "margin": "md"
+            })
+            all_sections.extend(admin_buttons)
         
         return {
             "type": "box",
             "layout": "vertical",
-            "contents": contents,
-            "spacing": "md",
+            "contents": all_sections,
+            "spacing": "sm",
             "paddingAll": "lg"
         }
     
@@ -220,8 +356,9 @@ class FlexControlPanelGenerator:
                             "本週占卜",
                             "根據當下時間進行觸機占卜",
                             "🔮",
-                            "control_panel=basic_divination",
-                            self.colors["primary"]
+                            True,
+                            False,
+                            False
                         )
                     ],
                     "spacing": "sm",
@@ -243,9 +380,9 @@ class FlexControlPanelGenerator:
                 "流年運勢",
                 "年度整體運勢分析" if (is_admin or is_premium) else "🔒 需要付費會員",
                 "🌍",
-                "control_panel=yearly_fortune",
-                self.colors["primary"] if (is_admin or is_premium) else self.colors["text_light"],
-                disabled=not (is_admin or is_premium)
+                True,
+                False,
+                False
             )
         )
         
@@ -255,9 +392,9 @@ class FlexControlPanelGenerator:
                 "流月運勢",
                 "月度運勢變化分析" if (is_admin or is_premium) else "🔒 需要付費會員",
                 "🌙",
-                "control_panel=monthly_fortune",
-                self.colors["primary"] if (is_admin or is_premium) else self.colors["text_light"],
-                disabled=not (is_admin or is_premium)
+                True,
+                False,
+                False
             )
         )
         
@@ -267,9 +404,9 @@ class FlexControlPanelGenerator:
                 "流日運勢",
                 "每日運勢詳細分析" if (is_admin or is_premium) else "🔒 需要付費會員",
                 "🪐",
-                "control_panel=daily_fortune",
-                self.colors["primary"] if (is_admin or is_premium) else self.colors["text_light"],
-                disabled=not (is_admin or is_premium)
+                True,
+                False,
+                False
             )
         )
         
@@ -308,8 +445,9 @@ class FlexControlPanelGenerator:
                 "命盤分析",
                 "完整紫微斗數命盤解析",
                 "📊",
-                "control_panel=chart_analysis",
-                self.colors["accent"]
+                True,
+                False,
+                False
             )
         )
         
@@ -320,8 +458,9 @@ class FlexControlPanelGenerator:
                     "會員升級",
                     "升級享受更多專業功能",
                     "💎",
-                    "control_panel=member_upgrade",
-                    self.colors["premium"]
+                    True,
+                    False,
+                    False
                 )
             )
         
@@ -357,15 +496,17 @@ class FlexControlPanelGenerator:
                 "⏰ 指定時間占卜",
                 "回溯特定時間點進行占卜",
                 "⏰",
-                "admin_action=time_divination_start",
-                self.colors["admin"]
+                True,
+                False,
+                True
             ),
             self._create_starry_button(
                 "管理員工具",
                 "系統管理與數據分析",
                 "⚙️",
-                "control_panel=admin_functions",
-                self.colors["admin"]
+                True,
+                False,
+                True
             )
         ]
         
@@ -413,16 +554,40 @@ class FlexControlPanelGenerator:
             "color": button_color
         }
     
-    def _create_starry_button(self, title: str, description: str, icon: str, 
-                              action_data: str, color: str, disabled: bool = False) -> Dict:
-        """創建星空主題功能按鈕"""
-        button_bg = color if not disabled else self.colors["border"]
-        text_color = "#FFFFFF" if not disabled else self.colors["text_light"]
+    def _create_starry_button(self, icon: str, text: str, action_data: str, is_enabled: bool = True, 
+                             is_premium: bool = False, is_admin: bool = False) -> Dict:
+        """創建星空主題按鈕 - 半透明立體效果"""
+        
+        if not is_enabled:
+            # 禁用狀態 - 半透明灰色
+            button_bg = "rgba(108, 123, 127, 0.1)"
+            border_color = "rgba(128, 128, 128, 0.3)"
+            text_color = "#999999"
+            icon_color = "#999999"
+        elif is_admin:
+            # 管理員按鈕 - 半透明紅金色
+            button_bg = "rgba(231, 76, 60, 0.15)"
+            border_color = "rgba(255, 215, 0, 0.8)"
+            text_color = "#FFFFFF"
+            icon_color = "#FFD700"
+        elif is_premium:
+            # 付費會員按鈕 - 半透明紫色
+            button_bg = "rgba(155, 89, 182, 0.15)"
+            border_color = "rgba(230, 126, 34, 0.8)"
+            text_color = "#FFFFFF"
+            icon_color = "#E67E22"
+        else:
+            # 一般按鈕 - 半透明藍色
+            button_bg = "rgba(74, 144, 226, 0.15)"
+            border_color = "rgba(255, 215, 0, 0.6)"
+            text_color = "#FFFFFF"
+            icon_color = "#FFD700"
         
         return {
             "type": "box",
             "layout": "vertical",
             "contents": [
+                # 主按鈕區域
                 {
                     "type": "box",
                     "layout": "horizontal",
@@ -430,39 +595,50 @@ class FlexControlPanelGenerator:
                         {
                             "type": "text",
                             "text": icon,
-                            "size": "lg",
+                            "size": "xl",
+                            "color": icon_color,
                             "flex": 0,
-                            "color": text_color
+                            "weight": "bold"
                         },
                         {
                             "type": "text",
-                            "text": title,
+                            "text": text,
                             "weight": "bold",
-                            "size": "md",
+                            "size": "lg",
                             "color": text_color,
                             "flex": 1,
-                            "margin": "sm"
+                            "margin": "md"
+                        },
+                        {
+                            "type": "text",
+                            "text": "⭐⭐⭐" if is_enabled else "🔒🔒",
+                            "size": "sm",
+                            "color": "#FFD700" if is_enabled else "#999999",
+                            "flex": 0
                         }
                     ],
-                    "paddingAll": "md",
                     "backgroundColor": button_bg,
-                    "cornerRadius": "md",
+                    "cornerRadius": "12px",
+                    "paddingAll": "16px",
+                    "borderWidth": "1px",
+                    "borderColor": border_color,
                     "action": {
                         "type": "postback",
-                        "data": action_data,
-                        "displayText": f"{icon} {title}"
-                    } if not disabled else None
+                        "data": action_data
+                    } if is_enabled else None
                 },
+                # 底部陰影效果
                 {
-                    "type": "text",
-                    "text": description,
-                    "size": "xs",
-                    "color": self.colors["text_secondary"],
-                    "wrap": True,
-                    "margin": "xs"
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [],
+                    "height": "3px",
+                    "backgroundColor": "rgba(0, 0, 0, 0.1)",
+                    "cornerRadius": "0px 0px 8px 8px"
                 }
             ],
-            "spacing": "none"
+            "spacing": "none",
+            "margin": "sm"
         }
     
     def _create_starry_separator(self) -> Dict:
