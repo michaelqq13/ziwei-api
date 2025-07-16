@@ -1121,13 +1121,6 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     # 此處 return 已存在，但為了邏輯清晰，上面的 return 更佳
                     return  # 重要：防止觸發默認歡迎訊息
 
-                # 新增指定時間占卜指令（僅限管理員）
-                elif text in ["指定時間占卜", "時間占卜", "指定時間"]:
-                    response = handle_time_divination_request(db, user, session)
-                    if response:
-                        send_line_message(user_id, response)
-                    return  # 重要：防止觸發默認歡迎訊息
-
                 # 處理會員升級相關查詢
                 elif text in ["如何升級會員", "升級會員", "會員升級", "付費會員", "會員方案"]:
                     upgrade_message = """💎 **會員升級方案** ✨
@@ -1262,13 +1255,12 @@ async def handle_message_event(event: dict, db: Optional[Session]):
 • 會員資訊 — 查看個人資料與使用記錄
 
 👑 管理員專屬功能：
-• 指定時間占卜 — 回溯特定時間點的運勢
+• 使用功能選單中的「指定時間占卜」
 
 💫 使用方式：
 • 點擊下方功能按鈕快速操作
 • 或直接輸入指令：
   - 「本週占卜」或「占卜」
-  - 「指定時間占卜」或「時間占卜」
   - 「會員資訊」
 
 ⸻
@@ -1569,13 +1561,20 @@ async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Option
 💫 點擊「本週占卜」開始您的占卜之旅。""")
             return
         
-        # 重新執行占卜以獲取完整的太極盤資料
+        # 重新執行占卜以獲取完整的太極盤資料 - 確保使用正確的時區
         try:
+            # 確保占卜時間使用台北時區
+            divination_time = recent_divination.divination_time
+            if divination_time.tzinfo is None:
+                divination_time = divination_time.replace(tzinfo=TAIPEI_TZ)
+            else:
+                divination_time = divination_time.astimezone(TAIPEI_TZ)
+            
             # 使用占卜記錄中的參數重新生成太極盤
             result = divination_logic.perform_divination(
                 user, 
                 recent_divination.gender, 
-                recent_divination.divination_time, 
+                divination_time,  # 使用正確時區的時間
                 db
             )
             
@@ -1591,7 +1590,7 @@ async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Option
 📍 **太極點：** {result.get('taichi_palace', '未知')}
 🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}
 👤 **性別：** {'男性' if recent_divination.gender == 'M' else '女性'}
-📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')}
+📅 **占卜時間：** {divination_time.strftime('%Y-%m-%d %H:%M')} (台北時間)
 
 🌟 **太極盤說明：**
 太極盤是以當下時間的分鐘地支為太極點，重新調整十二宮位的排列。下方將顯示每個宮位的詳細星曜配置。"""
@@ -1645,6 +1644,101 @@ async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Option
     except Exception as e:
         logger.error(f"顯示太極十二宮失敗: {e}", exc_info=True)
         send_line_message(user_id, "🏛️ 太極十二宮功能暫時無法使用，請稍後再試。")
+
+async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str, db: Optional[Session]):
+    """處理管理員面板動作"""
+    try:
+        # 檢查用戶權限
+        is_admin = False
+        if db:
+            user_stats = permission_manager.get_user_stats(db, user)
+            is_admin = user_stats["user_info"]["is_admin"]
+        
+        if not is_admin:
+            send_line_message(user_id, "🔒 **權限不足**\n\n管理員功能僅限管理員使用。")
+            return
+        
+        if action == "time_divination_start":
+            # 開始指定時間占卜流程
+            session = get_or_create_session(user_id)
+            response = handle_time_divination_request(db, user, session)
+            if response:
+                send_line_message(user_id, response)
+                
+        elif action == "user_stats":
+            # 顯示用戶統計
+            send_line_message(user_id, """📊 **用戶數據統計** (開發中)
+            
+此功能正在開發中，將提供：
+• 用戶註冊與活躍統計
+• 占卜使用頻率分析
+• 會員轉換率統計
+• 功能使用偏好分析
+
+敬請期待！""")
+            
+        elif action == "system_status":
+            # 顯示系統狀態
+            send_line_message(user_id, """🖥️ **系統狀態監控** (開發中)
+            
+此功能正在開發中，將提供：
+• 伺服器運行狀態
+• 數據庫連接狀態
+• API 回應時間統計
+• 錯誤日誌摘要
+
+敬請期待！""")
+            
+        elif action == "menu_management":
+            # 選單管理
+            send_line_message(user_id, """⚙️ **選單管理** (開發中)
+            
+此功能正在開發中，將提供：
+• Rich Menu 設定管理
+• 按鈕配置調整
+• 選單版本控制
+• A/B 測試功能
+
+敬請期待！""")
+            
+        else:
+            logger.warning(f"未知的管理員動作: {action}")
+            send_line_message(user_id, "❓ 未知的管理員功能，請稍後再試。")
+            
+    except Exception as e:
+        logger.error(f"處理管理員面板動作失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理管理員請求時發生錯誤，請稍後再試。")
+
+async def handle_control_panel_action(user_id: str, user: LineBotUser, session: MemoryUserSession, action: str, db: Optional[Session]):
+    """處理控制面板動作"""
+    try:
+        if action == "admin_functions":
+            # 顯示管理員功能面板
+            user_stats = permission_manager.get_user_stats(db, user) if db else {
+                "user_info": {"is_admin": False}
+            }
+            
+            if not user_stats["user_info"]["is_admin"]:
+                send_line_message(user_id, "🔒 **權限不足**\n\n管理員功能僅限管理員使用。")
+                return
+            
+            # 生成管理員面板
+            from app.utils.flex_admin_panel import FlexAdminPanelGenerator
+            admin_panel_generator = FlexAdminPanelGenerator()
+            admin_panel = admin_panel_generator.generate_admin_panel()
+            
+            if admin_panel:
+                send_line_flex_messages(user_id, [admin_panel])
+            else:
+                send_line_message(user_id, "無法載入管理員面板，請稍後再試。")
+                
+        else:
+            logger.warning(f"未知的控制面板動作: {action}")
+            send_line_message(user_id, "❓ 未知的功能，請稍後再試。")
+            
+    except Exception as e:
+        logger.error(f"處理控制面板動作失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理請求時發生錯誤，請稍後再試。")
 
 async def handle_datetime_picker_callback(user_id: str, user: LineBotUser, session: MemoryUserSession, datetime_str: str, db: Optional[Session]):
     """處理日期時間選擇器回調"""
