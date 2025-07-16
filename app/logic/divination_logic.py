@@ -116,11 +116,15 @@ class DivinationLogic:
             palace_tiangan = taichi_palace.stem
             logger.info(f"太極點天干：{palace_tiangan}")
             
-            # 6. 基於太極盤獲取四化解釋
+            # 6. 取得太極盤資料（在保存前先獲取）
+            taichi_chart_data = chart.get_chart()
+            logger.info("太極盤資料獲取完成")
+            
+            # 7. 基於太極盤獲取四化解釋
             sihua_results = chart.get_taichi_sihua_explanations(palace_tiangan)
             logger.info(f"四化解釋獲取完成，共 {len(sihua_results)} 個")
             
-            # 7. 保存占卜記錄（僅在有數據庫且用戶存在時）
+            # 8. 保存占卜記錄（僅在有數據庫且用戶存在時）
             divination_id = None
             if db is not None and user and hasattr(user, 'id') and user.id is not None:
                 try:
@@ -149,9 +153,6 @@ class DivinationLogic:
                         db.rollback()
             else:
                 logger.info("簡化模式或無用戶信息：跳過占卜記錄保存")
-            
-            # 8. 取得太極盤資料
-            taichi_chart_data = chart.get_chart()
             
             # 9. 構建四化星對應表（為了向後兼容）
             sihua_stars = {}
