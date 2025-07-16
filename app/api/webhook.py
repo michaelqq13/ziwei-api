@@ -1561,85 +1561,97 @@ async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Option
 💫 點擊「本週占卜」開始您的占卜之旅。""")
             return
         
-        # 重新執行占卜以獲取完整的太極盤資料 - 確保使用正確的時區
+        # 檢查是否有存儲的太極宮對映資訊
+        if not recent_divination.taichi_palace_mapping or not recent_divination.taichi_chart_data:
+            # 如果沒有存儲的太極宮資訊，提示重新占卜
+            send_line_message(user_id, """🏛️ **太極十二宮資訊** ✨
+            
+⚠️ 此占卜記錄缺少完整的太極宮資訊
+
+這可能是因為：
+• 占卜記錄較舊，缺少太極宮對映資料
+• 系統版本更新前的記錄
+
+🔮 **解決方法：**
+請重新進行一次占卜，即可獲得完整的太極十二宮資訊。
+
+💫 點擊「本週占卜」重新開始您的占卜之旅。""")
+            return
+        
         try:
-            # 確保占卜時間使用台北時區
-            divination_time = recent_divination.divination_time
-            if divination_time.tzinfo is None:
-                divination_time = divination_time.replace(tzinfo=TAIPEI_TZ)
-            else:
-                divination_time = divination_time.astimezone(TAIPEI_TZ)
+            # 從數據庫讀取已存儲的太極宮資訊
+            import json
+            taichi_palace_mapping = json.loads(recent_divination.taichi_palace_mapping)
+            taichi_chart_data = json.loads(recent_divination.taichi_chart_data)
+            sihua_results = json.loads(recent_divination.sihua_results or "[]")
             
-            # 使用占卜記錄中的參數重新生成太極盤
-            result = divination_logic.perform_divination(
-                user, 
-                recent_divination.gender, 
-                divination_time,  # 使用正確時區的時間
-                db
-            )
+            # 構建完整的占卜結果資料結構（用於生成Flex Message）
+            result = {
+                "success": True,
+                "divination_time": recent_divination.divination_time.isoformat(),
+                "gender": recent_divination.gender,
+                "taichi_palace": recent_divination.taichi_palace,
+                "minute_dizhi": recent_divination.minute_dizhi,
+                "sihua_results": sihua_results,
+                "taichi_palace_mapping": taichi_palace_mapping,
+                "basic_chart": taichi_chart_data  # 向後兼容
+            }
             
-            if result["success"] and result.get("taichi_palace_mapping"):
-                # 生成太極宮資訊訊息
-                message_generator = DivinationFlexMessageGenerator()
-                taichi_message = message_generator._create_taichi_palace_carousel(result)
-                
-                if taichi_message:
-                    # 發送說明文字
-                    intro_message = f"""🏛️ **太極十二宮詳細資訊** ✨
-
-📍 **太極點：** {result.get('taichi_palace', '未知')}
-🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}
-👤 **性別：** {'男性' if recent_divination.gender == 'M' else '女性'}
-📅 **占卜時間：** {divination_time.strftime('%Y-%m-%d %H:%M')} (台北時間)
-
-🌟 **太極盤說明：**
-太極盤是以當下時間的分鐘地支為太極點，重新調整十二宮位的排列。下方將顯示每個宮位的詳細星曜配置。"""
-                    
-                    send_line_message(user_id, intro_message)
-                    send_line_flex_messages(user_id, [taichi_message])
-                else:
-                    # 備用文字訊息顯示太極宮對映
-                    mapping = result.get("taichi_palace_mapping", {})
-                    
-                    if mapping:
-                        taichi_info = f"""🏛️ **太極十二宮對映** ✨
-
-📍 **太極點：** {result.get('taichi_palace', '未知')}
-🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}
-
-🌟 **宮位對映關係：**
-"""
-                        for original_branch, new_palace in mapping.items():
-                            taichi_info += f"• {original_branch} → {new_palace}\n"
-                        
-                        taichi_info += f"""
-💫 這個對映展示了原盤十二地支如何轉換為太極盤的十二宮位，提供更深層的命理洞察。"""
-                        
-                        send_line_message(user_id, taichi_info)
-                    else:
-                        send_line_message(user_id, "🏛️ 太極宮對映資料暫時無法獲取，請重新進行占卜。")
-            else:
-                send_line_message(user_id, "🏛️ 太極十二宮資訊生成失敗，請重新進行占卜。")
-                
-        except Exception as regenerate_error:
-            logger.error(f"重新生成太極盤失敗: {regenerate_error}")
+            logger.info(f"從數據庫讀取太極宮資訊: 占卜時間={recent_divination.divination_time}, 太極點={recent_divination.taichi_palace}")
             
-            # 備用：顯示基本資訊
-            taichi_info = f"""🏛️ **太極十二宮基本資訊** ✨
+            # 生成太極宮資訊訊息
+            message_generator = DivinationFlexMessageGenerator()
+            taichi_message = message_generator._create_taichi_palace_carousel(result)
+            
+            if taichi_message:
+                # 發送說明文字
+                intro_message = f"""🏛️ **太極十二宮詳細資訊** ✨
 
 📍 **太極點：** {recent_divination.taichi_palace}
 🕰️ **分鐘地支：** {recent_divination.minute_dizhi}
 👤 **性別：** {'男性' if recent_divination.gender == 'M' else '女性'}
-📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')}
+📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')} (台北時間)
 
 🌟 **太極盤說明：**
-太極盤是以當下時間的分鐘地支為太極點，重新調整十二宮位的排列。
+太極盤是以占卜當時的分鐘地支為太極點，重新調整十二宮位的排列。下方顯示的是您原始占卜時的宮位配置。
 
-⚠️ 詳細宮位配置暫時無法顯示，請重新進行占卜以獲取完整資訊。
+💫 此資訊完全基於您的原始占卜時間，確保準確性。"""
+                
+                send_line_message(user_id, intro_message)
+                send_line_flex_messages(user_id, [taichi_message])
+            else:
+                # 備用文字訊息顯示太極宮對映
+                if taichi_palace_mapping:
+                    taichi_info = f"""🏛️ **太極十二宮對映** ✨
 
-💫 這個功能展示了宇宙能量在特定時刻的分佈狀態，為管理員提供更深層的占卜洞察。"""
+📍 **太極點：** {recent_divination.taichi_palace}
+🕰️ **分鐘地支：** {recent_divination.minute_dizhi}
+📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')}
+
+🌟 **宮位對映關係：**
+"""
+                    for original_branch, new_palace in taichi_palace_mapping.items():
+                        taichi_info += f"• {original_branch} → {new_palace}\n"
+                    
+                    taichi_info += f"""
+💫 這個對映展示了您原始占卜時十二地支如何轉換為太極盤的十二宮位，提供準確的命理洞察。"""
+                    
+                    send_line_message(user_id, taichi_info)
+                else:
+                    send_line_message(user_id, "🏛️ 太極宮對映資料解析失敗，請聯繫管理員。")
+                    
+        except (json.JSONDecodeError, KeyError) as parse_error:
+            logger.error(f"解析太極宮資料失敗: {parse_error}")
+            send_line_message(user_id, """🏛️ **太極十二宮資訊** ✨
             
-            send_line_message(user_id, taichi_info)
+⚠️ 資料解析失敗
+
+占卜記錄存在，但太極宮資料格式異常。
+
+🔮 **建議：**
+請重新進行一次占卜，即可獲得完整的太極十二宮資訊。
+
+💫 點擊「本週占卜」重新開始您的占卜之旅。""")
             
     except Exception as e:
         logger.error(f"顯示太極十二宮失敗: {e}", exc_info=True)

@@ -72,6 +72,12 @@ class DivinationHistory(Base):
     # 四化結果 (JSON格式存儲)
     sihua_results = Column(Text)  # 存儲四化結果的JSON
     
+    # 太極宮對映資訊 (JSON格式存儲)
+    taichi_palace_mapping = Column(Text)  # 存儲太極宮對映關係的JSON
+    
+    # 完整太極盤資料 (JSON格式存儲，可選)
+    taichi_chart_data = Column(Text)  # 存儲完整太極盤資料的JSON
+    
     # 時間戳
     created_at = Column(DateTime, default=datetime.utcnow)
     

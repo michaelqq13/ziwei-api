@@ -125,6 +125,8 @@ class DivinationLogic:
             if db is not None and user and hasattr(user, 'id') and user.id is not None:
                 try:
                     sihua_json = json.dumps(sihua_results, ensure_ascii=False)
+                    taichi_mapping_json = json.dumps(chart.taichi_palace_mapping, ensure_ascii=False)
+                    taichi_chart_json = json.dumps(taichi_chart_data.get("palaces", {}), ensure_ascii=False)
                     
                     divination_record = DivinationHistory(
                         user_id=user.id,
@@ -132,13 +134,15 @@ class DivinationLogic:
                         divination_time=current_time,
                         taichi_palace=f"{minute_dizhi}宮",
                         minute_dizhi=minute_dizhi,
-                        sihua_results=sihua_json
+                        sihua_results=sihua_json,
+                        taichi_palace_mapping=taichi_mapping_json,
+                        taichi_chart_data=taichi_chart_json
                     )
                     
                     db.add(divination_record)
                     db.commit()
                     divination_id = divination_record.id
-                    logger.info(f"占卜記錄已保存，ID：{divination_id}")
+                    logger.info(f"占卜記錄已保存，ID：{divination_id}，包含太極宮對映資訊")
                 except Exception as e:
                     logger.warning(f"保存占卜記錄失敗（將繼續占卜功能）：{e}")
                     if db:
