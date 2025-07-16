@@ -178,10 +178,13 @@ def get_chart_with_daily_fortune(
 def get_current_lunar_data(db: Session = Depends(get_db)):
     """獲取當前時間的農曆數據"""
     try:
-        from datetime import datetime
+        from datetime import datetime, timezone, timedelta
         
-        # 獲取當前時間
-        now = datetime.now()
+        # 台北時區
+        TAIPEI_TZ = timezone(timedelta(hours=8))
+        
+        # 獲取當前台北時間
+        now = datetime.now(TAIPEI_TZ)
         
         # 創建當前時間的BirthInfo
         current_birth_info = BirthInfo(

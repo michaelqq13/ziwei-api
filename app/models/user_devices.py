@@ -27,16 +27,17 @@ class UserDevice(Base):
     
     def is_recently_active(self, hours: int = 24) -> bool:
         """檢查設備是否在指定時間內活躍"""
-        if not self.last_activity:
-            return False
-        
-        threshold = datetime.now() - timedelta(hours=hours)
-        return self.last_activity > threshold
+        from datetime import datetime, timezone, timedelta
+        TAIPEI_TZ = timezone(timedelta(hours=8))
+        threshold = datetime.now(TAIPEI_TZ) - timedelta(hours=hours)
+        return self.last_seen > threshold
     
     def update_activity(self):
         """更新設備活動時間"""
-        self.last_seen = datetime.now()
-        self.last_activity = datetime.now()
+        from datetime import datetime, timezone, timedelta
+        TAIPEI_TZ = timezone(timedelta(hours=8))
+        self.last_seen = datetime.now(TAIPEI_TZ)
+        self.last_activity = datetime.now(TAIPEI_TZ)
         self.total_sessions += 1
     
     def get_device_info(self) -> str:

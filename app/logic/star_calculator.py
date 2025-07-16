@@ -1181,8 +1181,9 @@ class StarCalculator:
         """
         # 如果沒有指定目標年份，使用當前年份
         if target_year is None:
-            from datetime import datetime
-            target_year = datetime.now().year
+            from datetime import datetime, timezone, timedelta
+            TAIPEI_TZ = timezone(timedelta(hours=8))
+            target_year = datetime.now(TAIPEI_TZ).year
         
         # 1. 確定目標年份的地支
         target_year_branch = self._get_year_branch(target_year)
@@ -1291,11 +1292,11 @@ class StarCalculator:
         Returns:
             Dict: 流月資訊
         """
-        # 如果沒有指定目標月份，使用當前農曆月份
+        # 如果沒有指定目標月份，使用當前月份
         if target_month is None:
-            from datetime import datetime
-            # 這裡簡化處理，實際應該轉換為農曆月份
-            target_month = datetime.now().month
+            from datetime import datetime, timezone, timedelta
+            TAIPEI_TZ = timezone(timedelta(hours=8))
+            target_month = datetime.now(TAIPEI_TZ).month
         
         # 1. 找到本命盤寅位對應的宮位名稱
         yin_palace_name = self._find_palace_by_branch(palaces, "寅")
@@ -1422,11 +1423,11 @@ class StarCalculator:
         Returns:
             Dict: 流日資訊
         """
-        # 如果沒有指定目標日期，使用當前農曆日期
+        # 如果沒有指定目標日期，使用當前日期
         if target_day is None:
-            from datetime import datetime
-            # 這裡簡化處理，實際應該轉換為農曆日期
-            target_day = datetime.now().day
+            from datetime import datetime, timezone, timedelta
+            TAIPEI_TZ = timezone(timedelta(hours=8))
+            target_day = datetime.now(TAIPEI_TZ).day
         
         # 1. 找到流月命宮的位置
         monthly_ming_branch = self._find_monthly_ming_palace_branch(monthly_fortune)

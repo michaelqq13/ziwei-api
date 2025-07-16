@@ -1,16 +1,22 @@
 """
-紫微斗數占卜邏輯模組 - 重構版
-簡化邏輯，確保穩定運行
+簡化占卜系統
+提供基本的占卜功能，避免複雜邏輯導致的錯誤
 """
-
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any
 from sqlalchemy.orm import Session
-from app.models.divination import DivinationRecord
-from app.models.user_preferences import UserPreferences
 
+# 設定日誌
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+def get_current_taipei_time() -> datetime:
+    """獲取當前台北時間"""
+    return datetime.now(TAIPEI_TZ)
 
 def get_week_start_date(date: datetime) -> datetime:
     """獲取週一的日期（週的開始）"""
@@ -20,25 +26,32 @@ def get_week_start_date(date: datetime) -> datetime:
 
 def get_days_until_next_monday() -> int:
     """計算距離下週一的天數"""
-    today = datetime.now()
+    today = get_current_taipei_time()
     days_until_monday = (7 - today.weekday()) % 7
     return days_until_monday if days_until_monday > 0 else 7
 
 def can_divination_this_week(user_id: str, db: Session) -> bool:
     """檢查本週是否可以占卜"""
-    today = datetime.now()
-    week_start = get_week_start_date(today)
-    
-    existing_record = db.query(DivinationRecord).filter(
-        DivinationRecord.user_id == user_id,
-        DivinationRecord.week_start_date == week_start.date()
-    ).first()
-    
-    return existing_record is None
+    try:
+        # 使用台北時間獲取當前時間
+        today = get_current_taipei_time()
+        week_start = today - timedelta(days=today.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        from app.models.divination import DivinationRecord
+        record = db.query(DivinationRecord).filter(
+            DivinationRecord.user_id == user_id,
+            DivinationRecord.week_start_date == week_start.date()
+        ).first()
+        
+        return record is None
+    except Exception as e:
+        logger.error(f"檢查週占卜狀態失敗: {e}")
+        return False
 
 def get_this_week_divination(user_id: str, db: Session) -> Optional[DivinationRecord]:
     """獲取本週的占卜記錄"""
-    today = datetime.now()
+    today = get_current_taipei_time()
     week_start = get_week_start_date(today)
     
     return db.query(DivinationRecord).filter(
@@ -48,6 +61,7 @@ def get_this_week_divination(user_id: str, db: Session) -> Optional[DivinationRe
 
 def get_user_divination_gender(user_id: str, db: Session) -> Optional[str]:
     """獲取用戶的占卜性別偏好"""
+    from app.models.user_preferences import UserPreferences
     preferences = db.query(UserPreferences).filter(
         UserPreferences.user_id == user_id
     ).first()
@@ -57,6 +71,7 @@ def get_user_divination_gender(user_id: str, db: Session) -> Optional[str]:
 def save_user_divination_gender(user_id: str, gender: str, db: Session):
     """保存用戶的占卜性別偏好"""
     try:
+        from app.models.user_preferences import UserPreferences
         preferences = db.query(UserPreferences).filter(
             UserPreferences.user_id == user_id
         ).first()
@@ -280,26 +295,48 @@ def get_default_divination_result(divination_time: datetime, gender: str) -> Dic
         ]
     }
 
-def save_divination_record(user_id: str, divination_time: datetime, gender: str, 
-                          divination_result: Dict[str, Any], db: Session):
+def save_divination_record(user_id: str, divination_time: datetime, gender: str, result: Dict[str, Any], db: Session):
     """保存占卜記錄"""
     try:
-        week_start = get_week_start_date(divination_time)
+        # 使用台北時間
+        today = get_current_taipei_time()
+        week_start = today - timedelta(days=today.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        new_record = DivinationRecord(
+        from app.models.divination import DivinationRecord
+        record = DivinationRecord(
             user_id=user_id,
             divination_time=divination_time,
             week_start_date=week_start.date(),
             gender=gender,
-            divination_result=divination_result
+            divination_result=result
         )
         
-        db.add(new_record)
+        db.add(record)
         db.commit()
-        db.refresh(new_record)
-        logger.info(f"已為用戶 {user_id} 保存占卜記錄")
-        return new_record
+        db.refresh(record)
+        
+        return record
     except Exception as e:
-        db.rollback()
         logger.error(f"保存占卜記錄失敗: {e}")
-        raise 
+        db.rollback()
+        raise
+
+def get_user_divination_records(user_id: str, db: Session) -> list:
+    """獲取用戶的占卜記錄"""
+    try:
+        # 使用台北時間獲取當前時間
+        today = get_current_taipei_time()
+        week_start = today - timedelta(days=today.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        from app.models.divination import DivinationRecord
+        records = db.query(DivinationRecord).filter(
+            DivinationRecord.user_id == user_id,
+            DivinationRecord.week_start_date == week_start.date()
+        ).all()
+        
+        return records
+    except Exception as e:
+        logger.error(f"獲取用戶占卜記錄失敗: {e}")
+        return [] 

@@ -52,6 +52,15 @@ class UserPermissions(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
+    @property
+    def is_subscription_active(self) -> bool:
+        """檢查訂閱是否有效"""
+        if not self.subscription_end:
+            return False
+        from datetime import datetime, timezone, timedelta
+        TAIPEI_TZ = timezone(timedelta(hours=8))
+        return datetime.now(TAIPEI_TZ) < self.subscription_end
+    
     def is_premium_active(self) -> bool:
         """檢查付費訂閱是否有效"""
         if self.role == UserRole.ADMIN:

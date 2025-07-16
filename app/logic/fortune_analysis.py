@@ -1,133 +1,148 @@
 """
-個人運勢分析邏輯模組
-包含流年、流月、流日運勢計算功能
+運勢分析模組
+提供流年、流月、流日運勢分析功能
 """
-
+import json
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
 from app.logic.purple_star_chart import PurpleStarChart
-from app.logic.user_binding import UserBindingManager
-from app.models.user_birth_info import UserBirthInfo
+from app.models.birth_info import BirthInfo
 
 logger = logging.getLogger(__name__)
 
-class FortuneAnalyzer:
-    """個人運勢分析器"""
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+def get_current_taipei_time() -> datetime:
+    """獲取當前台北時間"""
+    return datetime.now(TAIPEI_TZ)
+
+class FortuneAnalysis:
+    """運勢分析類"""
     
-    def __init__(self, db: Session):
+    def __init__(self, birth_info: BirthInfo, db: Session = None):
+        self.birth_info = birth_info
         self.db = db
+        self.chart = PurpleStarChart(birth_info=birth_info, db=db)
     
-    def get_user_birth_chart(self, user_id: str) -> Optional[PurpleStarChart]:
-        """獲取用戶的本命盤"""
-        try:
-            birth_info = UserBindingManager.get_user_birth_info(user_id, self.db)
-            if not birth_info:
-                return None
-            
-            chart = PurpleStarChart(
-                year=birth_info['year'],
-                month=birth_info['month'],
-                day=birth_info['day'],
-                hour=birth_info['hour'],
-                minute=birth_info['minute'],
-                gender=birth_info['gender'],
-                db=self.db
-            )
-            
-            return chart
-            
-        except Exception as e:
-            logger.error(f"獲取用戶命盤失敗 {user_id}: {e}")
-            return None
-    
-    def analyze_annual_fortune(self, user_id: str, target_year: Optional[int] = None) -> Dict[str, Any]:
+    def analyze_annual_fortune(self, target_year: int = None) -> Dict[str, Any]:
         """分析流年運勢"""
         try:
             if target_year is None:
-                target_year = datetime.now().year
+                target_year = get_current_taipei_time().year
             
-            base_chart = self.get_user_birth_chart(user_id)
-            if not base_chart:
-                return {"error": "未找到用戶命盤資訊"}
+            # 計算流年
+            annual_fortune = self.chart.calculate_annual_fortune(target_year)
             
-            # 計算流年盤
-            annual_chart = self._calculate_annual_chart(base_chart, target_year)
+            # 獲取流年天干
+            annual_stem = annual_fortune.get("annual_stem")
             
-            # 分析流年運勢
-            fortune_analysis = self._analyze_annual_aspects(base_chart, annual_chart, target_year)
+            # 分析流年四化
+            four_transformations = self.chart.get_four_transformations_explanations_by_stem(annual_stem)
+            
+            # 生成運勢摘要
+            summary = self._generate_annual_summary(annual_fortune, four_transformations)
             
             return {
-                "type": "annual_fortune",
+                "success": True,
                 "target_year": target_year,
-                "analysis": fortune_analysis,
-                "generated_at": datetime.now().isoformat()
+                "annual_fortune": annual_fortune,
+                "four_transformations": four_transformations,
+                "summary": summary,
+                "generated_at": get_current_taipei_time().isoformat()
             }
             
         except Exception as e:
-            logger.error(f"流年運勢分析失敗 {user_id}: {e}")
-            return {"error": "流年運勢分析失敗"}
+            logger.error(f"流年運勢分析失敗: {e}")
+            return {"success": False, "error": str(e)}
     
-    def analyze_monthly_fortune(self, user_id: str, target_year: Optional[int] = None, 
-                               target_month: Optional[int] = None) -> Dict[str, Any]:
+    def analyze_monthly_fortune(self, target_year: int = None, target_month: int = None) -> Dict[str, Any]:
         """分析流月運勢"""
         try:
-            now = datetime.now()
+            current_time = get_current_taipei_time()
             if target_year is None:
-                target_year = now.year
+                target_year = current_time.year
             if target_month is None:
-                target_month = now.month
+                target_month = current_time.month
             
-            base_chart = self.get_user_birth_chart(user_id)
-            if not base_chart:
-                return {"error": "未找到用戶命盤資訊"}
+            # 計算流月
+            monthly_fortune = self.chart.calculate_monthly_fortune(target_year, target_month)
             
-            # 計算流月盤
-            monthly_chart = self._calculate_monthly_chart(base_chart, target_year, target_month)
+            # 獲取流月天干
+            monthly_stem = monthly_fortune.get("monthly_stem")
             
-            # 分析流月運勢
-            fortune_analysis = self._analyze_monthly_aspects(base_chart, monthly_chart, target_year, target_month)
+            # 分析流月四化
+            four_transformations = self.chart.get_four_transformations_explanations_by_stem(monthly_stem)
+            
+            # 生成運勢摘要
+            summary = self._generate_monthly_summary(monthly_fortune, four_transformations)
             
             return {
-                "type": "monthly_fortune",
+                "success": True,
                 "target_year": target_year,
                 "target_month": target_month,
-                "analysis": fortune_analysis,
-                "generated_at": datetime.now().isoformat()
+                "monthly_fortune": monthly_fortune,
+                "four_transformations": four_transformations,
+                "summary": summary,
+                "generated_at": get_current_taipei_time().isoformat()
             }
             
         except Exception as e:
-            logger.error(f"流月運勢分析失敗 {user_id}: {e}")
-            return {"error": "流月運勢分析失敗"}
+            logger.error(f"流月運勢分析失敗: {e}")
+            return {"success": False, "error": str(e)}
     
-    def analyze_daily_fortune(self, user_id: str, target_date: Optional[datetime] = None) -> Dict[str, Any]:
+    def analyze_daily_fortune(self, target_year: int = None, target_month: int = None, target_day: int = None) -> Dict[str, Any]:
         """分析流日運勢"""
         try:
-            if target_date is None:
-                target_date = datetime.now()
+            current_time = get_current_taipei_time()
+            target_date = current_time
             
-            base_chart = self.get_user_birth_chart(user_id)
-            if not base_chart:
-                return {"error": "未找到用戶命盤資訊"}
+            if target_year is not None:
+                target_date = target_date.replace(year=target_year)
+            if target_month is not None:
+                target_date = target_date.replace(month=target_month)
+            if target_day is not None:
+                target_date = target_date.replace(day=target_day)
             
-            # 計算流日盤
-            daily_chart = self._calculate_daily_chart(base_chart, target_date)
+            # 計算流日
+            daily_fortune = self.chart.calculate_daily_fortune(target_date.year, target_date.month, target_date.day)
             
-            # 分析流日運勢
-            fortune_analysis = self._analyze_daily_aspects(base_chart, daily_chart, target_date)
+            # 獲取流日天干
+            daily_stem = daily_fortune.get("daily_stem")
+            
+            # 分析流日四化
+            four_transformations = self.chart.get_four_transformations_explanations_by_stem(daily_stem)
+            
+            # 生成運勢摘要
+            summary = self._generate_daily_summary(daily_fortune, four_transformations)
             
             return {
-                "type": "daily_fortune",
+                "success": True,
                 "target_date": target_date.strftime("%Y-%m-%d"),
-                "analysis": fortune_analysis,
-                "generated_at": datetime.now().isoformat()
+                "daily_fortune": daily_fortune,
+                "four_transformations": four_transformations,
+                "summary": summary,
+                "generated_at": get_current_taipei_time().isoformat()
             }
             
         except Exception as e:
-            logger.error(f"流日運勢分析失敗 {user_id}: {e}")
-            return {"error": "流日運勢分析失敗"}
+            logger.error(f"流日運勢分析失敗: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def _generate_annual_summary(self, annual_fortune: Dict[str, Any], four_transformations: Dict[str, Any]) -> str:
+        # 這裡實現生成流年運勢摘要的邏輯
+        pass
+    
+    def _generate_monthly_summary(self, monthly_fortune: Dict[str, Any], four_transformations: Dict[str, Any]) -> str:
+        # 這裡實現生成流月運勢摘要的邏輯
+        pass
+    
+    def _generate_daily_summary(self, daily_fortune: Dict[str, Any], four_transformations: Dict[str, Any]) -> str:
+        # 這裡實現生成流日運勢摘要的邏輯
+        pass
     
     def _calculate_annual_chart(self, base_chart: PurpleStarChart, target_year: int) -> Dict[str, Any]:
         """計算流年盤"""

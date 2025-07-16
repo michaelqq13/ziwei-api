@@ -92,9 +92,7 @@ class TimePickerFlexMessageGenerator:
                     background_size="cover",
                     background_position="center",
                     padding_all="20px",
-                    height="100px",
-                    # 添加半透明遮罩效果
-                    background_color="#1A1A2ECC"  # CC = 80% 透明度
+                    height="100px"
                 ),
                 
                 FlexSeparator(margin="lg"),
@@ -123,7 +121,7 @@ class TimePickerFlexMessageGenerator:
                                     flex=1
                                 ),
                                 FlexText(
-                                    text=self.current_time.strftime("%Y-%m-%d %H:%M"),
+                                    text=self.current_time.strftime("%Y-%m-%d %H:%M") + " (台北時間)",
                                     size="sm",
                                     weight="bold",
                                     color=self.colors["star_gold"],
@@ -132,7 +130,6 @@ class TimePickerFlexMessageGenerator:
                                 )
                             ],
                             margin="md",
-                            background_color=self.colors["card_bg"],
                             corner_radius="5px",
                             padding_all="8px"
                         )

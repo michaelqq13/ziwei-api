@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 
 from app.db.database import get_db
@@ -23,6 +23,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/divination", tags=["divination"])
+
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+def get_current_taipei_time() -> datetime:
+    """獲取當前台北時間"""
+    return datetime.now(TAIPEI_TZ)
 
 @router.post("/check/{user_id}")
 async def check_divination_status(user_id: str, db: Session = Depends(get_db)):
@@ -73,8 +80,8 @@ async def perform_divination(user_id: str, gender: str, db: Session = Depends(ge
         if gender not in ['M', 'F']:
             raise HTTPException(status_code=400, detail="性別參數無效")
         
-        # 執行占卜計算
-        current_time = datetime.now()
+        # 執行占卜計算 - 使用台北時間
+        current_time = get_current_taipei_time()
         divination_result = calculate_divination(current_time, gender, db=db)
         
         # 保存占卜記錄

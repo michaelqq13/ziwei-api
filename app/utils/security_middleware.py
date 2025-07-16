@@ -5,7 +5,7 @@ import os
 import logging
 from fastapi import Request, HTTPException
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import json
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ class SecurityMiddleware:
         try:
             client_ip = self.get_client_ip(request)
             log_data = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone(timedelta(hours=8))).isoformat(),
                 "method": request.method,
                 "url": str(request.url),
                 "client_ip": client_ip,

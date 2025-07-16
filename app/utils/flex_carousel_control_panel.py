@@ -195,9 +195,7 @@ class FlexCarouselControlPanelGenerator:
                 background_size="cover",
                 background_position="center",
                 padding_all="20px",
-                height="120px",
-                # 添加半透明遮罩效果
-                background_color="#1A1A2ECC"  # CC = 80% 透明度
+                height="120px"
             ),
             body=FlexBox(
                 layout="vertical",
@@ -223,7 +221,6 @@ class FlexCarouselControlPanelGenerator:
                     )
                 ],
                 spacing="md",
-                background_color=self.colors["card_bg"],
                 corner_radius="15px",
                 padding_all="16px"
             )
@@ -276,9 +273,7 @@ class FlexCarouselControlPanelGenerator:
                 background_size="cover",
                 background_position="center",
                 padding_all="20px",
-                height="120px",
-                # 添加半透明遮罩效果
-                background_color="#2C3E50CC"  # CC = 80% 透明度
+                height="120px"
             ),
             body=FlexBox(
                 layout="vertical",
@@ -297,7 +292,7 @@ class FlexCarouselControlPanelGenerator:
                     FlexSeparator(margin="lg"),
                     # 頁面指示器和升級提示
                     FlexText(
-                        text="← 滑動瀏覽功能分頁 →" if is_admin else "💎 升級享受完整功能",
+                        text="← 滑動瀏覽功能分頁 →" if is_admin else "💎 升級解鎖更多功能",
                         size="xs",
                         color=self.colors["premium"] if not (is_premium or is_admin) else self.colors["text_light"],
                         align="center",
@@ -305,7 +300,6 @@ class FlexCarouselControlPanelGenerator:
                     )
                 ],
                 spacing="md",
-                background_color=self.colors["card_bg"],
                 corner_radius="15px",
                 padding_all="16px"
             )
@@ -329,7 +323,7 @@ class FlexCarouselControlPanelGenerator:
                         layout="vertical",
                         contents=[
                             FlexText(
-                                text="👑 管理功能",
+                                text="👑 專屬管理功能",
                                 weight="bold",
                                 size="xl",
                                 color=self.colors["admin"],
@@ -358,9 +352,7 @@ class FlexCarouselControlPanelGenerator:
                 background_size="cover",
                 background_position="center",
                 padding_all="20px",
-                height="120px",
-                # 添加半透明遮罩效果
-                background_color="#8B0000CC"  # CC = 80% 透明度
+                height="120px"
             ),
             body=FlexBox(
                 layout="vertical",
@@ -387,7 +379,6 @@ class FlexCarouselControlPanelGenerator:
                     )
                 ],
                 spacing="md",
-                background_color=self.colors["card_bg"],
                 corner_radius="15px",
                 padding_all="16px"
             )
@@ -396,71 +387,74 @@ class FlexCarouselControlPanelGenerator:
         return bubble
 
     def _create_function_button(self, icon: str, title: str, description: str, action_data: str, is_enabled: bool) -> FlexBox:
-        """創建單一功能按鈕 - 半透明立體效果"""
+        """創建單一功能按鈕 - 移除不支援的 backgroundColor 屬性"""
         
-        # 半透明按鈕色彩 - 使用 RGBA 格式創造立體感
+        # 根據啟用狀態設定顏色
         if is_enabled:
-            # 啟用狀態：半透明藍色背景
-            button_bg = "rgba(74, 144, 226, 0.15)"  # 主色的15%透明度
-            border_color = "rgba(255, 215, 0, 0.8)"  # 金邊 80% 透明度
             text_color = self.colors["text_primary"]
             icon_color = self.colors["star_gold"]
+            border_color = self.colors["star_gold"]
             stars = "⭐⭐⭐"
         else:
-            # 禁用狀態：更透明的灰色背景
-            button_bg = "rgba(108, 123, 127, 0.1)"  # 禁用色的10%透明度
-            border_color = "rgba(128, 128, 128, 0.3)"  # 灰邊 30% 透明度
             text_color = self.colors["disabled"]
             icon_color = self.colors["disabled"]
+            border_color = self.colors["disabled"]
             stars = "🔒🔒🔒"
         
         return FlexBox(
             layout="vertical",
             contents=[
-                # 主按鈕區域 - 使用半透明效果和邊框
+                # 主按鈕區域
                 FlexBox(
-                    layout="vertical",
+                    layout="horizontal",
                     contents=[
-                        # 上半部：圖標和標題
+                        # 圖標區域
                         FlexBox(
-                            layout="horizontal",
+                            layout="vertical",
                             contents=[
                                 FlexText(
                                     text=icon,
-                                    size="xl",
+                                    size="lg",
                                     color=icon_color,
-                                    flex=0,
+                                    align="center",
                                     weight="bold"
                                 ),
                                 FlexText(
-                                    text=title,
-                                    weight="bold",
-                                    size="lg",
-                                    color=text_color,
-                                    flex=1,
-                                    margin="sm"
-                                ),
-                                FlexText(
                                     text=stars,
-                                    size="sm",
-                                    color=self.colors["star_gold"] if is_enabled else self.colors["disabled"],
-                                    flex=0,
-                                    align="end"
+                                    size="xs",
+                                    color=icon_color,
+                                    align="center",
+                                    margin="xs"
                                 )
                             ],
-                            spacing="sm"
+                            flex=1,
+                            justify="center",
+                            align_items="center"
                         ),
-                        # 下半部：描述文字
-                        FlexText(
-                            text=description,
-                            size="xs",
-                            color=self.colors["text_secondary"] if is_enabled else self.colors["disabled"],
-                            wrap=True,
-                            margin="xs"
+                        # 文字說明區域
+                        FlexBox(
+                            layout="vertical",
+                            contents=[
+                                FlexText(
+                                    text=title,
+                                    weight="bold",
+                                    size="md",
+                                    color=text_color,
+                                    flex_shrink=0
+                                ),
+                                FlexText(
+                                    text=description,
+                                    size="xs",
+                                    color=self.colors["text_secondary"] if is_enabled else self.colors["disabled"],
+                                    wrap=True,
+                                    margin="xs"
+                                )
+                            ],
+                            flex=3,
+                            justify="center"
                         )
                     ],
-                    # 半透明背景 + 邊框效果
-                    backgroundColor=button_bg,
+                    # 移除 backgroundColor，改用邊框效果
                     cornerRadius="12px",
                     paddingAll="16px",
                     borderWidth="1px",
@@ -471,12 +465,11 @@ class FlexCarouselControlPanelGenerator:
                     ) if is_enabled else None
                 ),
                 
-                # 底部陰影效果（模擬立體感）
+                # 底部裝飾線（模擬陰影效果）
                 FlexBox(
                     layout="vertical",
                     contents=[],
-                    height="3px",
-                    backgroundColor="rgba(0, 0, 0, 0.1)",  # 淺色陰影
+                    height="2px",
                     cornerRadius="0px 0px 8px 8px",
                     margin="none"
                 )

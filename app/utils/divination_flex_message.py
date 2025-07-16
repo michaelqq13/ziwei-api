@@ -74,7 +74,7 @@ class DivinationFlexMessageGenerator:
         self.fallback_images = {
             "basic": "https://via.placeholder.com/1040x600/1A1A2E/FFD700?text=🔮+占卜結果+🔮",
             "premium": "https://via.placeholder.com/1040x600/2C3E50/E67E22?text=💎+會員結果+💎",
-            "admin": "https://via.placeholder.com/1040x600/8B0000/FFD700?text=��+管理員+👑"
+            "admin": "https://via.placeholder.com/1040x600/8B0000/FFD700?text=👑+管理員+👑"
         }
         
         self.palace_order = [
@@ -185,15 +185,26 @@ class DivinationFlexMessageGenerator:
             palace_tiangan = result.get("palace_tiangan", "")
             
             # 解析時間
-            from datetime import datetime
+            from datetime import datetime, timezone, timedelta
             if divination_time:
                 try:
-                    if '+' in divination_time:
-                        dt = datetime.fromisoformat(divination_time)
-                    else:
+                    # 解析 ISO 格式時間
+                    if '+' in divination_time or 'Z' in divination_time:
                         dt = datetime.fromisoformat(divination_time.replace('Z', '+00:00'))
-                    time_str = dt.strftime("%m/%d %H:%M")
-                except:
+                    else:
+                        dt = datetime.fromisoformat(divination_time)
+                    
+                    # 確保轉換為台北時間
+                    taipei_tz = timezone(timedelta(hours=8))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=taipei_tz)
+                    else:
+                        dt = dt.astimezone(taipei_tz)
+                    
+                    # 顯示完整日期時間格式
+                    time_str = dt.strftime("%m/%d %H:%M (台北)")
+                except Exception as e:
+                    logger.warning(f"時間解析失敗: {divination_time}, 錯誤: {e}")
                     time_str = "現在"
             else:
                 time_str = "現在"
@@ -1360,15 +1371,26 @@ class DivinationFlexMessageGenerator:
         palace_tiangan = result.get("palace_tiangan", "")
         
         # 解析時間
-        from datetime import datetime
+        from datetime import datetime, timezone, timedelta
         if divination_time:
             try:
-                if '+' in divination_time:
-                    dt = datetime.fromisoformat(divination_time)
-                else:
+                # 解析 ISO 格式時間
+                if '+' in divination_time or 'Z' in divination_time:
                     dt = datetime.fromisoformat(divination_time.replace('Z', '+00:00'))
-                time_str = dt.strftime("%m/%d %H:%M")
-            except:
+                else:
+                    dt = datetime.fromisoformat(divination_time)
+                
+                # 確保轉換為台北時間
+                taipei_tz = timezone(timedelta(hours=8))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=taipei_tz)
+                else:
+                    dt = dt.astimezone(taipei_tz)
+                
+                # 顯示完整日期時間格式
+                time_str = dt.strftime("%m/%d %H:%M (台北)")
+            except Exception as e:
+                logger.warning(f"時間解析失敗: {divination_time}, 錯誤: {e}")
                 time_str = "現在"
         else:
             time_str = "現在"
@@ -1416,9 +1438,7 @@ class DivinationFlexMessageGenerator:
                 background_size="cover",
                 background_position="center",
                 padding_all="20px",
-                height="100px",
-                # 添加半透明遮罩效果
-                background_color="#1A1A2ECC"  # CC = 80% 透明度
+                height="100px"
             ),
             body=FlexBox(
                 layout="vertical",
@@ -1440,13 +1460,11 @@ class DivinationFlexMessageGenerator:
                             self._create_info_row("🌌", "宮干", palace_tiangan)
                         ],
                         spacing="sm",
-                        background_color=self.colors["card_bg"],
                         corner_radius="10px",
                         padding_all="12px"
                     )
                 ],
                 spacing="md",
-                background_color=self.colors["background"],
                 padding_all="16px"
             )
         )
