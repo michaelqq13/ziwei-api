@@ -168,6 +168,7 @@ class DivinationLogic:
                 "taichi_chart": taichi_chart_data.get("palaces", {}),  # 太極盤資料
                 "basic_chart": taichi_chart_data.get("palaces", {}),   # 向後兼容
                 "sihua_results": sihua_results,
+                "taichi_palace_mapping": chart.taichi_palace_mapping,
                 "simplified_mode": getattr(chart, 'simplified_mode', False)
             }
             

@@ -76,6 +76,7 @@ class PurpleStarChart:
         self.palaces: Dict[str, Palace] = {}
         self.calendar_data: Optional[CalendarData] = None
         self.palace_order: List[str] = []
+        self.taichi_palace_mapping: Dict[str, str] = {}
         
         # 初始化命盤
         self.initialize()
@@ -708,6 +709,8 @@ class PurpleStarChart:
             # 建立新的太極盤
             new_palaces = {}
             new_palace_order = []
+            # 初始化太極宮對映
+            self.taichi_palace_mapping = {}
             
             for i in range(12):
                 # 計算新宮位對應的原始地支
@@ -722,6 +725,9 @@ class PurpleStarChart:
                 
                 # 建立新宮位名稱
                 new_palace_name = palace_names[i]
+                
+                # 儲存太極宮對映關係
+                self.taichi_palace_mapping[original_branch] = new_palace_name
                 
                 # 創建新的宮位對象，保留原宮位的星曜、天干、地支等屬性
                 new_palace = Palace(
