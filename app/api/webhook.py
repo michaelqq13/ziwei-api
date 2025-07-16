@@ -646,7 +646,6 @@ def handle_time_divination_gender_input(db: Optional[Session], user: LineBotUser
         {"type": "action", "action": {"type": "message", "label": "現在", "text": "現在"}},
         {"type": "action", "action": {"type": "message", "label": "1小時前", "text": "1小時前"}},
         {"type": "action", "action": {"type": "message", "label": "昨天此時", "text": "昨天此時"}},
-        {"type": "action", "action": {"type": "action", "label": "📅 選擇日期和時間", "data": "select_datetime"}},
         {"type": "action", "action": {"type": "message", "label": "✍️ 手動輸入", "text": "手動輸入"}}
     ]
     
@@ -1535,6 +1534,198 @@ async def handle_weekly_fortune(user_id: str, user: LineBotUser, session: Memory
     except Exception as e:
         logger.error(f"本週占卜失敗: {e}", exc_info=True)
         send_line_message(user_id, "占卜服務暫時無法使用，請稍後再試。")
+
+async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Optional[Session]):
+    """顯示太極十二宮資訊"""
+    try:
+        # 檢查用戶權限
+        is_admin = False
+        if db:
+            user_stats = permission_manager.get_user_stats(db, user)
+            is_admin = user_stats["user_info"]["is_admin"]
+        
+        if not is_admin:
+            send_line_message(user_id, "🔒 **權限不足**\n\n太極十二宮功能僅限管理員使用。")
+            return
+        
+        # 獲取用戶最近的占卜記錄
+        if not db:
+            send_line_message(user_id, "🔮 太極十二宮功能需要完整的數據庫支援，請稍後再試。")
+            return
+            
+        from app.models.linebot_models import DivinationHistory
+        
+        recent_divination = db.query(DivinationHistory).filter(
+            DivinationHistory.user_id == user.id
+        ).order_by(DivinationHistory.divination_time.desc()).first()
+        
+        if not recent_divination:
+            send_line_message(user_id, """🔮 **太極十二宮** ✨
+            
+🏛️ 尚未找到占卜記錄
+
+請先進行占卜，產生太極盤後再查看太極十二宮資訊。
+
+💫 點擊「本週占卜」開始您的占卜之旅。""")
+            return
+        
+        # 重新執行占卜以獲取完整的太極盤資料
+        try:
+            # 使用占卜記錄中的參數重新生成太極盤
+            result = divination_logic.perform_divination(
+                user, 
+                recent_divination.gender, 
+                recent_divination.divination_time, 
+                db
+            )
+            
+            if result["success"] and result.get("taichi_palace_mapping"):
+                # 生成太極宮資訊訊息
+                message_generator = DivinationFlexMessageGenerator()
+                taichi_message = message_generator._create_taichi_palace_carousel(result)
+                
+                if taichi_message:
+                    # 發送說明文字
+                    intro_message = f"""🏛️ **太極十二宮詳細資訊** ✨
+
+📍 **太極點：** {result.get('taichi_palace', '未知')}
+🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}
+👤 **性別：** {'男性' if recent_divination.gender == 'M' else '女性'}
+📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')}
+
+🌟 **太極盤說明：**
+太極盤是以當下時間的分鐘地支為太極點，重新調整十二宮位的排列。下方將顯示每個宮位的詳細星曜配置。"""
+                    
+                    send_line_message(user_id, intro_message)
+                    send_line_flex_messages(user_id, [taichi_message])
+                else:
+                    # 備用文字訊息顯示太極宮對映
+                    mapping = result.get("taichi_palace_mapping", {})
+                    
+                    if mapping:
+                        taichi_info = f"""🏛️ **太極十二宮對映** ✨
+
+📍 **太極點：** {result.get('taichi_palace', '未知')}
+🕰️ **分鐘地支：** {result.get('minute_dizhi', '未知')}
+
+🌟 **宮位對映關係：**
+"""
+                        for original_branch, new_palace in mapping.items():
+                            taichi_info += f"• {original_branch} → {new_palace}\n"
+                        
+                        taichi_info += f"""
+💫 這個對映展示了原盤十二地支如何轉換為太極盤的十二宮位，提供更深層的命理洞察。"""
+                        
+                        send_line_message(user_id, taichi_info)
+                    else:
+                        send_line_message(user_id, "🏛️ 太極宮對映資料暫時無法獲取，請重新進行占卜。")
+            else:
+                send_line_message(user_id, "🏛️ 太極十二宮資訊生成失敗，請重新進行占卜。")
+                
+        except Exception as regenerate_error:
+            logger.error(f"重新生成太極盤失敗: {regenerate_error}")
+            
+            # 備用：顯示基本資訊
+            taichi_info = f"""🏛️ **太極十二宮基本資訊** ✨
+
+📍 **太極點：** {recent_divination.taichi_palace}
+🕰️ **分鐘地支：** {recent_divination.minute_dizhi}
+👤 **性別：** {'男性' if recent_divination.gender == 'M' else '女性'}
+📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')}
+
+🌟 **太極盤說明：**
+太極盤是以當下時間的分鐘地支為太極點，重新調整十二宮位的排列。
+
+⚠️ 詳細宮位配置暫時無法顯示，請重新進行占卜以獲取完整資訊。
+
+💫 這個功能展示了宇宙能量在特定時刻的分佈狀態，為管理員提供更深層的占卜洞察。"""
+            
+            send_line_message(user_id, taichi_info)
+            
+    except Exception as e:
+        logger.error(f"顯示太極十二宮失敗: {e}", exc_info=True)
+        send_line_message(user_id, "🏛️ 太極十二宮功能暫時無法使用，請稍後再試。")
+
+async def handle_datetime_picker_callback(user_id: str, user: LineBotUser, session: MemoryUserSession, datetime_str: str, db: Optional[Session]):
+    """處理日期時間選擇器回調"""
+    try:
+        # 檢查用戶權限
+        is_admin = False
+        if db:
+            user_stats = permission_manager.get_user_stats(db, user)
+            is_admin = user_stats["user_info"]["is_admin"]
+        
+        if not is_admin:
+            send_line_message(user_id, "🔒 **權限不足**\n\n指定時間占卜功能僅限管理員使用。")
+            return
+        
+        # 解析日期時間字符串
+        target_time = datetime.fromisoformat(datetime_str)
+        
+        # 確保時間有時區信息
+        if target_time.tzinfo is None:
+            target_time = target_time.replace(tzinfo=TAIPEI_TZ)
+        else:
+            target_time = target_time.astimezone(TAIPEI_TZ)
+        
+        # 獲取性別（從會話中獲取）
+        gender = session.get_data("gender")
+        if not gender:
+            # 如果沒有性別信息，開始性別選擇流程
+            session.set_data("target_time", target_time.isoformat())
+            session.set_state("waiting_for_gender")
+            
+            quick_reply_items = [
+                {"type": "action", "action": {"type": "message", "label": "👨 男性", "text": "男"}},
+                {"type": "action", "action": {"type": "message", "label": "👩 女性", "text": "女"}}
+            ]
+            
+            message = f"""🔮 **指定時間占卜** ✨
+
+📅 選定時間：{target_time.strftime('%Y年%m月%d日 %H:%M')}
+
+⚡ **請選擇您的性別：**"""
+            
+            send_line_message(user_id, message, quick_reply_items)
+            return
+        
+        # 執行指定時間占卜
+        result = divination_logic.perform_divination(user, gender, target_time, db)
+        
+        if result["success"]:
+            # 使用 Flex Message 產生器
+            message_generator = DivinationFlexMessageGenerator()
+            flex_messages = message_generator.generate_divination_messages(result, True, "admin")  # 管理員模式
+            
+            # 發送結果
+            if flex_messages:
+                time_info_message = f"""⏰ **指定時間占卜結果** ✨
+
+📅 查詢時間：{target_time.strftime('%Y年%m月%d日 %H:%M')}
+👤 性別：{'男性' if gender == 'M' else '女性'}
+🏛️ 太極點：{result.get('taichi_palace', '未知')}
+
+💫 以下是該時間點的詳細分析："""
+                
+                send_line_message(user_id, time_info_message)
+                send_line_flex_messages(user_id, flex_messages)
+                
+                # 發送智能 Quick Reply
+                send_smart_quick_reply_after_divination(user_id, result, "admin")
+            else:
+                send_line_message(user_id, "占卜結果生成失敗，請稍後再試。")
+        else:
+            send_line_message(user_id, f"占卜失敗：{result.get('error', '未知錯誤')}")
+        
+        # 清理會話狀態
+        session.clear_state()
+        session.clear_data()
+        
+    except Exception as e:
+        logger.error(f"處理日期時間選擇器回調失敗: {e}", exc_info=True)
+        send_line_message(user_id, "處理指定時間占卜時發生錯誤，請稍後再試。")
+        session.clear_state()
+        session.clear_data()
 
 async def handle_show_instructions(user_id: str, user: LineBotUser, db: Optional[Session]):
     """顯示使用說明"""
