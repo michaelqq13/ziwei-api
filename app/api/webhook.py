@@ -1473,9 +1473,10 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
 # === 究極混搭方案：Postback 處理函數 ===
 
 async def handle_show_control_panel(user_id: str, user: LineBotUser, db: Optional[Session]):
-    """顯示 Flex Message 控制面板"""
+    """顯示 Flex Message Carousel 控制面板"""
     try:
-        from app.utils.flex_control_panel import FlexControlPanelGenerator
+        # 優先使用 Carousel 版本控制面板
+        from app.utils.flex_carousel_control_panel import FlexCarouselControlPanelGenerator
         
         # 獲取用戶權限資訊
         user_stats = permission_manager.get_user_stats(db, user) if db else {
@@ -1483,14 +1484,26 @@ async def handle_show_control_panel(user_id: str, user: LineBotUser, db: Optiona
             "membership_info": {"is_premium": False}
         }
         
-        # 生成控制面板
-        panel_generator = FlexControlPanelGenerator()
-        control_panel = panel_generator.generate_control_panel(user_stats)
+        # 生成 Carousel 控制面板
+        carousel_generator = FlexCarouselControlPanelGenerator()
+        carousel_panel = carousel_generator.generate_carousel_control_panel(user_stats)
         
-        if control_panel:
-            send_line_flex_messages(user_id, [control_panel])
+        if carousel_panel:
+            send_line_flex_messages(user_id, [carousel_panel])
+            logger.info(f"✅ 成功發送 Carousel 控制面板給用戶 {user_id}")
         else:
-            send_line_message(user_id, "無法載入功能選單，請稍後再試。")
+            # 如果 Carousel 版本失敗，嘗試使用原版本作為後備
+            logger.warning("Carousel 控制面板生成失敗，嘗試使用原版本")
+            
+            from app.utils.flex_control_panel import FlexControlPanelGenerator
+            panel_generator = FlexControlPanelGenerator()
+            control_panel = panel_generator.generate_control_panel(user_stats)
+            
+            if control_panel:
+                send_line_flex_messages(user_id, [control_panel])
+                logger.info(f"✅ 成功發送備用控制面板給用戶 {user_id}")
+            else:
+                send_line_message(user_id, "無法載入功能選單，請稍後再試。")
             
     except Exception as e:
         logger.error(f"顯示控制面板失敗: {e}", exc_info=True)
@@ -1724,13 +1737,17 @@ async def handle_admin_panel_action(user_id: str, user: LineBotUser, action: str
 async def handle_control_panel_action(user_id: str, user: LineBotUser, session: MemoryUserSession, action: str, db: Optional[Session]):
     """處理控制面板動作"""
     try:
+        # 檢查用戶權限
+        user_stats = permission_manager.get_user_stats(db, user) if db else {
+            "user_info": {"is_admin": False},
+            "membership_info": {"is_premium": False}
+        }
+        is_admin = user_stats["user_info"]["is_admin"]
+        is_premium = user_stats["membership_info"]["is_premium"]
+        
         if action == "admin_functions":
             # 顯示管理員功能面板
-            user_stats = permission_manager.get_user_stats(db, user) if db else {
-                "user_info": {"is_admin": False}
-            }
-            
-            if not user_stats["user_info"]["is_admin"]:
+            if not is_admin:
                 send_line_message(user_id, "🔒 **權限不足**\n\n管理員功能僅限管理員使用。")
                 return
             
@@ -1744,6 +1761,101 @@ async def handle_control_panel_action(user_id: str, user: LineBotUser, session: 
             else:
                 send_line_message(user_id, "無法載入管理員面板，請稍後再試。")
                 
+        elif action == "basic_divination":
+            # 基本占卜功能 - 重新導向到本週占卜
+            await handle_weekly_fortune(user_id, user, session, db)
+            
+        elif action == "yearly_fortune":
+            # 流年運勢
+            if not (is_premium or is_admin):
+                send_line_message(user_id, "🔒 **需要付費會員**\n\n流年運勢功能需要付費會員權限，請先升級會員。")
+                return
+            send_line_message(user_id, """🌍 **流年運勢** (開發中)
+            
+此功能正在開發中，將提供：
+• 整年度運勢趨勢分析
+• 每月重點運勢預測
+• 年度財運事業分析
+• 流年大運影響解析
+
+敬請期待！""")
+            
+        elif action == "monthly_fortune":
+            # 流月運勢
+            if not (is_premium or is_admin):
+                send_line_message(user_id, "🔒 **需要付費會員**\n\n流月運勢功能需要付費會員權限，請先升級會員。")
+                return
+            send_line_message(user_id, """🌙 **流月運勢** (開發中)
+            
+此功能正在開發中，將提供：
+• 每月詳細運勢分析
+• 月度重點事件預測
+• 感情財運月運解析
+• 最佳行動時機建議
+
+敬請期待！""")
+            
+        elif action == "daily_fortune":
+            # 流日運勢
+            if not (is_premium or is_admin):
+                send_line_message(user_id, "🔒 **需要付費會員**\n\n流日運勢功能需要付費會員權限，請先升級會員。")
+                return
+            send_line_message(user_id, """🪐 **流日運勢** (開發中)
+            
+此功能正在開發中，將提供：
+• 每日運勢詳細分析
+• 當日宜忌事項提醒
+• 最佳時辰建議
+• 日運影響因子解析
+
+敬請期待！""")
+            
+        elif action == "member_upgrade":
+            # 會員升級
+            if is_admin:
+                send_line_message(user_id, """⚙️ **會員狀態管理** (管理員)
+                
+作為管理員，您擁有所有功能的完整權限。
+
+當前系統功能：
+• ✅ 基本占卜功能
+• ✅ 管理員專用功能
+• 🚧 付費會員功能 (開發中)
+
+如需調整其他用戶的會員狀態，請聯繫系統開發人員。""")
+            else:
+                send_line_message(user_id, """💎 **會員升級** (開發中)
+                
+升級付費會員，享受更多專業功能：
+
+🌟 **付費會員專享功能：**
+• 🌍 流年運勢詳細分析
+• 🌙 流月運勢深度解讀
+• 🪐 流日運勢精準預測
+• 📊 完整命盤解析
+• 📈 運勢趨勢圖表
+• 🔮 專業占卜建議
+
+💰 **優惠價格：** 月費 $99
+📞 **聯繫客服：** 開發中
+
+敬請期待正式上線！""")
+                
+        elif action == "upgrade_required":
+            # 需要升級提示
+            send_line_message(user_id, """🔒 **功能需要升級**
+            
+您嘗試訪問的功能需要付費會員權限。
+
+💎 **升級付費會員享受：**
+• 🌍 流年運勢分析
+• 🌙 流月運勢預測
+• 🪐 流日運勢解析
+• 📊 完整命盤資料
+
+💡 **如何升級：**
+請點擊功能選單中的「💎 會員升級」了解更多資訊。""")
+            
         else:
             logger.warning(f"未知的控制面板動作: {action}")
             send_line_message(user_id, "❓ 未知的功能，請稍後再試。")
