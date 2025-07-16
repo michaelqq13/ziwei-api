@@ -1452,14 +1452,28 @@ def clear_user_session(db: Session, user_id: str):
 def verify_line_signature(body: bytes, signature: str) -> bool:
     """驗證 LINE 簽名"""
     try:
+        import os
         from app.config.linebot_config import LineBotConfig
         import hmac
         import hashlib
         import base64
 
+        # 開發模式：檢查是否需要跳過簽名驗證
+        debug_mode = os.getenv("DEBUG", "False").lower() == "true"
+        skip_signature = os.getenv("SKIP_LINE_SIGNATURE", "False").lower() == "true"
+        
+        if debug_mode or skip_signature:
+            logger.info("開發模式：跳過 LINE 簽名驗證")
+            return True
+
         if not LineBotConfig.CHANNEL_SECRET:
             logger.warning("未設定 CHANNEL_SECRET，跳過簽名驗證")
             return True
+        
+        # 檢查 signature 是否為 None 或空字符串
+        if not signature:
+            logger.warning("收到空的簽名，拒絕請求")
+            return False
 
         hash_obj = hmac.new(
             LineBotConfig.CHANNEL_SECRET.encode('utf-8'),
