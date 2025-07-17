@@ -653,6 +653,8 @@ def handle_time_divination_request(db: Optional[Session], user: LineBotUser, ses
 
 def handle_time_divination_gender_input(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, text: str) -> str:
     """處理指定時間占卜的性別輸入"""
+    logger.info(f"處理指定時間占卜性別輸入: {text}")
+    
     text = text.strip().upper()
     gender = None
     
@@ -662,36 +664,78 @@ def handle_time_divination_gender_input(db: Optional[Session], user: LineBotUser
         gender = "F"
     
     if not gender:
+        logger.warning(f"無效的性別輸入: {text}")
         return "❓ 請輸入有效的性別：「男」或「女」。"
         
+    logger.info(f"性別輸入有效，設定性別為: {gender}")
     session.set_data("gender", gender)
-    session.clear_state()  # 清除狀態，直接使用 datetime picker
     
-    # 使用 DateTime Picker 讓用戶選擇時間
-    time_picker_generator = TimePickerFlexMessageGenerator()
-    time_selection_message = time_picker_generator.create_time_selection_message(gender)
-    
-    if time_selection_message:
-        send_line_flex_messages(user.line_user_id, [time_selection_message])
-        return None
-    else:
-        # 如果 Flex Message 生成失敗，提供備用方案
-        from datetime import datetime, timedelta
-        current_time = get_current_taipei_time()
-        min_time = (current_time - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M")
-        max_time = (current_time + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M")
-        initial_time = (current_time - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+    try:
+        # 使用 DateTime Picker 讓用戶選擇時間
+        logger.info("開始生成時間選擇器...")
+        from app.utils.time_picker_flex_message import TimePickerFlexMessageGenerator
+        time_picker_generator = TimePickerFlexMessageGenerator()
+        time_selection_message = time_picker_generator.create_time_selection_message(gender)
         
-        # 備用：發送純文字說明，但實際仍依賴 postback 中的 datetime picker
-        return f"""⏰ **選擇占卜時間** ✨
+        if time_selection_message:
+            logger.info("時間選擇器生成成功，準備發送 Flex Message...")
+            success = send_line_flex_messages(user.line_user_id, [time_selection_message])
+            if success:
+                logger.info("✅ 時間選擇器 Flex Message 發送成功")
+                # 設定狀態等待時間輸入（作為備用方案）
+                session.set_state("waiting_for_time_input")
+                return None
+            else:
+                logger.error("❌ 時間選擇器 Flex Message 發送失敗")
+                # 設定狀態等待文字時間輸入
+                session.set_state("waiting_for_time_input")
+                # 發送備用方案
+                return """⏰ **指定時間占卜** ✨
 
-📅 請使用下方的時間選擇器選擇您想要占卜的時間點
+時間選擇器載入失敗，請使用文字輸入時間：
+
+📅 **時間格式：**
+• 今天 HH:MM (例：今天 14:30)
+• 昨天 HH:MM (例：昨天 09:15)  
+• YYYY-MM-DD HH:MM (例：2025-07-16 10:00)
+• N小時前 (例：3小時前)
+• N分鐘前 (例：30分鐘前)
+
+💡 請輸入您想要占卜的時間："""
+        else:
+            logger.error("時間選擇器生成失敗")
+            # 設定狀態等待文字時間輸入
+            session.set_state("waiting_for_time_input")
+            # 如果 Flex Message 生成失敗，提供備用方案
+            from datetime import datetime, timedelta
+            current_time = get_current_taipei_time()
+            min_time = (current_time - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M")
+            max_time = (current_time + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M")
+            
+            return f"""⏰ **指定時間占卜** ✨
+
+📅 **時間格式：**
+• 今天 HH:MM (例：今天 14:30)
+• 昨天 HH:MM (例：昨天 09:15)  
+• YYYY-MM-DD HH:MM (例：2025-07-16 10:00)
+• N小時前 (例：3小時前)
+• N分鐘前 (例：30分鐘前)
 
 ⭐ **可選範圍：**
 • 過去 30 天內：{min_time.replace('T', ' ')}
 • 未來 7 天內：{max_time.replace('T', ' ')}
 
-💡 時間選擇器將會在下方出現，請點擊選擇精確的日期和時間。"""
+💡 請輸入您想要占卜的時間："""
+            
+    except Exception as e:
+        logger.error(f"處理指定時間占卜性別輸入時發生錯誤: {e}", exc_info=True)
+        # 設定狀態等待文字時間輸入
+        session.set_state("waiting_for_time_input")
+        return """❌ 系統處理時發生錯誤
+
+請重新開始指定時間占卜，或稍後再試。
+
+🔄 點擊管理員面板中的「指定時間占卜」重新開始。"""
 
 def execute_time_divination(db: Optional[Session], user: LineBotUser, session: MemoryUserSession, target_time: datetime, original_input: str) -> str:
     """執行指定時間占卜"""
@@ -1263,6 +1307,66 @@ async def handle_message_event(event: dict, db: Optional[Session]):
                     if response:
                         send_line_message(user_id, response)
                     return  # 重要：防止觸發默認歡迎訊息
+                
+                elif session.state == "waiting_for_time_input":
+                    # 處理指定時間占卜的時間輸入
+                    try:
+                        logger.info(f"處理時間輸入: {text}")
+                        target_time = parse_time_input(text)
+                        
+                        if target_time:
+                            gender = session.get_data("gender")
+                            if not gender:
+                                session.clear_state()
+                                send_line_message(user_id, "❌ 找不到性別資訊，請重新開始指定時間占卜。")
+                                return
+                            
+                            # 執行指定時間占卜
+                            result = divination_logic.perform_divination(user, gender, target_time, db)
+                            
+                            if result["success"]:
+                                # 使用 Flex Message 產生器
+                                message_generator = DivinationFlexMessageGenerator()
+                                flex_messages = message_generator.generate_divination_messages(result, True, "admin")
+                                
+                                if flex_messages:
+                                    time_info_message = f"""⏰ **指定時間占卜結果** ✨
+
+📅 查詢時間：{target_time.strftime('%Y年%m月%d日 %H:%M')}
+👤 性別：{'男性' if gender == 'M' else '女性'}
+🏛️ 太極點：{result.get('taichi_palace', '未知')}
+
+💫 以下是該時間點的詳細分析："""
+                                    
+                                    send_line_message(user_id, time_info_message)
+                                    send_line_flex_messages(user_id, flex_messages)
+                                    send_smart_quick_reply_after_divination(user_id, result, "admin")
+                                else:
+                                    send_line_message(user_id, "占卜結果生成失敗，請稍後再試。")
+                            else:
+                                send_line_message(user_id, f"占卜失敗：{result.get('error', '未知錯誤')}")
+                            
+                            # 清理會話狀態
+                            session.clear_state()
+                            session.clear_data()
+                        else:
+                            send_line_message(user_id, """❓ 時間格式不正確
+
+📅 **支援的時間格式：**
+• 今天 HH:MM (例：今天 14:30)
+• 昨天 HH:MM (例：昨天 09:15)
+• YYYY-MM-DD HH:MM (例：2025-07-16 10:00)
+• N小時前 (例：3小時前)
+• N分鐘前 (例：30分鐘前)
+
+💡 請重新輸入時間：""")
+                            
+                    except Exception as e:
+                        logger.error(f"處理時間輸入失敗: {e}", exc_info=True)
+                        send_line_message(user_id, "處理時間輸入時發生錯誤，請稍後再試。")
+                        session.clear_state()
+                        session.clear_data()
+                    return
                 
                 else:
                     # 默認回覆 - 當沒有匹配到任何特定指令時
