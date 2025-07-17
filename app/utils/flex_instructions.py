@@ -44,7 +44,7 @@ class FlexInstructionsGenerator:
                 "altText": "📖 使用說明",
                 "contents": {
                     "type": "bubble",
-                    "size": "kilo",
+                    "size": "micro",  # 改為微型尺寸，與其他面板一致
                     "header": self._create_header(is_admin, is_premium),
                     "body": self._create_body(is_admin, is_premium),
                     "footer": self._create_footer()
