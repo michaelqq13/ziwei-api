@@ -38,16 +38,16 @@ class FlexCarouselControlPanelGenerator:
         
         # 星空背景圖片 URL - 使用真實的星空圖片
         self.background_images = {
-            "basic": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80",      # 深藍星空
-            "premium": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80",    # 紫色星雲
-            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"        # 金色星空
+            "basic": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80",      # 深藍星空
+            "premium": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80",    # 紫色星雲
+            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80"        # 金色星空
         }
         
         # 如果無法存取 Unsplash，備用星空圖片 URL
         self.fallback_images = {
-            "basic": "https://via.placeholder.com/1040x600/1A1A2E/FFD700?text=✨+基本功能+✨",
-            "premium": "https://via.placeholder.com/1040x600/2C3E50/E67E22?text=🌟+進階功能+🌟", 
-            "admin": "https://via.placeholder.com/1040x600/8B0000/FFD700?text=👑+管理功能+👑"
+            "basic": "https://via.placeholder.com/800x400/1A1A2E/FFD700?text=✨+基本功能+✨",
+            "premium": "https://via.placeholder.com/800x400/2C3E50/E67E22?text=🌟+進階功能+🌟", 
+            "admin": "https://via.placeholder.com/800x400/8B0000/FFD700?text=👑+管理功能+👑"
         }
     
     def generate_carousel_control_panel(self, user_stats: Dict[str, Any]) -> Optional[FlexMessage]:
@@ -151,90 +151,82 @@ class FlexCarouselControlPanelGenerator:
             return None
     
     def _create_basic_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
-        """創建基本功能分頁"""
+        """創建基本功能分頁 - 調整為微型尺寸"""
         
         # 設定背景圖片和主題色彩
         background_image = self.background_images.get("basic", self.fallback_images["basic"])
         
         bubble = FlexBubble(
-            size="mega",
+            size="micro",  # 改為微型尺寸，與太極十二宮一致
             hero=FlexBox(
                 layout="vertical",
                 contents=[
-                    # 標題區域
+                    # 標題區域 - 縮小高度
                     FlexBox(
                         layout="vertical",
                         contents=[
                             FlexText(
                                 text="✨ 基本功能",
                                 weight="bold",
-                                size="xl",
+                                size="lg",  # 縮小字體
                                 color=self.colors["star_gold"],
                                 align="center"
                             ),
                             FlexText(
-                                text="Essential Features",
-                                size="sm",
+                                text="Essential",
+                                size="xs",  # 縮小副標題
                                 color=self.colors["text_secondary"],
                                 align="center",
                                 margin="xs"
-                            ),
-                            FlexText(
-                                text="1/3",
-                                size="xs",
-                                color=self.colors["text_light"],
-                                align="center",
-                                margin="sm"
                             )
                         ],
                         spacing="none",
-                        margin="md"
+                        margin="sm"  # 縮小邊距
                     )
                 ],
                 background_image=background_image,
                 background_size="cover",
                 background_position="center",
-                padding_all="20px",
-                height="120px"
+                paddingAll="12px",  # 縮小內邊距
+                height="80px"  # 大幅縮小高度
             ),
             body=FlexBox(
                 layout="vertical",
                 contents=[
-                    # 功能按鈕
+                    # 功能按鈕 - 緊湊排列
                     FlexBox(
                         layout="vertical",
                         contents=[
-                            self._create_function_button("🔮", "週運占卜", "本週觸機占卜算命", "control_panel=basic_divination", True),
-                            self._create_function_button("👤", "會員資訊", "查看個人資料", "action=show_member_info", True),
-                            self._create_function_button("📖", "使用說明", "功能說明與教學", "action=show_instructions", True)
+                            self._create_compact_button("🔮", "占卜", "control_panel=basic_divination", True),
+                            self._create_compact_button("👤", "會員", "action=show_member_info", True),
+                            self._create_compact_button("📖", "說明", "action=show_instructions", True)
                         ],
-                        spacing="sm"
+                        spacing="xs"  # 緊湊間距
                     ),
-                    FlexSeparator(margin="lg"),
                     # 頁面指示器
                     FlexText(
-                        text="← 滑動查看更多功能 →" if (is_premium or is_admin) else "✨ 所有可用功能 ✨",
-                        size="xs",
+                        text="← 滑動 →" if (is_premium or is_admin) else "✨ 功能 ✨",
+                        size="xxs",
                         color=self.colors["text_light"],
                         align="center",
-                        margin="md"
+                        margin="sm"
                     )
                 ],
-                spacing="md",
-                padding_all="16px"
+                spacing="sm",
+                paddingAll="12px"  # 縮小內邊距
             )
         )
         
         return bubble
 
     def _create_premium_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
-        """創建付費功能分頁"""
+        """創建付費功能分頁 - 調整為微型尺寸"""
         
         # 設定背景圖片
         background_image = self.background_images.get("premium", self.fallback_images["premium"])
         
         bubble = FlexBubble(
-            size="mega",
+            size="micro",  # 微型尺寸
             hero=FlexBox(
                 layout="vertical",
                 contents=[
@@ -245,34 +237,27 @@ class FlexCarouselControlPanelGenerator:
                             FlexText(
                                 text="🌟 進階功能",
                                 weight="bold",
-                                size="xl",
+                                size="lg",
                                 color=self.colors["premium"],
                                 align="center"
                             ),
                             FlexText(
-                                text="Premium Features",
-                                size="sm",
+                                text="Premium",
+                                size="xs",
                                 color=self.colors["text_secondary"],
                                 align="center",
                                 margin="xs"
-                            ),
-                            FlexText(
-                                text="2/3",
-                                size="xs",
-                                color=self.colors["text_light"],
-                                align="center",
-                                margin="sm"
                             )
                         ],
                         spacing="none",
-                        margin="md"
+                        margin="sm"
                     )
                 ],
                 background_image=background_image,
                 background_size="cover",
                 background_position="center",
-                padding_all="20px",
-                height="120px"
+                paddingAll="12px",
+                height="80px"
             ),
             body=FlexBox(
                 layout="vertical",
@@ -281,38 +266,37 @@ class FlexCarouselControlPanelGenerator:
                     FlexBox(
                         layout="vertical",
                         contents=[
-                            self._create_function_button("🌍", "流年運勢", "年度運勢深度分析", "control_panel=yearly_fortune", is_premium or is_admin),
-                            self._create_function_button("🌙", "流月運勢", "月度運勢變化預測", "control_panel=monthly_fortune", is_premium or is_admin),
-                            self._create_function_button("🪐", "流日運勢", "每日運勢精準解析", "control_panel=daily_fortune", is_premium or is_admin),
-                            self._create_function_button("💎", "會員升級", "享受完整功能", "control_panel=member_upgrade", True)
+                            self._create_compact_button("🌍", "流年", "control_panel=yearly_fortune", is_premium or is_admin),
+                            self._create_compact_button("🌙", "流月", "control_panel=monthly_fortune", is_premium or is_admin),
+                            self._create_compact_button("🪐", "流日", "control_panel=daily_fortune", is_premium or is_admin),
+                            self._create_compact_button("💎", "升級", "control_panel=member_upgrade", True)
                         ],
-                        spacing="sm"
+                        spacing="xs"
                     ),
-                    FlexSeparator(margin="lg"),
-                    # 頁面指示器和升級提示
+                    # 頁面指示器
                     FlexText(
-                        text="← 滑動瀏覽功能分頁 →" if is_admin else "💎 升級解鎖更多功能",
-                        size="xs",
+                        text="← 滑動 →" if is_admin else "💎 升級",
+                        size="xxs",
                         color=self.colors["premium"] if not (is_premium or is_admin) else self.colors["text_light"],
                         align="center",
-                        margin="md"
+                        margin="sm"
                     )
                 ],
-                spacing="md",
-                padding_all="16px"
+                spacing="sm",
+                paddingAll="12px"
             )
         )
         
         return bubble
 
     def _create_admin_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
-        """創建管理員功能分頁"""
+        """創建管理員功能分頁 - 調整為微型尺寸"""
         
         # 設定背景圖片
         background_image = self.background_images.get("admin", self.fallback_images["admin"])
         
         bubble = FlexBubble(
-            size="mega",
+            size="micro",  # 微型尺寸
             hero=FlexBox(
                 layout="vertical",
                 contents=[
@@ -321,36 +305,29 @@ class FlexCarouselControlPanelGenerator:
                         layout="vertical",
                         contents=[
                             FlexText(
-                                text="👑 專屬管理功能",
+                                text="👑 管理功能",
                                 weight="bold",
-                                size="xl",
+                                size="lg",
                                 color=self.colors["admin"],
                                 align="center"
                             ),
                             FlexText(
-                                text="Administrator Panel",
-                                size="sm",
+                                text="Admin",
+                                size="xs",
                                 color=self.colors["text_secondary"],
                                 align="center",
                                 margin="xs"
-                            ),
-                            FlexText(
-                                text="3/3",
-                                size="xs",
-                                color=self.colors["text_light"],
-                                align="center",
-                                margin="sm"
                             )
                         ],
                         spacing="none",
-                        margin="md"
+                        margin="sm"
                     )
                 ],
                 background_image=background_image,
                 background_size="cover",
                 background_position="center",
-                padding_all="20px",
-                height="120px"
+                paddingAll="12px",
+                height="80px"
             ),
             body=FlexBox(
                 layout="vertical",
@@ -359,32 +336,75 @@ class FlexCarouselControlPanelGenerator:
                     FlexBox(
                         layout="vertical",
                         contents=[
-                            self._create_function_button("⏰", "指定時間占卜", "回溯特定時間點占卜", "admin_action=time_divination_start", is_admin),
-                            self._create_function_button("📊", "用戶統計", "數據分析與報表", "admin_action=user_stats", is_admin),
-                            self._create_function_button("🖥️", "系統監控", "服務狀態監控", "admin_action=system_status", is_admin),
-                            self._create_function_button("⚙️", "選單管理", "功能配置管理", "admin_action=menu_management", is_admin)
+                            self._create_compact_button("⏰", "時間占卜", "admin_action=time_divination_start", is_admin),
+                            self._create_compact_button("📊", "用戶統計", "admin_action=user_stats", is_admin),
+                            self._create_compact_button("🖥️", "系統監控", "admin_action=system_status", is_admin),
+                            self._create_compact_button("⚙️", "選單管理", "admin_action=menu_management", is_admin)
                         ],
-                        spacing="sm"
+                        spacing="xs"
                     ),
-                    FlexSeparator(margin="lg"),
                     # 頁面指示器
                     FlexText(
-                        text="← 滑動返回其他功能 →",
-                        size="xs",
+                        text="← 滑動返回 →",
+                        size="xxs",
                         color=self.colors["text_light"],
                         align="center",
-                        margin="md"
+                        margin="sm"
                     )
                 ],
-                spacing="md",
-                padding_all="16px"
+                spacing="sm",
+                paddingAll="12px"
             )
         )
         
         return bubble
 
+    def _create_compact_button(self, icon: str, title: str, action_data: str, is_enabled: bool) -> FlexBox:
+        """創建緊湊型功能按鈕 - 適合微型bubble"""
+        
+        # 根據啟用狀態設定顏色
+        if is_enabled:
+            text_color = self.colors["text_primary"]
+            icon_color = self.colors["star_gold"]
+            border_color = self.colors["star_gold"]
+        else:
+            text_color = self.colors["disabled"]
+            icon_color = self.colors["disabled"]
+            border_color = self.colors["disabled"]
+        
+        return FlexBox(
+            layout="horizontal",
+            contents=[
+                # 圖標
+                FlexText(
+                    text=icon,
+                    size="md",
+                    color=icon_color,
+                    flex=0,
+                    weight="bold"
+                ),
+                # 標題
+                FlexText(
+                    text=title,
+                    weight="bold",
+                    size="sm",
+                    color=text_color,
+                    flex=1,
+                    margin="sm"
+                )
+            ],
+            paddingAll="8px",  # 緊湊內邊距
+            borderWidth="1px",
+            borderColor=border_color,
+            action=PostbackAction(
+                data=action_data,
+                displayText=title
+            ) if is_enabled else None,
+            margin="xs"
+        )
+
     def _create_function_button(self, icon: str, title: str, description: str, action_data: str, is_enabled: bool) -> FlexBox:
-        """創建單一功能按鈕 - 移除不支援的 backgroundColor 屬性"""
+        """創建單一功能按鈕 - 保留原版功能"""
         
         # 根據啟用狀態設定顏色
         if is_enabled:
@@ -451,7 +471,6 @@ class FlexCarouselControlPanelGenerator:
                             justify="center"
                         )
                     ],
-                    # 移除 backgroundColor，改用邊框效果
                     paddingAll="16px",
                     borderWidth="1px",
                     borderColor=border_color,
