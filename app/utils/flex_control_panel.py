@@ -627,8 +627,7 @@ class FlexControlPanelGenerator:
                     "layout": "vertical",
                     "contents": [],
                     "height": "3px",
-                    "backgroundColor": "rgba(0, 0, 0, 0.1)",
-                    "cornerRadius": "0px 0px 8px 8px"
+                    "backgroundColor": "rgba(0, 0, 0, 0.1)"
                 }
             ],
             "spacing": "none",

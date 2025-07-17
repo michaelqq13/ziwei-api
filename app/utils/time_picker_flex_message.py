@@ -130,7 +130,6 @@ class TimePickerFlexMessageGenerator:
                                 )
                             ],
                             margin="md",
-                            corner_radius="5px",
                             padding_all="8px"
                         )
                     ],

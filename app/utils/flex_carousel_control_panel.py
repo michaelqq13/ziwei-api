@@ -221,7 +221,6 @@ class FlexCarouselControlPanelGenerator:
                     )
                 ],
                 spacing="md",
-                corner_radius="15px",
                 padding_all="16px"
             )
         )
@@ -300,7 +299,6 @@ class FlexCarouselControlPanelGenerator:
                     )
                 ],
                 spacing="md",
-                corner_radius="15px",
                 padding_all="16px"
             )
         )
@@ -379,7 +377,6 @@ class FlexCarouselControlPanelGenerator:
                     )
                 ],
                 spacing="md",
-                corner_radius="15px",
                 padding_all="16px"
             )
         )
