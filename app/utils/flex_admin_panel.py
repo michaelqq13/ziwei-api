@@ -27,100 +27,70 @@ class FlexAdminPanelGenerator:
         
         # 星空背景圖片 - 管理員專用
         self.background_images = {
-            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"  # 金色星空
+            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80"  # 調整尺寸
         }
         
         # 備用背景圖片
         self.fallback_images = {
-            "admin": "https://via.placeholder.com/1040x600/8B0000/FFD700?text=👑+管理員面板+👑"
+            "admin": "https://via.placeholder.com/800x400/8B0000/FFD700?text=👑+管理員面板+👑"  # 調整尺寸
         }
     
     def generate_admin_panel(self) -> Optional[FlexMessage]:
         """生成管理員功能面板"""
         try:
-            main_buttons = [
-                self._create_admin_button(
-                    "指定時間占卜",
-                    "回溯特定時間點進行占卜",
-                    "⏰",
-                    "admin_action=time_divination_start",
-                    self.colors["admin"]
-                ),
-                self._create_admin_button(
-                    "用戶統計分析",
-                    "查看用戶數據和使用統計",
-                    "📊",
-                    "admin_action=user_stats",
-                    self.colors["primary"]
-                ),
-                self._create_admin_button(
-                    "系統監控",
-                    "監控系統狀態和性能指標",
-                    "🖥️",
-                    "admin_action=system_status",
-                    self.colors["secondary"]
-                ),
-                self._create_admin_button(
-                    "選單管理",
-                    "管理功能選單配置",
-                    "⚙️",
-                    "admin_action=menu_management",
-                    self.colors["accent"]
-                )
-            ]
-
             bubble = FlexBubble(
-                size="giga",
+                size="micro",  # 改為微型尺寸，與其他面板一致
+                hero=FlexBox(
+                    layout="vertical",
+                    contents=[
+                        FlexText(
+                            text="👑 管理功能",  # 簡化標題
+                            weight="bold",
+                            size="lg",  # 縮小字體
+                            color="#FFD700",
+                            align="center"
+                        ),
+                        FlexText(
+                            text="Admin Panel",  # 簡化副標題
+                            size="xs",
+                            color="#B0C4DE",
+                            align="center",
+                            margin="xs"
+                        )
+                    ],
+                    backgroundColor="#8B0000CC",  # 半透明深紅遮罩
+                    backgroundImage=self.background_images.get("admin", self.fallback_images["admin"]),
+                    backgroundSize="cover",
+                    backgroundPosition="center",
+                    paddingAll="12px",  # 縮小內邊距
+                    height="80px"  # 設定固定高度
+                ),
                 body=FlexBox(
                     layout="vertical",
                     contents=[
-                        # 標題區域 - 添加背景圖片
-                        FlexBox(
-                            layout="horizontal",
-                            contents=[
-                                FlexText(
-                                    text="👑",
-                                    size="xxl",
-                                    color="#FFD700",
-                                    flex=0,
-                                    weight="bold"
-                                ),
-                                FlexText(
-                                    text="管理員控制面板",
-                                    weight="bold",
-                                    size="xxl",
-                                    color="#FFD700",
-                                    flex=1,
-                                    margin="md"
-                                )
-                            ],
-                            backgroundColor="#8B0000CC",  # 半透明深紅遮罩
-                            background_image=self.background_images.get("admin", self.fallback_images["admin"]),
-                            background_size="cover",
-                            background_position="center"
-                        ),
-                        FlexSeparator(margin="xl"),
-                        
-                        # 主要功能區域
+                        # 簡化的功能按鈕 - 改用緊湊型
                         FlexBox(
                             layout="vertical",
-                            contents=main_buttons,
-                            spacing="md",
-                            margin="lg"
+                            contents=[
+                                self._create_compact_admin_button("⏰", "時間占卜", "admin_action=time_divination_start"),
+                                self._create_compact_admin_button("📊", "用戶統計", "admin_action=user_stats"),
+                                self._create_compact_admin_button("🖥️", "系統監控", "admin_action=system_status"),
+                                self._create_compact_admin_button("⚙️", "選單管理", "admin_action=menu_management")
+                            ],
+                            spacing="xs"  # 緊湊間距
                         ),
                         
-                        # 底部說明
-                        FlexSeparator(margin="xl"),
+                        # 簡化底部說明
                         FlexText(
-                            text="💫 管理員專屬功能面板",
-                            size="sm",
+                            text="💫 管理員專屬",
+                            size="xxs",
                             color="#999999",
                             align="center",
-                            margin="md"
+                            margin="sm"
                         )
                     ],
-                    spacing="none",
-                    paddingAll="xl"
+                    spacing="sm",
+                    paddingAll="12px"  # 縮小內邊距
                 ),
                 styles={
                     "body": {
@@ -209,6 +179,38 @@ class FlexAdminPanelGenerator:
             ],
             spacing="none",
             margin="sm"
+        )
+    
+    def _create_compact_admin_button(self, icon: str, title: str, action_data: str) -> FlexBox:
+        """創建緊湊型管理員功能按鈕"""
+        return FlexBox(
+            layout="horizontal",
+            contents=[
+                FlexText(
+                    text=icon,
+                    size="md",
+                    color="#FFD700",
+                    flex=0,
+                    weight="bold"
+                ),
+                FlexText(
+                    text=title,
+                    weight="bold",
+                    size="sm",
+                    color="#FFFFFF",
+                    flex=1,
+                    margin="sm"
+                )
+            ],
+            paddingAll="8px",
+            borderWidth="1px",
+            borderColor="#FFD700",
+            backgroundColor="rgba(139, 0, 0, 0.15)",  # 半透明深紅背景
+            action=PostbackAction(
+                data=action_data,
+                displayText=title
+            ),
+            margin="xs"
         )
     
     def _create_separator(self) -> Dict:
