@@ -95,8 +95,6 @@ class FlexAdminPanelGenerator:
                                 )
                             ],
                             backgroundColor="#8B0000CC",  # 半透明深紅遮罩
-                            cornerRadius="12px",
-                            paddingAll="20px",
                             background_image=self.background_images.get("admin", self.fallback_images["admin"]),
                             background_size="cover",
                             background_position="center"
@@ -194,7 +192,6 @@ class FlexAdminPanelGenerator:
                     ],
                     # 半透明背景 + 邊框效果
                     backgroundColor=button_bg,
-                    cornerRadius="12px",
                     paddingAll="16px",
                     borderWidth="1px",
                     borderColor=border_color,
@@ -207,7 +204,6 @@ class FlexAdminPanelGenerator:
                     contents=[],
                     height="3px",
                     backgroundColor="rgba(0, 0, 0, 0.1)",  # 淺色陰影
-                    cornerRadius="0px 0px 8px 8px",
                     margin="none"
                 )
             ],

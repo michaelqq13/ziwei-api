@@ -455,7 +455,6 @@ class FlexCarouselControlPanelGenerator:
                         )
                     ],
                     # 移除 backgroundColor，改用邊框效果
-                    cornerRadius="12px",
                     paddingAll="16px",
                     borderWidth="1px",
                     borderColor=border_color,
@@ -470,7 +469,6 @@ class FlexCarouselControlPanelGenerator:
                     layout="vertical",
                     contents=[],
                     height="2px",
-                    cornerRadius="0px 0px 8px 8px",
                     margin="none"
                 )
             ],

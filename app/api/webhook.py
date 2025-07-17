@@ -29,17 +29,34 @@ from linebot.v3.messaging import FlexBubble, FlexBox, FlexText, FlexSeparator, F
 from app.utils.time_picker_flex_message import TimePickerFlexMessageGenerator
 
 # 設定日誌
+import logging
+from datetime import datetime, timezone, timedelta
+
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+class TaipeiFormatter(logging.Formatter):
+    """台北時區的日誌格式化器"""
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, tz=TAIPEI_TZ)
+        if datefmt:
+            return dt.strftime(datefmt)
+        else:
+            return dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+
+# 設置日誌，使用台北時區
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 為所有處理程序設置台北時區格式化器
+for handler in logging.root.handlers:
+    handler.setFormatter(TaipeiFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 # 創建路由器
 router = APIRouter()
 
 # 記憶體中的用戶會話管理
 user_sessions: Dict[str, MemoryUserSession] = {}
-
-# 台北時區
-TAIPEI_TZ = timezone(timedelta(hours=8))
 
 # 在文件頂部添加速率限制器
 limiter = Limiter(key_func=get_remote_address)
@@ -197,11 +214,18 @@ def handle_divination_request(db: Optional[Session], user: LineBotUser, session:
             existing_divination = get_this_week_divination(user.line_user_id, db)
             
             if existing_divination:
+                # 確保時間轉換為台北時區
+                divination_time = existing_divination.divination_time
+                if divination_time.tzinfo is None:
+                    divination_time = divination_time.replace(tzinfo=TAIPEI_TZ)
+                else:
+                    divination_time = divination_time.astimezone(TAIPEI_TZ)
+                    
                 return f"""🔮 **本週占卜** ✨
 
 您本週已經占過卜了！
 
-📅 占卜時間：{existing_divination.divination_time.strftime("%Y-%m-%d %H:%M")}
+📅 占卜時間：{divination_time.strftime("%Y-%m-%d %H:%M")} (台北時間)
 👤 性別：{'男性' if existing_divination.gender == 'M' else '女性'}
 
 ⏰ 每週只能占卜一次，請下週再來！"""
@@ -1654,14 +1678,20 @@ async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Option
             else:
                 # 備用文字訊息顯示太極宮對映
                 if taichi_palace_mapping:
+                    # 確保時間轉換為台北時區
+                    divination_time = recent_divination.divination_time
+                    if divination_time.tzinfo is None:
+                        divination_time = divination_time.replace(tzinfo=TAIPEI_TZ)
+                    else:
+                        divination_time = divination_time.astimezone(TAIPEI_TZ)
+                        
                     taichi_info = f"""🏛️ **太極十二宮對映** ✨
 
 📍 **太極點：** {recent_divination.taichi_palace}
 🕰️ **分鐘地支：** {recent_divination.minute_dizhi}
-📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')}
+📅 **占卜時間：** {divination_time.strftime('%Y-%m-%d %H:%M')} (台北時間)
 
-🌟 **宮位對映關係：**
-"""
+🌟 **宮位對映關係：**"""
                     for original_branch, new_palace in taichi_palace_mapping.items():
                         taichi_info += f"• {original_branch} → {new_palace}\n"
                     

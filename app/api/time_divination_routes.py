@@ -18,8 +18,28 @@ from slowapi.util import get_remote_address
 import json
 
 # 設定日誌
+import logging
+from datetime import datetime, timezone, timedelta
+
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+class TaipeiFormatter(logging.Formatter):
+    """台北時區的日誌格式化器"""
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, tz=TAIPEI_TZ)
+        if datefmt:
+            return dt.strftime(datefmt)
+        else:
+            return dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+
+# 設定日誌，使用台北時區
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 為所有處理程序設置台北時區格式化器
+for handler in logging.root.handlers:
+    handler.setFormatter(TaipeiFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 # 創建路由器
 router = APIRouter()
@@ -27,8 +47,6 @@ router = APIRouter()
 # 速率限制器
 limiter = Limiter(key_func=get_remote_address)
 
-# 台北時區
-TAIPEI_TZ = timezone(timedelta(hours=8))
 
 class TimeDivinationRequest(BaseModel):
     """指定時間占卜請求模型"""

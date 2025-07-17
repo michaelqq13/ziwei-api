@@ -496,7 +496,6 @@ class DivinationFlexMessageGenerator:
                         )
                     ],
                     backgroundColor="#F8F9FA",
-                    cornerRadius="md",
                     paddingAll="md"  # 增加內邊距
                 )
             )
@@ -695,7 +694,6 @@ class DivinationFlexMessageGenerator:
                         )
                     ],
                     backgroundColor="#F8F9FA",
-                    cornerRadius="md",
                     paddingAll="lg"
                 )
             )
@@ -809,7 +807,6 @@ class DivinationFlexMessageGenerator:
                             )
                         ],
                         backgroundColor=color,
-                        cornerRadius="md",
                         paddingAll="md",
                         action=MessageAction(
                             text=f"查看{sihua_type}星更多解釋"
@@ -845,7 +842,6 @@ class DivinationFlexMessageGenerator:
                             )
                         ],
                         backgroundColor="#95A5A6",
-                        cornerRadius="md",
                         paddingAll="md"
                     ),
                     FlexText(
@@ -1080,7 +1076,6 @@ class DivinationFlexMessageGenerator:
                         )
                     ],
                     backgroundColor="#F8F9FA",
-                    cornerRadius="md",
                     paddingAll="lg"
                 )
             )
@@ -1460,7 +1455,6 @@ class DivinationFlexMessageGenerator:
                             self._create_info_row("🌌", "宮干", palace_tiangan)
                         ],
                         spacing="sm",
-                        corner_radius="10px",
                         padding_all="12px"
                     )
                 ],

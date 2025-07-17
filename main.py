@@ -6,7 +6,7 @@
 
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 # 嘗試導入sxtwl（壽星萬年曆）庫
@@ -18,9 +18,25 @@ except ImportError:
     HAS_SXTWL = False
     print("❌ 未找到sxtwl庫，請先安裝：pip install sxtwl")
 
-# 設置日誌
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+class TaipeiFormatter(logging.Formatter):
+    """台北時區的日誌格式化器"""
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, tz=TAIPEI_TZ)
+        if datefmt:
+            return dt.strftime(datefmt)
+        else:
+            return dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+
+# 設置日誌，使用台北時區
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 為所有處理程序設置台北時區格式化器
+for handler in logging.root.handlers:
+    handler.setFormatter(TaipeiFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 class SixTailCalendar:
     """使用6tail（壽星萬年曆）的完整時間資料處理類"""

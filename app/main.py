@@ -23,16 +23,32 @@ from app.api import payment_routes
 from app.api import chart_binding_routes
 from app.api import webhook  # Added LINE Bot webhook
 from app.logic.divination_logic import divination_logic
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 import logging
 from app.utils.security_middleware import security_check_middleware
 
-# 設置日誌
+# 台北時區
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+class TaipeiFormatter(logging.Formatter):
+    """台北時區的日誌格式化器"""
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, tz=TAIPEI_TZ)
+        if datefmt:
+            return dt.strftime(datefmt)
+        else:
+            return dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+
+# 設置日誌，使用台北時區
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 為所有處理程序設置台北時區格式化器
+for handler in logging.root.handlers:
+    handler.setFormatter(TaipeiFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 # 速率限制器
 limiter = Limiter(key_func=get_remote_address)

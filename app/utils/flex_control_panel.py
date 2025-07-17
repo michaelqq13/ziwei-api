@@ -158,7 +158,6 @@ class FlexControlPanelGenerator:
                 }
             ],
             "backgroundColor": "#1A1A2ECC",  # 半透明深藍遮罩
-            "cornerRadius": "12px",
             "paddingAll": "20px",
             "backgroundImage": background_image,
             "backgroundSize": "cover",
@@ -366,7 +365,6 @@ class FlexControlPanelGenerator:
                 }
             ],
             "backgroundColor": self.colors["card_bg"],
-            "cornerRadius": "md",
             "paddingAll": "lg"
         }
     
@@ -431,7 +429,6 @@ class FlexControlPanelGenerator:
                 }
             ],
             "backgroundColor": self.colors["card_bg"],
-            "cornerRadius": "md",
             "paddingAll": "lg"
         }
     
@@ -485,7 +482,6 @@ class FlexControlPanelGenerator:
                 }
             ],
             "backgroundColor": self.colors["card_bg"],
-            "cornerRadius": "md",
             "paddingAll": "lg"
         }
     
@@ -531,7 +527,6 @@ class FlexControlPanelGenerator:
                 }
             ],
             "backgroundColor": self.colors["card_bg"],
-            "cornerRadius": "md",
             "paddingAll": "lg"
         }
     
@@ -618,7 +613,6 @@ class FlexControlPanelGenerator:
                         }
                     ],
                     "backgroundColor": button_bg,
-                    "cornerRadius": "12px",
                     "paddingAll": "16px",
                     "borderWidth": "1px",
                     "borderColor": border_color,
