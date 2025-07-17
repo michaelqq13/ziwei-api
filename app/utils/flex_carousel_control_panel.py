@@ -184,9 +184,6 @@ class FlexCarouselControlPanelGenerator:
                         margin="sm"  # 縮小邊距
                     )
                 ],
-                background_image=background_image,
-                background_size="cover",
-                background_position="center",
                 paddingAll="12px",  # 縮小內邊距
                 height="80px"  # 大幅縮小高度
             ),
@@ -214,7 +211,14 @@ class FlexCarouselControlPanelGenerator:
                 ],
                 spacing="sm",
                 paddingAll="12px"  # 縮小內邊距
-            )
+            ),
+            styles={
+                "hero": {
+                    "backgroundImage": background_image,
+                    "backgroundSize": "cover",
+                    "backgroundPosition": "center"
+                }
+            }
         )
         
         return bubble
@@ -253,9 +257,6 @@ class FlexCarouselControlPanelGenerator:
                         margin="sm"
                     )
                 ],
-                background_image=background_image,
-                background_size="cover",
-                background_position="center",
                 paddingAll="12px",
                 height="80px"
             ),
@@ -284,7 +285,14 @@ class FlexCarouselControlPanelGenerator:
                 ],
                 spacing="sm",
                 paddingAll="12px"
-            )
+            ),
+            styles={
+                "hero": {
+                    "backgroundImage": background_image,
+                    "backgroundSize": "cover",
+                    "backgroundPosition": "center"
+                }
+            }
         )
         
         return bubble
@@ -323,9 +331,6 @@ class FlexCarouselControlPanelGenerator:
                         margin="sm"
                     )
                 ],
-                background_image=background_image,
-                background_size="cover",
-                background_position="center",
                 paddingAll="12px",
                 height="80px"
             ),
@@ -354,7 +359,14 @@ class FlexCarouselControlPanelGenerator:
                 ],
                 spacing="sm",
                 paddingAll="12px"
-            )
+            ),
+            styles={
+                "hero": {
+                    "backgroundImage": background_image,
+                    "backgroundSize": "cover",
+                    "backgroundPosition": "center"
+                }
+            }
         )
         
         return bubble
