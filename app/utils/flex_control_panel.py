@@ -58,7 +58,7 @@ class FlexControlPanelGenerator:
             # 構建星空主題控制面板
             bubble_dict = {
                 "type": "bubble",
-                "size": "giga",
+                "size": "micro",  # 改為微型尺寸，與太極十二宮一致
                 "header": self._create_starry_header(is_admin, is_premium),
                 "body": self._create_starry_body(is_admin, is_premium),
                 "footer": self._create_starry_footer(),
@@ -120,21 +120,21 @@ class FlexControlPanelGenerator:
         }
     
     def _create_starry_header(self, is_admin: bool, is_premium: bool) -> Dict:
-        """創建星空主題頭部 - 添加背景圖片支援"""
+        """創建星空主題頭部 - 調整為微型尺寸"""
         
         # 根據用戶等級設定標題和顏色
         if is_admin:
-            title = "👑 管理員面板"
+            title = "👑 管理功能"  # 縮短標題
             title_color = "#FFD700"
         elif is_premium:
-            title = "💎 付費會員面板"
+            title = "💎 付費功能"  # 縮短標題
             title_color = "#9B59B6"
         else:
-            title = "✨ 功能面板"
+            title = "✨ 基本功能"  # 縮短標題
             title_color = "#4A90E2"
         
-        # 選擇背景圖片
-        background_image = self.background_images.get("panel", self.fallback_images["panel"])
+        # 選擇背景圖片，調整尺寸
+        background_image = "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=300&q=80"
         
         return {
             "type": "box",
@@ -144,193 +144,135 @@ class FlexControlPanelGenerator:
                     "type": "text",
                     "text": title,
                     "weight": "bold",
-                    "size": "xxl",
+                    "size": "lg",  # 縮小字體從 xxl 到 lg
                     "color": title_color,
                     "align": "center"
                 },
                 {
                     "type": "text",
-                    "text": "🌌 Star Control Panel",
-                    "size": "sm",
+                    "text": "🌌 Panel",  # 縮短副標題
+                    "size": "xs",  # 縮小字體從 sm 到 xs
                     "color": self.colors["text_secondary"],
                     "align": "center",
                     "margin": "xs"
                 }
             ],
             "backgroundColor": "#1A1A2ECC",  # 半透明深藍遮罩
-            "paddingAll": "20px",
+            "paddingAll": "12px",  # 縮小內邊距從 20px 到 12px
             "backgroundImage": background_image,
             "backgroundSize": "cover",
-            "backgroundPosition": "center"
+            "backgroundPosition": "center",
+            "height": "80px"  # 設定固定高度，與carousel一致
         }
     
     def _create_starry_body(self, is_admin: bool, is_premium: bool) -> Dict:
-        """創建星空主題控制面板主體內容"""
-        # 基本功能按鈕
-        basic_buttons = []
-        basic_buttons.append(
-            self._create_starry_button(
+        """創建星空主題控制面板主體內容 - 簡化為微型尺寸"""
+        # 簡化按鈕列表，只保留核心功能
+        buttons = []
+        
+        # 基本占卜按鈕
+        buttons.append(
+            self._create_compact_starry_button(
                 "🔮",
                 "本週占卜",
                 "control_panel=basic_divination",
-                True,
-                False,
-                False
+                True
             )
         )
         
-        # 進階功能按鈕
-        advanced_buttons = []
-        advanced_buttons.append(
-            self._create_starry_button(
-                "🌍",
-                "流年運勢" if (is_admin or is_premium) else "🔒 需要付費會員",
-                "control_panel=yearly_fortune",
-                (is_admin or is_premium),
-                is_premium,
-                is_admin
-            )
-        )
-        advanced_buttons.append(
-            self._create_starry_button(
-                "🌙",
-                "流月運勢" if (is_admin or is_premium) else "🔒 需要付費會員",
-                "control_panel=monthly_fortune",
-                (is_admin or is_premium),
-                is_premium,
-                is_admin
-            )
-        )
-        advanced_buttons.append(
-            self._create_starry_button(
-                "🪐",
-                "流日運勢" if (is_admin or is_premium) else "🔒 需要付費會員",
-                "control_panel=daily_fortune",
-                (is_admin or is_premium),
-                is_premium,
-                is_admin
+        # 會員相關按鈕
+        buttons.append(
+            self._create_compact_starry_button(
+                "👤",
+                "會員資訊",
+                "action=show_member_info", 
+                True
             )
         )
         
-        # 其他功能按鈕
-        other_buttons = []
-        other_buttons.append(
-            self._create_starry_button(
-                "📊",
-                "命盤解析",
-                "control_panel=chart_analysis",
-                True,
-                False,
-                False
-            )
-        )
-        other_buttons.append(
-            self._create_starry_button(
-                "💎",
-                "會員升級",
-                "control_panel=member_upgrade",
-                True,
-                False,
-                False
-            )
-        )
-        
-        # 管理員功能按鈕
-        admin_buttons = []
+        # 根據權限顯示不同功能
         if is_admin:
-            admin_buttons.append(
-                self._create_starry_button(
+            buttons.append(
+                self._create_compact_starry_button(
                     "⏰",
-                    "指定時間占卜",
+                    "時間占卜",
                     "admin_action=time_divination_start",
-                    True,
-                    False,
                     True
                 )
             )
-            admin_buttons.append(
-                self._create_starry_button(
+            buttons.append(
+                self._create_compact_starry_button(
                     "⚙️",
-                    "管理員工具",
+                    "管理工具",
                     "control_panel=admin_functions",
-                    True,
-                    False,
                     True
                 )
             )
-        
-        # 組合所有按鈕到分區
-        all_sections = []
-        
-        # 基本功能區
-        if basic_buttons:
-            all_sections.append({
-                "type": "text",
-                "text": "✨ 基本功能",
-                "weight": "bold",
-                "size": "lg",
-                "color": "#FFD700",
-                "margin": "md"
-            })
-            all_sections.extend(basic_buttons)
-        
-        # 進階功能區
-        if advanced_buttons:
-            all_sections.append({
-                "type": "separator",
-                "margin": "xl",
-                "color": "rgba(255, 215, 0, 0.3)"
-            })
-            all_sections.append({
-                "type": "text",
-                "text": "🌟 進階功能",
-                "weight": "bold",
-                "size": "lg",
-                "color": "#E67E22",
-                "margin": "md"
-            })
-            all_sections.extend(advanced_buttons)
-        
-        # 其他功能區
-        if other_buttons:
-            all_sections.append({
-                "type": "separator",
-                "margin": "xl",
-                "color": "rgba(255, 215, 0, 0.3)"
-            })
-            all_sections.append({
-                "type": "text",
-                "text": "🎯 其他功能",
-                "weight": "bold",
-                "size": "lg",
-                "color": "#9B59B6",
-                "margin": "md"
-            })
-            all_sections.extend(other_buttons)
-        
-        # 管理員功能區
-        if admin_buttons:
-            all_sections.append({
-                "type": "separator",
-                "margin": "xl",
-                "color": "rgba(255, 215, 0, 0.3)"
-            })
-            all_sections.append({
-                "type": "text",
-                "text": "👑 管理功能",
-                "weight": "bold",
-                "size": "lg",
-                "color": "#E74C3C",
-                "margin": "md"
-            })
-            all_sections.extend(admin_buttons)
-        
+        elif is_premium:
+            buttons.append(
+                self._create_compact_starry_button(
+                    "🌟",
+                    "進階功能",
+                    "control_panel=yearly_fortune",
+                    True
+                )
+            )
+        else:
+            buttons.append(
+                self._create_compact_starry_button(
+                    "💎",
+                    "會員升級",
+                    "control_panel=member_upgrade",
+                    True
+                )
+            )
+
         return {
             "type": "box",
             "layout": "vertical",
-            "contents": all_sections,
-            "spacing": "sm",
-            "paddingAll": "lg"
+            "contents": buttons,
+            "spacing": "xs",  # 緊湊間距
+            "paddingAll": "12px"  # 縮小內邊距
+        }
+    
+    def _create_compact_starry_button(self, icon: str, title: str, action_data: str, is_enabled: bool) -> Dict:
+        """創建緊湊型星空按鈕 - 適合微型bubble"""
+        
+        text_color = self.colors["text_primary"] if is_enabled else "#666666"
+        icon_color = self.colors["secondary"] if is_enabled else "#666666"
+        border_color = self.colors["secondary"] if is_enabled else "#666666"
+        
+        return {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": icon,
+                    "size": "md",
+                    "color": icon_color,
+                    "flex": 0,
+                    "weight": "bold"
+                },
+                {
+                    "type": "text",
+                    "text": title,
+                    "weight": "bold",
+                    "size": "sm",
+                    "color": text_color,
+                    "flex": 1,
+                    "margin": "sm"
+                }
+            ],
+            "paddingAll": "8px",
+            "borderWidth": "1px",
+            "borderColor": border_color,
+            "action": {
+                "type": "postback",
+                "data": action_data,
+                "displayText": title
+            } if is_enabled else None,
+            "margin": "xs"
         }
     
     def _create_starry_basic_section(self) -> Dict:
