@@ -5,6 +5,7 @@ Flex Message Carousel 控制面板生成器
 """
 
 import json
+import os
 from typing import Dict, Any, List, Optional
 import logging
 from linebot.v3.messaging import FlexMessage, FlexContainer, FlexCarousel, FlexBubble, FlexBox, FlexText, FlexSeparator, FlexImage, PostbackAction
@@ -16,6 +17,10 @@ class FlexCarouselControlPanelGenerator:
     
     def __init__(self):
         self.panel_title = "🌌 星空功能選單"
+        
+        # 動態獲取伺服器地址
+        self.server_url = self._get_server_url()
+        
         # 星空主題色彩配置
         self.colors = {
             "primary": "#4A90E2",        # 星空藍
@@ -36,11 +41,11 @@ class FlexCarouselControlPanelGenerator:
             "star_silver": "#C0C0C0"     # 星星銀色
         }
         
-        # 星空背景圖片 URL - 使用本地靜態檔案
+        # 星空背景圖片 URL - 使用動態伺服器地址
         self.background_images = {
-            "basic": "http://localhost:8000/static/starry_basic.JPG",      # 本地基本功能星空
-            "premium": "http://localhost:8000/static/starry_premium.JPG",    # 本地進階功能星空
-            "admin": "http://localhost:8000/static/starry_admin.JPG"        # 本地管理功能星空
+            "basic": f"{self.server_url}/static/starry_basic.JPG",      # 本地基本功能星空
+            "premium": f"{self.server_url}/static/starry_premium.JPG",    # 本地進階功能星空
+            "admin": f"{self.server_url}/static/starry_admin.JPG"        # 本地管理功能星空
         }
         
         # 如果無法存取 Unsplash，備用星空圖片 URL
@@ -532,6 +537,24 @@ class FlexCarouselControlPanelGenerator:
                 )
             ]
         )
+
+    def _get_server_url(self) -> str:
+        """
+        動態獲取伺服器 URL
+        自動偵測 Railway 環境並使用正確的 URL
+        """
+        # 檢查是否在 Railway 環境中（通過 PORT 環境變數判斷）
+        if os.getenv("PORT"):
+            # Railway 生產環境
+            return "https://web-production-c5424.up.railway.app"
+        
+        # 檢查是否設定了自定義 SERVER_URL
+        server_url = os.getenv("SERVER_URL")
+        if server_url:
+            return server_url
+            
+        # 預設為本地開發環境
+        return "http://localhost:8000"
 
 # 創建全局實例
 flex_carousel_panel_generator = FlexCarouselControlPanelGenerator()
