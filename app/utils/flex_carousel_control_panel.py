@@ -36,11 +36,11 @@ class FlexCarouselControlPanelGenerator:
             "star_silver": "#C0C0C0"     # 星星銀色
         }
         
-        # 星空背景圖片 URL - 使用更可靠的圖片來源
+        # 星空背景圖片 URL - 使用本地靜態檔案
         self.background_images = {
-            "basic": "https://cdn.pixabay.com/photo/2016/11/29/05/45/astronomy-1867616_960_720.jpg",      # 經典星空
-            "premium": "https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_960_720.jpg",    # 銀河
-            "admin": "https://cdn.pixabay.com/photo/2016/10/20/18/35/aurora-1756174_960_720.jpg"        # 極光
+            "basic": "http://localhost:8000/static/starry_basic.JPG",      # 本地基本功能星空
+            "premium": "http://localhost:8000/static/starry_premium.JPG",    # 本地進階功能星空
+            "admin": "http://localhost:8000/static/starry_admin.JPG"        # 本地管理功能星空
         }
         
         # 如果無法存取 Unsplash，備用星空圖片 URL
