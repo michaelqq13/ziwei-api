@@ -1660,13 +1660,20 @@ async def handle_show_taichi_palaces(user_id: str, user: LineBotUser, db: Option
             taichi_message = message_generator._create_taichi_palace_carousel(result)
             
             if taichi_message:
+                # 確保時間轉換為台北時區
+                divination_time = recent_divination.divination_time
+                if divination_time.tzinfo is None:
+                    divination_time = divination_time.replace(tzinfo=TAIPEI_TZ)
+                else:
+                    divination_time = divination_time.astimezone(TAIPEI_TZ)
+                    
                 # 發送說明文字
                 intro_message = f"""🏛️ **太極十二宮詳細資訊** ✨
 
 📍 **太極點：** {recent_divination.taichi_palace}
 🕰️ **分鐘地支：** {recent_divination.minute_dizhi}
 👤 **性別：** {'男性' if recent_divination.gender == 'M' else '女性'}
-📅 **占卜時間：** {recent_divination.divination_time.strftime('%Y-%m-%d %H:%M')} (台北時間)
+📅 **占卜時間：** {divination_time.strftime('%Y-%m-%d %H:%M')} (台北時間)
 
 🌟 **太極盤說明：**
 太極盤是以占卜當時的分鐘地支為太極點，重新調整十二宮位的排列。下方顯示的是您原始占卜時的宮位配置。
