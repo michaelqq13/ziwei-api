@@ -40,7 +40,7 @@ class TimePickerFlexMessageGenerator:
         
         # 星空背景圖片
         self.background_images = {
-            "time_picker": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=400&q=80"  # 時間星空
+            "time_picker": "https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_960_720.jpg"  # 銀河
         }
         
         # 備用背景圖片

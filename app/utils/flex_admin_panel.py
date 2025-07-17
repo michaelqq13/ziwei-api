@@ -27,7 +27,7 @@ class FlexAdminPanelGenerator:
         
         # 星空背景圖片 - 管理員專用
         self.background_images = {
-            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80"  # 調整尺寸
+            "admin": "https://cdn.pixabay.com/photo/2016/10/20/18/35/aurora-1756174_960_720.jpg"  # 極光
         }
         
         # 備用背景圖片

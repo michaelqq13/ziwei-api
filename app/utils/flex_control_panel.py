@@ -31,9 +31,9 @@ class FlexControlPanelGenerator:
             "border": "#2C3E50"        # 邊框顏色
         }
         
-        # 星空背景圖片 - 與 carousel 保持一致
+        # 星空背景圖片 - 使用更可靠的圖片來源
         self.background_images = {
-            "panel": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"  # 深藍星空
+            "panel": "https://cdn.pixabay.com/photo/2016/11/29/05/45/astronomy-1867616_960_720.jpg"  # 經典星空
         }
         
         # 備用背景圖片
@@ -134,7 +134,7 @@ class FlexControlPanelGenerator:
             title_color = "#4A90E2"
         
         # 選擇背景圖片，調整尺寸
-        background_image = "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=300&q=80"
+        background_image = self.background_images.get("panel", "https://cdn.pixabay.com/photo/2016/11/29/05/45/astronomy-1867616_960_720.jpg")
         
         return {
             "type": "box",
