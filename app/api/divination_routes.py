@@ -16,8 +16,7 @@ from app.logic.divination import (
     get_user_divination_gender,
     save_user_divination_gender,
     calculate_divination,
-    save_divination_record,
-    get_days_until_next_monday
+    save_divination_result
 )
 import logging
 
@@ -85,17 +84,25 @@ async def perform_divination(user_id: str, gender: str, db: Session = Depends(ge
         divination_result = calculate_divination(current_time, gender, db=db)
         
         # 保存占卜記錄
-        record = save_divination_record(user_id, current_time, gender, divination_result, db)
+        success = save_divination_result(user_id, divination_result, db)
         
         # 保存性別偏好（如果用戶之前沒有設定）
-        if not get_user_divination_gender(user_id, db):
+        existing_gender = get_user_divination_gender(user_id, db)
+        if not existing_gender:
             save_user_divination_gender(user_id, gender, db)
         
-        return {
-            "success": True,
-            "result": divination_result,
-            "record_id": record.id
-        }
+        if success:
+            return {
+                "success": True,
+                "message": "占卜完成",
+                "result": divination_result,
+                "next_divination_available": "下週一"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "保存占卜結果失敗"
+            }
         
     except HTTPException:
         raise

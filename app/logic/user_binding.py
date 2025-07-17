@@ -10,7 +10,8 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.models.linebot_models import LineBotUser, PendingBinding
+from app.models.linebot_models import LineBotUser
+from app.models.pending_binding import PendingBinding
 from app.db.database import get_db
 
 logger = logging.getLogger(__name__)
