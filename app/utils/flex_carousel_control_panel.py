@@ -541,17 +541,17 @@ class FlexCarouselControlPanelGenerator:
     def _get_server_url(self) -> str:
         """
         動態獲取伺服器 URL
-        自動偵測 Railway 環境並使用正確的 URL
+        優先使用 BASE_URL 環境變數
         """
-        # 檢查是否在 Railway 環境中（通過 PORT 環境變數判斷）
-        if os.getenv("PORT"):
-            # Railway 生產環境
-            return "https://web-production-c5424.up.railway.app"
-        
-        # 檢查是否設定了自定義 SERVER_URL
+        # 優先從 BASE_URL 環境變數獲取
+        base_url = os.getenv("BASE_URL")
+        if base_url:
+            return base_url.rstrip('/')
+
+        # 備用：檢查是否設定了自定義 SERVER_URL
         server_url = os.getenv("SERVER_URL")
         if server_url:
-            return server_url
+            return server_url.rstrip('/')
             
         # 預設為本地開發環境
         return "http://localhost:8000"
