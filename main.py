@@ -8,6 +8,7 @@ import sys
 import os
 from datetime import datetime, timedelta, timezone
 import logging
+from fastapi.staticfiles import StaticFiles
 
 # 嘗試導入sxtwl（壽星萬年曆）庫
 try:
