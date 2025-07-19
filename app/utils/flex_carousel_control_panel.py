@@ -43,9 +43,9 @@ class FlexCarouselControlPanelGenerator:
         
         # 星空背景圖片 URL - 使用動態伺服器地址
         self.background_images = {
-            "basic": f"{self.server_url}/static/starry_basic.JPG",      # 本地基本功能星空
-            "premium": f"{self.server_url}/static/starry_premium.JPG",    # 本地進階功能星空
-            "admin": f"{self.server_url}/static/starry_admin.JPG"        # 本地管理功能星空
+            "basic": f"{self.server_url}/assets/backgrounds/basic.jpg",
+            "premium": f"{self.server_url}/assets/backgrounds/premium.jpg",
+            "admin": f"{self.server_url}/assets/backgrounds/admin.jpg"
         }
         
         # 如果無法存取 Unsplash，備用星空圖片 URL

@@ -13,6 +13,7 @@ from linebot.v3.messaging.models import (
     Action, MessageAction, DatetimePickerAction, PostbackAction
 )
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,12 @@ class TimePickerFlexMessageGenerator:
             "admin": "#E74C3C"
         }
         
+        # 基礎URL，用於構建靜態資源的完整路徑
+        base_url = os.getenv("BASE_URL", "").rstrip('/')
+        
         # 星空背景圖片
         self.background_images = {
-            "time_picker": "https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_960_720.jpg"  # 銀河
+            "time_picker": f"{base_url}/assets/backgrounds/basic.jpg" if base_url else "https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_960_720.jpg"
         }
         
         # 備用背景圖片

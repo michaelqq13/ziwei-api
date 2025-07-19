@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from linebot.v3.messaging import (
     FlexMessage, FlexBubble, FlexBox, FlexText, FlexSeparator, PostbackAction
 )
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +26,12 @@ class FlexAdminPanelGenerator:
             "background": "#F8F9FA"  # 淺灰色 - 背景
         }
         
+        # 基礎URL，用於構建靜態資源的完整路徑
+        base_url = os.getenv("BASE_URL", "").rstrip('/')
+        
         # 星空背景圖片 - 管理員專用
         self.background_images = {
-            "admin": "https://cdn.pixabay.com/photo/2016/10/20/18/35/aurora-1756174_960_720.jpg"  # 極光
+            "admin": f"{base_url}/assets/backgrounds/admin.jpg" if base_url else "https://cdn.pixabay.com/photo/2016/10/20/18/35/aurora-1756174_960_720.jpg"
         }
         
         # 備用背景圖片
