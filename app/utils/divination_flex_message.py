@@ -13,6 +13,7 @@ from linebot.v3.messaging import (
 )
 import logging
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +67,20 @@ class DivinationFlexMessageGenerator:
         
         # 基礎URL，用於構建靜態資源的完整路徑
         base_url = os.getenv("BASE_URL", "").rstrip('/')
+        # 快取破壞者，確保LINE每次都重新載入圖片
+        cache_buster = f"?v={int(time.time())}"
         
         # 從環境變數讀取背景圖片 URL，如果未設定則使用預設值
         self.background_images = {
-            "basic": f"{base_url}/assets/backgrounds/basic.jpg" if base_url else os.getenv(
+            "basic": f"{base_url}/assets/backgrounds/basic.jpg{cache_buster}" if base_url else os.getenv(
                 "FLEX_MSG_BG_BASIC", 
                 "https://images.unsplash.com/photo-1446776877081-d282a0f896e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"
             ),
-            "premium": f"{base_url}/assets/backgrounds/premium.jpg" if base_url else os.getenv(
+            "premium": f"{base_url}/assets/backgrounds/premium.jpg{cache_buster}" if base_url else os.getenv(
                 "FLEX_MSG_BG_PREMIUM",
                 "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"
             ),
-            "admin": f"{base_url}/assets/backgrounds/admin.jpg" if base_url else os.getenv(
+            "admin": f"{base_url}/assets/backgrounds/admin.jpg{cache_buster}" if base_url else os.getenv(
                 "FLEX_MSG_BG_ADMIN",
                 "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=1040&h=600&q=80"
             )

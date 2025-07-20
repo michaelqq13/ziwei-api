@@ -9,6 +9,7 @@ import os
 from typing import Dict, Any, List, Optional
 import logging
 from linebot.v3.messaging import FlexMessage, FlexContainer, FlexCarousel, FlexBubble, FlexBox, FlexText, FlexSeparator, FlexImage, PostbackAction
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +42,14 @@ class FlexCarouselControlPanelGenerator:
             "star_silver": "#C0C0C0"     # 星星銀色
         }
         
+        # 快取破壞者，確保LINE每次都重新載入圖片
+        cache_buster = f"?v={int(time.time())}"
+        
         # 星空背景圖片 URL - 使用動態伺服器地址
         self.background_images = {
-            "basic": f"{self.server_url}/assets/backgrounds/basic.jpg",
-            "premium": f"{self.server_url}/assets/backgrounds/premium.jpg",
-            "admin": f"{self.server_url}/assets/backgrounds/admin.jpg"
+            "basic": f"{self.server_url}/assets/backgrounds/basic.jpg{cache_buster}",
+            "premium": f"{self.server_url}/assets/backgrounds/premium.jpg{cache_buster}",
+            "admin": f"{self.server_url}/assets/backgrounds/admin.jpg{cache_buster}"
         }
         
         # 如果無法存取 Unsplash，備用星空圖片 URL

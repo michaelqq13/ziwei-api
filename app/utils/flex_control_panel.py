@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 import logging
 from linebot.v3.messaging import FlexMessage, FlexContainer
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +35,12 @@ class FlexControlPanelGenerator:
         
         # 基礎URL，用於構建靜態資源的完整路徑
         base_url = os.getenv("BASE_URL", "").rstrip('/')
+        # 快取破壞者，確保LINE每次都重新載入圖片
+        cache_buster = f"?v={int(time.time())}"
         
         # 星空背景圖片 - 使用更可靠的圖片來源
         self.background_images = {
-            "panel": f"{base_url}/assets/backgrounds/basic.jpg" if base_url else "https://cdn.pixabay.com/photo/2016/11/29/05/45/astronomy-1867616_960_720.jpg"
+            "panel": f"{base_url}/assets/backgrounds/basic.jpg{cache_buster}" if base_url else "https://cdn.pixabay.com/photo/2016/11/29/05/45/astronomy-1867616_960_720.jpg"
         }
         
         # 備用背景圖片
