@@ -10,13 +10,13 @@ from sqlalchemy.orm import Session
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
-    ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
+    Configuration, ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
 )
 from linebot.v3.webhooks import (
     MessageEvent, TextMessageContent, PostbackEvent, FollowEvent, UnfollowEvent
 )
 
-from ..core.config import LineBotConfig
+from ..config.linebot_config import LineBotConfig
 from ..services.divination_service import DivinationService
 from ..services.user_service import UserService, get_user_stats_from_db
 from ..utils.flex_message_generators import (
@@ -37,7 +37,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # 初始化 LINE Bot SDK
-configuration = LineBotConfig.get_config()
+configuration = Configuration(access_token=LineBotConfig.CHANNEL_ACCESS_TOKEN)
 api_client = ApiClient(configuration)
 line_bot_api = MessagingApi(api_client)
 parser = WebhookParser(LineBotConfig.CHANNEL_SECRET)
