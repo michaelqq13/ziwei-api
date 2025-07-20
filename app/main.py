@@ -125,6 +125,14 @@ if os.path.exists(static_dir):
 else:
     logger.warning(f"靜態文件目錄不存在: {static_dir}")
 
+assets_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+    logger.info(f"Assets 文件服務已啟用，目錄: {assets_dir}")
+else:
+    logger.warning(f"Assets 文件目錄不存在: {assets_dir}")
+
+
 # 安全中間件設定
 # 1. 信任的主機限制
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
