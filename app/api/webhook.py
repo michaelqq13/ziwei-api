@@ -17,8 +17,8 @@ from linebot.v3.webhooks import (
 )
 
 from ..config.linebot_config import LineBotConfig
-from ..services.divination_service import DivinationService
-from ..services.user_service import UserService, get_user_stats_from_db
+from ..logic.divination_logic import get_divination_result
+from ..logic.permission_manager import permission_manager
 from ..utils.flex_message_generators import (
     generate_divination_result_flex,
     generate_sihua_detail_flex,
@@ -30,11 +30,50 @@ from ..utils.flex_instructions import FlexInstructionsGenerator
 from ..utils.time_picker_flex_message import TimePickerFlexMessageGenerator
 from ..utils.flex_admin_panel import FlexAdminPanelGenerator
 import traceback
-from ..database.crud import get_user_by_line_id, create_divination_record, get_user_stats, update_user_last_interaction
-from ..database.session import get_db
+from ..models.linebot_models import LineBotUser, DivinationHistory
+from ..db.database import get_db
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# 簡單的數據庫操作函數
+async def get_user_by_line_id(line_user_id: str, db) -> LineBotUser:
+    """根據 LINE 用戶 ID 獲取用戶"""
+    return db.query(LineBotUser).filter(LineBotUser.line_user_id == line_user_id).first()
+
+async def create_divination_record(user_id: str, divination_result: dict, db) -> int:
+    """創建占卜記錄"""
+    try:
+        user = await get_user_by_line_id(user_id, db)
+        if not user:
+            logger.warning(f"用戶 {user_id} 不存在，無法創建占卜記錄")
+            return None
+        
+        record = DivinationHistory(
+            user_id=user.id,
+            divination_data=str(divination_result),  # 簡單轉換為字符串
+            divination_time=datetime.utcnow()
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        return record.id
+    except Exception as e:
+        logger.error(f"創建占卜記錄失敗: {e}")
+        db.rollback()
+        return None
+
+async def update_user_last_interaction(user_id: str, db):
+    """更新用戶最後互動時間"""
+    try:
+        user = await get_user_by_line_id(user_id, db)
+        if user:
+            user.last_active_at = datetime.utcnow()
+            db.commit()
+    except Exception as e:
+        logger.error(f"更新用戶最後互動時間失敗: {e}")
+        db.rollback()
 
 # 初始化 LINE Bot SDK
 configuration = Configuration(access_token=LineBotConfig.CHANNEL_ACCESS_TOKEN)
@@ -43,8 +82,6 @@ line_bot_api = MessagingApi(api_client)
 parser = WebhookParser(LineBotConfig.CHANNEL_SECRET)
 
 # 初始化服務
-divination_service = DivinationService()
-user_service = UserService()
 time_picker_generator = TimePickerFlexMessageGenerator()
 instructions_generator = FlexInstructionsGenerator()
 admin_panel_generator = FlexAdminPanelGenerator()
@@ -85,17 +122,25 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
         
         if isinstance(event, FollowEvent):
             reply_token = event.reply_token
-            await user_service.handle_follow_event(user_id, reply_token, db)
+            logger.info(f"用戶 {user_id} 關注了機器人")
+            # 簡單回應，歡迎用戶
+            reply_text(reply_token, "歡迎使用星空紫微斗數！請輸入「功能選單」開始探索。")
 
         elif isinstance(event, UnfollowEvent):
-            await user_service.handle_unfollow_event(user_id, db)
+            logger.info(f"用戶 {user_id} 取消關注了機器人")
 
         elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
             text = event.message.text.strip().lower()
             reply_token = event.reply_token
 
             if text == "功能選單":
-                user_stats = await get_user_stats_from_db(user_id, db)
+                # 獲取用戶物件和統計資訊
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
+                    continue
+                
+                user_stats = permission_manager.get_user_stats(db, user)
                 control_panel = generate_carousel_control_panel(user_stats)
                 if control_panel:
                     send_line_flex_messages(user_id, [control_panel])
@@ -104,10 +149,19 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
             
             elif text.startswith("占卜"):
                 gender = "M" if "男" in text else "F"
-                divination_result = divination_service.get_divination_result(gender=gender)
-                record_id = await create_divination_record(user_id, divination_result, db)
-                flex_message = generate_divination_result_flex(divination_result)
-                send_line_flex_messages(user_id, [flex_message])
+                # 獲取用戶物件
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
+                    continue
+                
+                divination_result = get_divination_result(db, user, gender)
+                if divination_result.get('success'):
+                    record_id = await create_divination_record(user_id, divination_result, db)
+                    flex_message = generate_divination_result_flex(divination_result)
+                    send_line_flex_messages(user_id, [flex_message])
+                else:
+                    reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
 
             elif text.startswith("查看"):
                 parts = text.split(" ")
