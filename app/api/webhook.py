@@ -10,8 +10,7 @@ from sqlalchemy.orm import Session
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
-    ApiClient, MessagingApi, ReplyMessageRequest, TextMessage,
-    PostbackEvent, FollowEvent, MessageEvent, UnfollowEvent
+    ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
 )
 from linebot.v3.webhooks import (
     MessageEvent, TextMessageContent, PostbackEvent, FollowEvent, UnfollowEvent
