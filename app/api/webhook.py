@@ -19,12 +19,7 @@ from linebot.v3.webhooks import (
 from ..config.linebot_config import LineBotConfig
 from ..logic.divination_logic import get_divination_result
 from ..logic.permission_manager import permission_manager
-from ..utils.flex_message_generators import (
-    generate_divination_result_flex,
-    generate_sihua_detail_flex,
-    generate_basic_chart_flex,
-    generate_taichi_palace_flex
-)
+from ..utils.divination_flex_message import DivinationFlexMessageGenerator
 from ..utils.flex_carousel_control_panel import generate_carousel_control_panel
 from ..utils.flex_instructions import FlexInstructionsGenerator
 from ..utils.time_picker_flex_message import TimePickerFlexMessageGenerator
@@ -50,10 +45,16 @@ async def create_divination_record(user_id: str, divination_result: dict, db) ->
             logger.warning(f"用戶 {user_id} 不存在，無法創建占卜記錄")
             return None
         
+        # 根據 DivinationHistory 模型的實際字段創建記錄
         record = DivinationHistory(
             user_id=user.id,
-            divination_data=str(divination_result),  # 簡單轉換為字符串
-            divination_time=datetime.utcnow()
+            gender=divination_result.get('gender', 'M'),
+            divination_time=datetime.utcnow(),
+            taichi_palace=divination_result.get('taichi_palace', ''),
+            minute_dizhi=divination_result.get('minute_dizhi', ''),
+            sihua_results=json.dumps(divination_result.get('sihua_results', [])),
+            taichi_palace_mapping=json.dumps(divination_result.get('taichi_palace_mapping', {})),
+            taichi_chart_data=json.dumps(divination_result.get('taichi_chart_data', {}))
         )
         db.add(record)
         db.commit()
@@ -86,6 +87,9 @@ time_picker_generator = TimePickerFlexMessageGenerator()
 instructions_generator = FlexInstructionsGenerator()
 admin_panel_generator = FlexAdminPanelGenerator()
 
+# 初始化 Flex 消息生成器
+divination_flex_generator = DivinationFlexMessageGenerator()
+
 
 def reply_text(reply_token: str, text: str):
     """發送純文字回覆訊息"""
@@ -99,86 +103,6 @@ def reply_text(reply_token: str, text: str):
     except Exception as e:
         logger.error(f"回覆文字訊息失敗: {e}")
 
-def send_line_flex_messages(user_id: str, messages: list):
-    """發送多個 LINE Flex 訊息給用戶"""
-    # ... (此處省略函式實作，因為它在您的原始程式碼中)
-    pass # 您需要將原本的 send_line_flex_messages 函式實作放在這裡
-
-@router.post("/callback", include_in_schema=False)
-async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
-    """LINE Bot Webhook 端點"""
-    signature = request.headers.get("X-Line-Signature")
-    body = await request.body()
-
-    try:
-        events = parser.parse(body.decode(), signature)
-    except InvalidSignatureError:
-        logger.error("無效的 LINE Signature")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature")
-
-    for event in events:
-        user_id = event.source.user_id
-        await update_user_last_interaction(user_id, db)
-        
-        if isinstance(event, FollowEvent):
-            reply_token = event.reply_token
-            logger.info(f"用戶 {user_id} 關注了機器人")
-            # 簡單回應，歡迎用戶
-            reply_text(reply_token, "歡迎使用星空紫微斗數！請輸入「功能選單」開始探索。")
-
-        elif isinstance(event, UnfollowEvent):
-            logger.info(f"用戶 {user_id} 取消關注了機器人")
-
-        elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
-            text = event.message.text.strip().lower()
-            reply_token = event.reply_token
-
-            if text == "功能選單":
-                # 獲取用戶物件和統計資訊
-                user = await get_user_by_line_id(user_id, db)
-                if not user:
-                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
-                    continue
-                
-                user_stats = permission_manager.get_user_stats(db, user)
-                control_panel = generate_carousel_control_panel(user_stats)
-                if control_panel:
-                    send_line_flex_messages(user_id, [control_panel])
-                else:
-                    reply_text(reply_token, "無法生成功能面板，請稍後再試。")
-            
-            elif text.startswith("占卜"):
-                gender = "M" if "男" in text else "F"
-                # 獲取用戶物件
-                user = await get_user_by_line_id(user_id, db)
-                if not user:
-                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
-                    continue
-                
-                divination_result = get_divination_result(db, user, gender)
-                if divination_result.get('success'):
-                    record_id = await create_divination_record(user_id, divination_result, db)
-                    flex_message = generate_divination_result_flex(divination_result)
-                    send_line_flex_messages(user_id, [flex_message])
-                else:
-                    reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
-
-            elif text.startswith("查看"):
-                parts = text.split(" ")
-                if len(parts) > 1:
-                    sihua_type = parts[1].replace("星更多解釋", "")
-                    # ... 處理查看四化解釋的邏輯
-
-            else:
-                reply_text(reply_token, "您好！請點擊下方選單或輸入「功能選單」開始使用。")
-
-        elif isinstance(event, PostbackEvent):
-            data = event.postback.data
-            # ... 處理 Postback 事件的邏輯
-    
-    return {"status": "ok"}
-
-# 重新實作 send_line_flex_messages 函式
 def send_line_flex_messages(user_id: str, messages: list):
     """
     發送多個 LINE Flex 訊息給用戶
@@ -224,4 +148,88 @@ def send_line_flex_messages(user_id: str, messages: list):
             
     except Exception as e:
         logger.error(f"發送Flex訊息時發生異常: {e}", exc_info=True)
+
+@router.post("/callback", include_in_schema=False)
+async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
+    """LINE Bot Webhook 端點"""
+    signature = request.headers.get("X-Line-Signature")
+    body = await request.body()
+
+    try:
+        events = parser.parse(body.decode(), signature)
+    except InvalidSignatureError:
+        logger.error("無效的 LINE Signature")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature")
+
+    for event in events:
+        user_id = event.source.user_id
+        await update_user_last_interaction(user_id, db)
+        
+        if isinstance(event, FollowEvent):
+            reply_token = event.reply_token
+            logger.info(f"用戶 {user_id} 關注了機器人")
+            # 簡單回應，歡迎用戶
+            reply_text(reply_token, "歡迎使用星空紫微斗數！請輸入「功能選單」開始探索。")
+
+        elif isinstance(event, UnfollowEvent):
+            logger.info(f"用戶 {user_id} 取消關注了機器人")
+
+        elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
+            text = event.message.text.strip().lower()
+            reply_token = event.reply_token
+
+            if text == "功能選單":
+                # 獲取用戶物件和統計資訊
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
+                    continue
+                
+                user_stats = permission_manager.get_user_stats(db, user)
+                control_panel = generate_carousel_control_panel(user_stats)
+                if control_panel:
+                    send_line_flex_messages(user_id, [control_panel])
+                else:
+                    reply_text(reply_token, "無法生成功能面板，請稍後再試。")
+            
+            elif text.startswith("占卜"):
+                gender = "M" if "男" in text else "F"
+                # 獲取用戶物件
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
+                    continue
+                
+                divination_result = get_divination_result(db, user, gender)
+                if divination_result.get('success'):
+                    record_id = await create_divination_record(user_id, divination_result, db)
+                    # 使用正確的函數生成占卜結果訊息
+                    flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type="free")
+                    if flex_messages:
+                        send_line_flex_messages(user_id, flex_messages)
+                    else:
+                        reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
+                else:
+                    reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
+
+            elif text.startswith("查看"):
+                parts = text.split(" ")
+                if len(parts) > 1:
+                    sihua_type = parts[1].replace("星更多解釋", "")
+                    # 使用正確的函數生成四化詳細資訊
+                    # detail_message = generate_sihua_detail_message(sihua_type, user_type="free")
+                    # if detail_message:
+                    #     send_line_flex_messages(user_id, [detail_message])
+                    # else:
+                    reply_text(reply_token, "四化詳細解釋功能開發中，敬請期待。")
+
+            else:
+                reply_text(reply_token, "您好！請點擊下方選單或輸入「功能選單」開始使用。")
+
+        elif isinstance(event, PostbackEvent):
+            data = event.postback.data
+            # 處理 Postback 事件的邏輯
+            logger.info(f"收到 Postback 事件: {data}")
+    
+    return {"status": "ok"}
 
