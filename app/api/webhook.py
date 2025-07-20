@@ -16,22 +16,22 @@ from linebot.v3.webhooks import (
     MessageEvent, TextMessageContent, PostbackEvent, FollowEvent, UnfollowEvent
 )
 
-from app.core.config import LineBotConfig
-from app.services.divination_service import DivinationService
-from app.services.user_service import UserService, get_user_stats_from_db
-from app.utils.flex_message_generators import (
+from ..core.config import LineBotConfig
+from ..services.divination_service import DivinationService
+from ..services.user_service import UserService, get_user_stats_from_db
+from ..utils.flex_message_generators import (
     generate_divination_result_flex,
     generate_sihua_detail_flex,
     generate_basic_chart_flex,
     generate_taichi_palace_flex
 )
-from app.utils.flex_carousel_control_panel import generate_carousel_control_panel
-from app.utils.flex_instructions import FlexInstructionsGenerator
-from app.utils.time_picker_flex_message import TimePickerFlexMessageGenerator
-from app.utils.flex_admin_panel import FlexAdminPanelGenerator
+from ..utils.flex_carousel_control_panel import generate_carousel_control_panel
+from ..utils.flex_instructions import FlexInstructionsGenerator
+from ..utils.time_picker_flex_message import TimePickerFlexMessageGenerator
+from ..utils.flex_admin_panel import FlexAdminPanelGenerator
 import traceback
-from app.database.crud import get_user_by_line_id, create_divination_record, get_user_stats, update_user_last_interaction
-from app.database.session import get_db
+from ..database.crud import get_user_by_line_id, create_divination_record, get_user_stats, update_user_last_interaction
+from ..database.session import get_db
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
