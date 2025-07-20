@@ -69,7 +69,7 @@ class TimePickerFlexMessageGenerator:
             initial_time = (self.current_time - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
             
             # 選擇背景圖片
-            background_image = self.background_images.get("time_picker", self.fallback_images["time_picker"])
+            background_image = self.background_images.get("time_picker")
             
             # 創建主要的時間選擇區域
             main_contents = [

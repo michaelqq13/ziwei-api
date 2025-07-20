@@ -138,7 +138,7 @@ class FlexControlPanelGenerator:
             title_color = "#4A90E2"
         
         # 選擇背景圖片，調整尺寸
-        background_image = self.background_images.get("panel", "https://cdn.pixabay.com/photo/2016/11/29/05/45/astronomy-1867616_960_720.jpg")
+        background_image = self.background_images.get("panel")
         
         return {
             "type": "box",

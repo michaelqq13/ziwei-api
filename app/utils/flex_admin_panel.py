@@ -63,7 +63,7 @@ class FlexAdminPanelGenerator:
                         )
                     ],
                     backgroundColor="#8B0000CC",  # 半透明深紅遮罩
-                    backgroundImage=self.background_images.get("admin", self.fallback_images["admin"]),
+                    backgroundImage=self.background_images.get("admin"),
                     backgroundSize="cover",
                     backgroundPosition="center",
                     paddingAll="12px",  # 縮小內邊距
