@@ -149,7 +149,7 @@ def send_line_flex_messages(user_id: str, messages: list):
     except Exception as e:
         logger.error(f"發送Flex訊息時發生異常: {e}", exc_info=True)
 
-@router.post("/callback", include_in_schema=False)
+@router.post("/webhook", include_in_schema=False)
 async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
     """LINE Bot Webhook 端點"""
     signature = request.headers.get("X-Line-Signature")
