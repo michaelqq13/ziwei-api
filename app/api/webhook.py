@@ -172,6 +172,116 @@ def create_gender_selection_message():
         logger.error(f"創建性別選擇訊息失敗: {e}")
         return None
 
+def create_admin_quick_buttons(divination_id: int = None):
+    """創建管理員快速按鈕 Flex Message"""
+    try:
+        from linebot.v3.messaging import FlexMessage, FlexBubble, FlexBox, FlexText, FlexButton, PostbackAction
+        
+        bubble = FlexBubble(
+            size="micro",
+            header=FlexBox(
+                layout="vertical",
+                contents=[
+                    FlexText(
+                        text="👑 管理員快速功能",
+                        weight="bold",
+                        size="md",
+                        color="#FFD700",
+                        align="center"
+                    )
+                ],
+                paddingAll="8px",
+                backgroundColor="#1A1A2E"
+            ),
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 第一排按鈕
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexButton(
+                                action=PostbackAction(
+                                    label="🏛️ 太極十二宮",
+                                    data=f"admin_view_taichi={divination_id}" if divination_id else "admin_view_taichi=latest",
+                                    displayText="查看太極十二宮"
+                                ),
+                                style="primary",
+                                color="#9B59B6",
+                                height="sm",
+                                flex=1,
+                                size="sm"
+                            ),
+                            FlexButton(
+                                action=PostbackAction(
+                                    label="📊 基本命盤",
+                                    data=f"admin_view_chart={divination_id}" if divination_id else "admin_view_chart=latest",
+                                    displayText="查看基本命盤"
+                                ),
+                                style="primary",
+                                color="#4A90E2",
+                                height="sm",
+                                flex=1,
+                                size="sm",
+                                margin="xs"
+                            )
+                        ],
+                        spacing="xs",
+                        margin="xs"
+                    ),
+                    # 第二排按鈕
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexButton(
+                                action=PostbackAction(
+                                    label="⏰ 時間占卜",
+                                    data="admin_action=time_divination_start",
+                                    displayText="啟動時間占卜"
+                                ),
+                                style="secondary",
+                                height="sm",
+                                flex=1,
+                                size="sm"
+                            ),
+                            FlexButton(
+                                action=PostbackAction(
+                                    label="🌌 功能選單",
+                                    data="action=show_control_panel",
+                                    displayText="返回功能選單"
+                                ),
+                                style="secondary",
+                                height="sm",
+                                flex=1,
+                                size="sm",
+                                margin="xs"
+                            )
+                        ],
+                        spacing="xs",
+                        margin="xs"
+                    ),
+                    FlexText(
+                        text="🔥 管理員專屬快速功能",
+                        size="xxs",
+                        color="#87CEEB",
+                        align="center",
+                        margin="sm"
+                    )
+                ],
+                spacing="xs",
+                paddingAll="8px"
+            )
+        )
+        
+        return FlexMessage(
+            alt_text="👑 管理員快速功能",
+            contents=bubble
+        )
+        
+    except Exception as e:
+        logger.error(f"創建管理員快速按鈕失敗: {e}")
+        return None
+
 # 測試模式相關輔助函數
 async def _is_original_admin(user_id: str, db) -> bool:
     """檢查是否為原始管理員（忽略測試模式）"""
@@ -374,6 +484,15 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                         flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
                         if flex_messages:
                             send_line_flex_messages(user_id, flex_messages, reply_token=reply_token)
+                            
+                            # 如果是管理員，自動發送快速按鈕
+                            if user.is_admin():
+                                quick_buttons = create_admin_quick_buttons(record_id)
+                                if quick_buttons:
+                                    # 稍微延遲發送快速按鈕，避免訊息衝突
+                                    import asyncio
+                                    await asyncio.sleep(0.5)
+                                    send_line_flex_messages(user_id, [quick_buttons])
                         else:
                             reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                     else:
@@ -513,6 +632,55 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 else:
                     reply_text(reply_token, "此功能僅限管理員使用。")
                     
+            elif data.startswith("admin_view_taichi="):
+                # 管理員查看太極十二宮
+                user = await get_user_by_line_id(user_id, db)
+                if not user or not user.is_admin():
+                    reply_text(reply_token, "此功能僅限管理員使用。")
+                    return
+                
+                divination_id = data.split("=")[1]
+                if divination_id == "latest":
+                    # 獲取最新的占卜記錄
+                    latest_record = db.query(DivinationHistory).filter(
+                        DivinationHistory.user_id == user.id
+                    ).order_by(DivinationHistory.divination_time.desc()).first()
+                    
+                    if latest_record:
+                        try:
+                            # 解析太極宮對映資訊
+                            taichi_mapping = json.loads(latest_record.taichi_palace_mapping or "{}")
+                            taichi_chart_data = json.loads(latest_record.taichi_chart_data or "{}")
+                            
+                            # 創建結果字典
+                            result_data = {
+                                "taichi_palace_mapping": taichi_mapping,
+                                "basic_chart": taichi_chart_data
+                            }
+                            
+                            # 生成太極點命宮 Carousel
+                            taichi_message = divination_flex_generator._create_taichi_palace_carousel(result_data)
+                            if taichi_message:
+                                send_line_flex_messages(user_id, [taichi_message], reply_token=reply_token)
+                            else:
+                                reply_text(reply_token, "無法生成太極十二宮資訊，請稍後再試。")
+                        except Exception as e:
+                            logger.error(f"解析太極宮資訊失敗: {e}")
+                            reply_text(reply_token, "太極宮資訊解析失敗。")
+                    else:
+                        reply_text(reply_token, "未找到占卜記錄，請先進行占卜。")
+                else:
+                    reply_text(reply_token, "指定占卜記錄查看功能開發中。")
+                    
+            elif data.startswith("admin_view_chart="):
+                # 管理員查看基本命盤
+                user = await get_user_by_line_id(user_id, db)
+                if not user or not user.is_admin():
+                    reply_text(reply_token, "此功能僅限管理員使用。")
+                    return
+                    
+                reply_text(reply_token, "基本命盤查看功能開發中，敬請期待。")
+                    
             elif data.startswith("divination_gender="):
                 # 處理性別選擇的 Postback
                 gender = data.split("=")[1]
@@ -540,6 +708,15 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
                     if flex_messages:
                         send_line_flex_messages(user_id, flex_messages, reply_token=reply_token)
+                        
+                        # 如果是管理員，自動發送快速按鈕
+                        if user.is_admin():
+                            quick_buttons = create_admin_quick_buttons(record_id)
+                            if quick_buttons:
+                                # 稍微延遲發送快速按鈕，避免訊息衝突
+                                import asyncio
+                                await asyncio.sleep(0.5)
+                                send_line_flex_messages(user_id, [quick_buttons])
                     else:
                         reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                 else:
