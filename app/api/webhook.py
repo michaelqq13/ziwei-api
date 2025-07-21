@@ -90,6 +90,88 @@ admin_panel_generator = FlexAdminPanelGenerator()
 # 初始化 Flex 消息生成器
 divination_flex_generator = DivinationFlexMessageGenerator()
 
+def create_gender_selection_message():
+    """創建性別選擇 Flex Message"""
+    try:
+        from linebot.v3.messaging import FlexMessage, FlexBubble, FlexBox, FlexText, FlexButton, PostbackAction
+        
+        bubble = FlexBubble(
+            size="micro",
+            header=FlexBox(
+                layout="vertical",
+                contents=[
+                    FlexText(
+                        text="🔮 開始占卜",
+                        weight="bold",
+                        size="lg",
+                        color="#FFD700",
+                        align="center"
+                    ),
+                    FlexText(
+                        text="請選擇性別",
+                        size="sm",
+                        color="#B0C4DE",
+                        align="center",
+                        margin="xs"
+                    )
+                ],
+                paddingAll="12px",
+                backgroundColor="#1A1A2E"
+            ),
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    FlexBox(
+                        layout="horizontal",
+                        contents=[
+                            FlexButton(
+                                action=PostbackAction(
+                                    label="👨 男性",
+                                    data="divination_gender=M",
+                                    displayText="選擇男性"
+                                ),
+                                style="primary",
+                                color="#4A90E2",
+                                height="md",
+                                flex=1
+                            ),
+                            FlexButton(
+                                action=PostbackAction(
+                                    label="👩 女性", 
+                                    data="divination_gender=F",
+                                    displayText="選擇女性"
+                                ),
+                                style="primary",
+                                color="#E67E22",
+                                height="md",
+                                flex=1,
+                                margin="sm"
+                            )
+                        ],
+                        spacing="sm"
+                    ),
+                    FlexText(
+                        text="✨ 選擇後立即開始占卜",
+                        size="xs",
+                        color="#87CEEB",
+                        align="center",
+                        margin="md"
+                    )
+                ],
+                spacing="sm",
+                paddingAll="16px"
+            )
+        )
+        
+        return FlexMessage(
+            alt_text="🔮 性別選擇",
+            contents=bubble
+        )
+        
+    except Exception as e:
+        logger.error(f"創建性別選擇訊息失敗: {e}")
+        return None
+
 # 測試模式相關輔助函數
 async def _is_original_admin(user_id: str, db) -> bool:
     """檢查是否為原始管理員（忽略測試模式）"""
@@ -266,34 +348,43 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     reply_text(reply_token, "無法生成功能面板，請稍後再試。")
             
             elif text.startswith("占卜"):
-                gender = "M" if "男" in text else "F"
-                # 獲取或創建用戶物件
-                user = await get_user_by_line_id(user_id, db)
-                if not user:
-                    # 自動創建新用戶
-                    user = LineBotUser(
-                        line_user_id=user_id,
-                        display_name="LINE用戶",
-                        is_active=True
-                    )
-                    db.add(user)
-                    db.commit()
-                    db.refresh(user)
-                    logger.info(f"自動創建新用戶: {user_id}")
-                
-                divination_result = get_divination_result(db, user, gender)
-                if divination_result.get('success'):
-                    record_id = await create_divination_record(user_id, divination_result, db)
-                    # 根據用戶等級設定 user_type
-                    user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
-                    # 使用正確的函數生成占卜結果訊息
-                    flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
-                    if flex_messages:
-                        send_line_flex_messages(user_id, flex_messages, reply_token=reply_token)
+                # 檢查是否指定了性別
+                if "男" in text or "女" in text:
+                    gender = "M" if "男" in text else "F"
+                    # 獲取或創建用戶物件
+                    user = await get_user_by_line_id(user_id, db)
+                    if not user:
+                        # 自動創建新用戶
+                        user = LineBotUser(
+                            line_user_id=user_id,
+                            display_name="LINE用戶",
+                            is_active=True
+                        )
+                        db.add(user)
+                        db.commit()
+                        db.refresh(user)
+                        logger.info(f"自動創建新用戶: {user_id}")
+                    
+                    divination_result = get_divination_result(db, user, gender)
+                    if divination_result.get('success'):
+                        record_id = await create_divination_record(user_id, divination_result, db)
+                        # 根據用戶等級設定 user_type
+                        user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                        # 使用正確的函數生成占卜結果訊息
+                        flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
+                        if flex_messages:
+                            send_line_flex_messages(user_id, flex_messages, reply_token=reply_token)
+                        else:
+                            reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                     else:
-                        reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
+                        reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
                 else:
-                    reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
+                    # 沒有指定性別，顯示性別選擇選單
+                    gender_selection = create_gender_selection_message()
+                    if gender_selection:
+                        send_line_flex_messages(user_id, [gender_selection], reply_token=reply_token)
+                    else:
+                        reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
 
             elif text.startswith("查看"):
                 parts = text.split(" ")
@@ -366,6 +457,28 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 # 基本占卜功能 - 所有用戶都可以使用
                 reply_text(reply_token, "請輸入「占卜」開始占卜，或輸入「占卜男」/「占卜女」指定性別。")
                 
+            elif data == "action=show_control_panel":
+                # 顯示功能選單
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    # 自動創建新用戶
+                    user = LineBotUser(
+                        line_user_id=user_id,
+                        display_name="LINE用戶",
+                        is_active=True
+                    )
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                    logger.info(f"自動創建新用戶: {user_id}")
+                
+                user_stats = permission_manager.get_user_stats(db, user)
+                control_panel = generate_carousel_control_panel(user_stats)
+                if control_panel:
+                    send_line_flex_messages(user_id, [control_panel], reply_token=reply_token)
+                else:
+                    reply_text(reply_token, "無法生成功能面板，請稍後再試。")
+                
             elif data == "action=weekly_fortune":
                 # 週運勢功能
                 user = await get_user_by_line_id(user_id, db)
@@ -399,6 +512,38 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     reply_text(reply_token, "管理員功能開發中，敬請期待。")
                 else:
                     reply_text(reply_token, "此功能僅限管理員使用。")
+                    
+            elif data.startswith("divination_gender="):
+                # 處理性別選擇的 Postback
+                gender = data.split("=")[1]
+                # 獲取或創建用戶物件
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    # 自動創建新用戶
+                    user = LineBotUser(
+                        line_user_id=user_id,
+                        display_name="LINE用戶",
+                        is_active=True
+                    )
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                    logger.info(f"自動創建新用戶: {user_id}")
+                
+                # 直接進行占卜
+                divination_result = get_divination_result(db, user, gender)
+                if divination_result.get('success'):
+                    record_id = await create_divination_record(user_id, divination_result, db)
+                    # 根據用戶等級設定 user_type
+                    user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                    # 使用正確的函數生成占卜結果訊息
+                    flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
+                    if flex_messages:
+                        send_line_flex_messages(user_id, flex_messages, reply_token=reply_token)
+                    else:
+                        reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
+                else:
+                    reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
                     
             else:
                 # 未知的 Postback 事件
