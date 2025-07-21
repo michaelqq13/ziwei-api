@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from linebot.v3 import WebhookParser
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
-    Configuration, ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
+    Configuration, ApiClient, MessagingApi, ReplyMessageRequest, TextMessage, PushMessageRequest
 )
 from linebot.v3.webhooks import (
     MessageEvent, TextMessageContent, PostbackEvent, FollowEvent, UnfollowEvent
@@ -103,48 +103,36 @@ def reply_text(reply_token: str, text: str):
     except Exception as e:
         logger.error(f"回覆文字訊息失敗: {e}")
 
-def send_line_flex_messages(user_id: str, messages: list):
+def send_line_flex_messages(user_id: str, messages: list, reply_token: str = None):
     """
     發送多個 LINE Flex 訊息給用戶
     
     Args:
         user_id: 用戶ID
         messages: FlexMessage列表
+        reply_token: 回覆 token（如果提供，使用 reply API；否則使用 push API）
     """
-    url = "https://api.line.me/v2/bot/message/push"
-    headers = {
-        "Authorization": f"Bearer {LineBotConfig.CHANNEL_ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
     try:
-        message_objects = []
-        for msg in messages:
-            try:
-                if hasattr(msg, 'to_dict'):
-                    msg_dict = msg.to_dict()
-                    message_objects.append(msg_dict)
-                elif isinstance(msg, dict):
-                    message_objects.append(msg)
-                else:
-                    logger.warning(f"無法轉換的訊息格式: {type(msg)}")
-            except Exception as convert_error:
-                logger.error(f"轉換訊息時發生錯誤: {convert_error}")
-
-        if not message_objects:
-            logger.error("沒有成功轉換的訊息")
-            return
-
-        data = {
-            "to": user_id,
-            "messages": message_objects
-        }
+        from linebot.v3.messaging import ReplyMessageRequest, PushMessageRequest
         
-        import requests
-        response = requests.post(url, headers=headers, json=data)
-        
-        if response.status_code != 200:
-            logger.error(f"Flex訊息發送失敗 (HTTP {response.status_code}): {response.text}")
+        if reply_token:
+            # 使用 reply API
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=reply_token,
+                    messages=messages
+                )
+            )
+            logger.info(f"使用 reply API 發送 {len(messages)} 個 Flex 訊息")
+        else:
+            # 使用 push API
+            line_bot_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=messages
+                )
+            )
+            logger.info(f"使用 push API 發送 {len(messages)} 個 Flex 訊息")
             
     except Exception as e:
         logger.error(f"發送Flex訊息時發生異常: {e}", exc_info=True)
@@ -196,7 +184,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 user_stats = permission_manager.get_user_stats(db, user)
                 control_panel = generate_carousel_control_panel(user_stats)
                 if control_panel:
-                    send_line_flex_messages(user_id, [control_panel])
+                    send_line_flex_messages(user_id, [control_panel], reply_token=reply_token)
                 else:
                     reply_text(reply_token, "無法生成功能面板，請稍後再試。")
             
@@ -219,10 +207,12 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 divination_result = get_divination_result(db, user, gender)
                 if divination_result.get('success'):
                     record_id = await create_divination_record(user_id, divination_result, db)
+                    # 根據用戶等級設定 user_type
+                    user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
                     # 使用正確的函數生成占卜結果訊息
-                    flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type="free")
+                    flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
                     if flex_messages:
-                        send_line_flex_messages(user_id, flex_messages)
+                        send_line_flex_messages(user_id, flex_messages, reply_token=reply_token)
                     else:
                         reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                 else:
@@ -282,13 +272,35 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 reply_text(reply_token, instructions)
                 
             elif data == "control_panel=basic_divination":
-                # 基本占卜功能
+                # 基本占卜功能 - 所有用戶都可以使用
                 reply_text(reply_token, "請輸入「占卜」開始占卜，或輸入「占卜男」/「占卜女」指定性別。")
                 
-            elif data == "action=weekly_fortune" or data.startswith("control_panel="):
-                # 其他進階功能
-                reply_text(reply_token, "此功能需要付費會員才能使用，請聯繫管理員升級會員。")
-                
+            elif data == "action=weekly_fortune":
+                # 週運勢功能
+                user = await get_user_by_line_id(user_id, db)
+                if user and (user.is_admin() or user.is_premium()):
+                    reply_text(reply_token, "週運勢功能開發中，敬請期待。")
+                else:
+                    reply_text(reply_token, "此功能需要付費會員才能使用，請聯繫管理員升級會員。")
+                    
+            elif data.startswith("control_panel=yearly_fortune") or data.startswith("control_panel=monthly_fortune") or data.startswith("control_panel=daily_fortune"):
+                # 進階占卜功能
+                user = await get_user_by_line_id(user_id, db)
+                if user and (user.is_admin() or user.is_premium()):
+                    reply_text(reply_token, "進階占卜功能開發中，敬請期待。")
+                else:
+                    reply_text(reply_token, "此功能需要付費會員才能使用，請聯繫管理員升級會員。")
+                    
+            elif data.startswith("control_panel=member_upgrade"):
+                # 會員升級
+                user = await get_user_by_line_id(user_id, db)
+                if user and user.is_admin():
+                    reply_text(reply_token, "您已經是管理員，擁有所有權限。")
+                elif user and user.is_premium():
+                    reply_text(reply_token, "您已經是付費會員，感謝您的支持！")
+                else:
+                    reply_text(reply_token, "請聯繫管理員升級為付費會員，享受更多功能。")
+                    
             elif data.startswith("admin_action="):
                 # 管理員功能
                 user = await get_user_by_line_id(user_id, db)
