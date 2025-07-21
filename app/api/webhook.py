@@ -681,6 +681,65 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     
                 reply_text(reply_token, "基本命盤查看功能開發中，敬請期待。")
                     
+            elif data.startswith("test_mode="):
+                # 處理測試模式按鈕
+                if not await _is_original_admin(user_id, db):
+                    reply_text(reply_token, "此功能僅限原始管理員使用。")
+                    return
+                
+                test_action = data.split("=")[1]
+                user = await get_user_by_line_id(user_id, db)
+                if not user:
+                    reply_text(reply_token, "用戶不存在")
+                    return
+                
+                if test_action == "free":
+                    user.set_test_mode(LineBotConfig.MembershipLevel.FREE, 10)
+                    db.commit()
+                    reply_text(reply_token, """🧪 已切換為免費會員身份
+                    
+⏰ 將在 10 分鐘後自動恢復管理員身份
+💡 所有功能都會以免費會員視角運作
+🔄 可透過測試分頁立即恢復""")
+                    
+                elif test_action == "premium":
+                    user.set_test_mode(LineBotConfig.MembershipLevel.PREMIUM, 10)
+                    db.commit()
+                    reply_text(reply_token, """🧪 已切換為付費會員身份
+                    
+⏰ 將在 10 分鐘後自動恢復管理員身份  
+💡 所有功能都會以付費會員視角運作
+🔄 可透過測試分頁立即恢復""")
+                    
+                elif test_action == "admin":
+                    user.clear_test_mode()
+                    db.commit()
+                    reply_text(reply_token, """✅ 已恢復管理員身份
+                    
+👑 歡迎回來，管理員！
+💫 所有管理員功能已恢復""")
+                    
+                elif test_action == "status":
+                    if user.is_in_test_mode():
+                        test_info = user.get_test_mode_info()
+                        role_name = {
+                            LineBotConfig.MembershipLevel.FREE: "免費會員",
+                            LineBotConfig.MembershipLevel.PREMIUM: "付費會員",
+                            LineBotConfig.MembershipLevel.ADMIN: "管理員"
+                        }.get(test_info["test_role"], test_info["test_role"])
+                        
+                        reply_text(reply_token, f"""🧪 當前測試狀態
+                        
+🎭 測試身份: {role_name}
+⏰ 剩餘時間: {test_info['remaining_minutes']} 分鐘
+📅 過期時間: {test_info['expires_at'].strftime('%H:%M:%S')}
+🔄 可透過測試分頁立即恢復""")
+                    else:
+                        reply_text(reply_token, """✅ 當前狀態：管理員身份
+                        
+👑 您目前使用管理員身份
+🧪 可透過測試分頁切換測試身份""")
+                        
             elif data.startswith("divination_gender="):
                 # 處理性別選擇的 Postback
                 gender = data.split("=")[1]

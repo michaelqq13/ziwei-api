@@ -130,6 +130,7 @@ class FlexCarouselControlPanelGenerator:
             
         if is_admin:
             pages.append("admin")  # 管理員可以訪問管理功能
+            pages.append("test")   # 管理員可以訪問測試功能
             
         return pages
     
@@ -153,6 +154,8 @@ class FlexCarouselControlPanelGenerator:
                 return self._create_premium_page(is_admin, is_premium)
             elif page_type == "admin":
                 return self._create_admin_page(is_admin, is_premium)
+            elif page_type == "test":
+                return self._create_test_page(is_admin, is_premium)
             else:
                 return None
         except Exception as e:
@@ -354,6 +357,80 @@ class FlexCarouselControlPanelGenerator:
                             self._create_compact_button("📊", "用戶統計", "admin_action=user_stats", is_admin),
                             self._create_compact_button("🖥️", "系統監控", "admin_action=system_status", is_admin),
                             self._create_compact_button("⚙️", "選單管理", "admin_action=menu_management", is_admin)
+                        ],
+                        spacing="xs"
+                    ),
+                    # 頁面指示器
+                    FlexText(
+                        text="← 滑動返回 →",
+                        size="xxs",
+                        color=self.colors["text_light"],
+                        align="center",
+                        margin="sm"
+                    )
+                ],
+                spacing="sm",
+                paddingAll="12px"
+            ),
+            styles={
+                "hero": {
+                    "backgroundImage": background_image,
+                    "backgroundSize": "cover",
+                    "backgroundPosition": "center"
+                }
+            }
+        )
+        
+        return bubble
+
+    def _create_test_page(self, is_admin: bool, is_premium: bool) -> FlexBubble:
+        """創建測試功能分頁 - 調整為微型尺寸"""
+        
+        # 設定背景圖片
+        background_image = self.background_images.get("admin", self.fallback_images["admin"]) # 使用管理員背景圖片
+        
+        bubble = FlexBubble(
+            size="micro",  # 微型尺寸
+            hero=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 標題區域
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            FlexText(
+                                text="🧪 測試功能",
+                                weight="bold",
+                                size="lg",
+                                color=self.colors["admin"], # 使用管理員顏色
+                                align="center"
+                            ),
+                            FlexText(
+                                text="Test",
+                                size="xs",
+                                color=self.colors["text_secondary"],
+                                align="center",
+                                margin="xs"
+                            )
+                        ],
+                        spacing="none",
+                        margin="sm"
+                    )
+                ],
+                paddingAll="12px",
+                height="80px"
+            ),
+            body=FlexBox(
+                layout="vertical",
+                contents=[
+                    # 功能按鈕
+                    FlexBox(
+                        layout="vertical",
+                        contents=[
+                            self._create_compact_button("👤", "測試免費", "test_mode=free", is_admin),
+                            self._create_compact_button("💎", "測試付費", "test_mode=premium", is_admin),
+                            self._create_compact_button("👑", "恢復管理員", "test_mode=admin", is_admin),
+                            self._create_compact_button("📊", "查看狀態", "test_mode=status", is_admin)
                         ],
                         spacing="xs"
                     ),
