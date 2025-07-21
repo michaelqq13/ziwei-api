@@ -90,6 +90,83 @@ admin_panel_generator = FlexAdminPanelGenerator()
 # 初始化 Flex 消息生成器
 divination_flex_generator = DivinationFlexMessageGenerator()
 
+# 測試模式相關輔助函數
+async def _is_original_admin(user_id: str, db) -> bool:
+    """檢查是否為原始管理員（忽略測試模式）"""
+    user = await get_user_by_line_id(user_id, db)
+    return user and user.membership_level == LineBotConfig.MembershipLevel.ADMIN
+
+async def _handle_test_mode_command(text: str, user_id: str, reply_token: str, db):
+    """處理測試模式指令"""
+    user = await get_user_by_line_id(user_id, db)
+    if not user:
+        reply_text(reply_token, "用戶不存在")
+        return
+    
+    # 解析指令
+    if text == "測試免費":
+        user.set_test_mode(LineBotConfig.MembershipLevel.FREE, 10)
+        db.commit()
+        reply_text(reply_token, """🧪 已切換為免費會員身份
+        
+⏰ 將在 10 分鐘後自動恢復管理員身份
+💡 所有功能都會以免費會員視角運作
+🔄 輸入「測試管理員」可立即恢復""")
+        
+    elif text == "測試付費":
+        user.set_test_mode(LineBotConfig.MembershipLevel.PREMIUM, 10)
+        db.commit()
+        reply_text(reply_token, """🧪 已切換為付費會員身份
+        
+⏰ 將在 10 分鐘後自動恢復管理員身份  
+💡 所有功能都會以付費會員視角運作
+🔄 輸入「測試管理員」可立即恢復""")
+        
+    elif text == "測試管理員":
+        user.clear_test_mode()
+        db.commit()
+        reply_text(reply_token, """✅ 已恢復管理員身份
+        
+👑 歡迎回來，管理員！
+💫 所有管理員功能已恢復""")
+        
+    else:
+        reply_text(reply_token, """🧪 測試模式指令：
+        
+• 測試免費 - 切換為免費會員（10分鐘）
+• 測試付費 - 切換為付費會員（10分鐘）  
+• 測試管理員 - 立即恢復管理員身份
+• 查看測試狀態 - 查看當前測試狀態""")
+
+async def _handle_test_status_command(user_id: str, reply_token: str, db):
+    """處理查看測試狀態指令"""
+    user = await get_user_by_line_id(user_id, db)
+    if not user:
+        reply_text(reply_token, "用戶不存在")
+        return
+    
+    if user.is_in_test_mode():
+        test_info = user.get_test_mode_info()
+        role_name = {
+            LineBotConfig.MembershipLevel.FREE: "免費會員",
+            LineBotConfig.MembershipLevel.PREMIUM: "付費會員",
+            LineBotConfig.MembershipLevel.ADMIN: "管理員"
+        }.get(test_info["test_role"], test_info["test_role"])
+        
+        reply_text(reply_token, f"""🧪 當前測試狀態
+        
+🎭 測試身份: {role_name}
+⏰ 剩餘時間: {test_info['remaining_minutes']} 分鐘
+📅 過期時間: {test_info['expires_at'].strftime('%H:%M:%S')}
+🔄 輸入「測試管理員」可立即恢復""")
+    else:
+        reply_text(reply_token, """✅ 當前狀態：管理員身份
+        
+👑 您目前使用管理員身份
+🧪 輸入測試指令可切換測試身份：
+• 測試免費
+• 測試付費""")
+
 
 def reply_text(reply_token: str, text: str):
     """發送純文字回覆訊息"""
@@ -229,6 +306,13 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     # else:
                     reply_text(reply_token, "四化詳細解釋功能開發中，敬請期待。")
 
+            # 管理員測試模式指令
+            elif text.startswith("測試") and await _is_original_admin(user_id, db):
+                await _handle_test_mode_command(text, user_id, reply_token, db)
+            
+            elif text == "查看測試狀態" and await _is_original_admin(user_id, db):
+                await _handle_test_status_command(user_id, reply_token, db)
+
             else:
                 reply_text(reply_token, "您好！請點擊下方選單或輸入「功能選單」開始使用。")
 
@@ -247,7 +331,14 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     total_divinations = user_stats.get("statistics", {}).get("total_divinations", 0)
                     weekly_divinations = user_stats.get("statistics", {}).get("weekly_divinations", 0)
                     
-                    member_info = f"""👤 會員資訊
+                    # 檢查測試模式
+                    test_prefix = ""
+                    if user.is_in_test_mode():
+                        test_info = user.get_test_mode_info()
+                        test_prefix = f"🧪 [測試模式 - 剩餘{test_info['remaining_minutes']}分鐘]\n"
+                        membership_level = test_info["test_role"]
+                    
+                    member_info = f"""{test_prefix}👤 會員資訊
                     
 🏷️ 會員等級: {membership_level}
 🔮 總占卜次數: {total_divinations}
@@ -313,6 +404,6 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 # 未知的 Postback 事件
                 logger.warning(f"未處理的 Postback 事件: {data}")
                 reply_text(reply_token, "功能開發中，敬請期待。")
-
+    
     return {"status": "ok"}
 

@@ -22,6 +22,10 @@ class LineBotUser(Base):
     # 會員等級
     membership_level = Column(String(50), default=LineBotConfig.MembershipLevel.FREE)
     
+    # 測試模式字段
+    test_role = Column(String(50), nullable=True)  # 測試身份覆蓋
+    test_expires_at = Column(DateTime, nullable=True)  # 測試過期時間
+    
     # 時間戳
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -36,11 +40,62 @@ class LineBotUser(Base):
     
     def is_admin(self):
         """檢查是否為管理員"""
-        return self.membership_level == LineBotConfig.MembershipLevel.ADMIN
+        # 檢查測試模式過期
+        self._check_test_mode_expiry()
+        # 如果在測試模式，使用測試身份
+        effective_role = self.test_role if self.test_role else self.membership_level
+        return effective_role == LineBotConfig.MembershipLevel.ADMIN
     
     def is_premium(self):
         """檢查是否為付費會員"""
-        return self.membership_level in [LineBotConfig.MembershipLevel.PREMIUM, LineBotConfig.MembershipLevel.ADMIN]
+        # 檢查測試模式過期
+        self._check_test_mode_expiry()
+        # 如果在測試模式，使用測試身份
+        effective_role = self.test_role if self.test_role else self.membership_level
+        return effective_role in [LineBotConfig.MembershipLevel.PREMIUM, LineBotConfig.MembershipLevel.ADMIN]
+    
+    def get_effective_membership_level(self):
+        """獲取有效的會員等級（考慮測試模式）"""
+        self._check_test_mode_expiry()
+        return self.test_role if self.test_role else self.membership_level
+    
+    def _check_test_mode_expiry(self):
+        """檢查測試模式是否過期"""
+        if self.test_expires_at and datetime.utcnow() > self.test_expires_at:
+            self.test_role = None
+            self.test_expires_at = None
+            return True  # 已過期
+        return False
+    
+    def is_in_test_mode(self):
+        """檢查是否在測試模式"""
+        self._check_test_mode_expiry()
+        return self.test_role is not None
+    
+    def get_test_mode_info(self):
+        """獲取測試模式資訊"""
+        if not self.is_in_test_mode():
+            return None
+        
+        remaining_time = self.test_expires_at - datetime.utcnow()
+        remaining_minutes = int(remaining_time.total_seconds() / 60)
+        
+        return {
+            "test_role": self.test_role,
+            "remaining_minutes": remaining_minutes,
+            "expires_at": self.test_expires_at
+        }
+    
+    def set_test_mode(self, test_role: str, duration_minutes: int = 10):
+        """設定測試模式"""
+        from datetime import timedelta
+        self.test_role = test_role
+        self.test_expires_at = datetime.utcnow() + timedelta(minutes=duration_minutes)
+    
+    def clear_test_mode(self):
+        """清除測試模式"""
+        self.test_role = None
+        self.test_expires_at = None
     
     def can_use_divination(self, db_session):
         """檢查是否可以使用占卜功能"""
