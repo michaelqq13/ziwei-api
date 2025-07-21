@@ -179,11 +179,19 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
             reply_token = event.reply_token
 
             if text == "功能選單":
-                # 獲取用戶物件和統計資訊
+                # 獲取或創建用戶物件
                 user = await get_user_by_line_id(user_id, db)
                 if not user:
-                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
-                    continue
+                    # 自動創建新用戶
+                    user = LineBotUser(
+                        line_user_id=user_id,
+                        display_name="LINE用戶",
+                        is_active=True
+                    )
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                    logger.info(f"自動創建新用戶: {user_id}")
                 
                 user_stats = permission_manager.get_user_stats(db, user)
                 control_panel = generate_carousel_control_panel(user_stats)
@@ -194,11 +202,19 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
             
             elif text.startswith("占卜"):
                 gender = "M" if "男" in text else "F"
-                # 獲取用戶物件
+                # 獲取或創建用戶物件
                 user = await get_user_by_line_id(user_id, db)
                 if not user:
-                    reply_text(reply_token, "用戶未註冊，請先關注本帳號。")
-                    continue
+                    # 自動創建新用戶
+                    user = LineBotUser(
+                        line_user_id=user_id,
+                        display_name="LINE用戶",
+                        is_active=True
+                    )
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                    logger.info(f"自動創建新用戶: {user_id}")
                 
                 divination_result = get_divination_result(db, user, gender)
                 if divination_result.get('success'):
@@ -228,8 +244,63 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
 
         elif isinstance(event, PostbackEvent):
             data = event.postback.data
-            # 處理 Postback 事件的邏輯
+            reply_token = event.reply_token
             logger.info(f"收到 Postback 事件: {data}")
-    
+            
+            # 處理不同的 Postback 動作
+            if data == "action=show_member_info":
+                # 獲取用戶資訊
+                user = await get_user_by_line_id(user_id, db)
+                if user:
+                    user_stats = permission_manager.get_user_stats(db, user)
+                    membership_level = user_stats.get("user_info", {}).get("membership_level", "free")
+                    total_divinations = user_stats.get("statistics", {}).get("total_divinations", 0)
+                    weekly_divinations = user_stats.get("statistics", {}).get("weekly_divinations", 0)
+                    
+                    member_info = f"""👤 會員資訊
+                    
+🏷️ 會員等級: {membership_level}
+🔮 總占卜次數: {total_divinations}
+📅 本週占卜: {weekly_divinations}
+✨ 帳號狀態: 正常"""
+                    
+                    reply_text(reply_token, member_info)
+                else:
+                    reply_text(reply_token, "無法獲取會員資訊，請稍後再試。")
+                    
+            elif data == "action=show_instructions":
+                # 使用說明
+                instructions = """📖 使用說明
+                
+🔮 基本占卜：輸入「占卜」或「占卜男」/「占卜女」
+⭐ 功能選單：輸入「功能選單」查看所有功能
+👤 會員資訊：查看您的會員狀態和使用記錄
+💎 升級會員：聯繫管理員升級為付費會員
+
+✨ 更多功能正在開發中，敬請期待！"""
+                
+                reply_text(reply_token, instructions)
+                
+            elif data == "control_panel=basic_divination":
+                # 基本占卜功能
+                reply_text(reply_token, "請輸入「占卜」開始占卜，或輸入「占卜男」/「占卜女」指定性別。")
+                
+            elif data == "action=weekly_fortune" or data.startswith("control_panel="):
+                # 其他進階功能
+                reply_text(reply_token, "此功能需要付費會員才能使用，請聯繫管理員升級會員。")
+                
+            elif data.startswith("admin_action="):
+                # 管理員功能
+                user = await get_user_by_line_id(user_id, db)
+                if user and user.is_admin():
+                    reply_text(reply_token, "管理員功能開發中，敬請期待。")
+                else:
+                    reply_text(reply_token, "此功能僅限管理員使用。")
+                    
+            else:
+                # 未知的 Postback 事件
+                logger.warning(f"未處理的 Postback 事件: {data}")
+                reply_text(reply_token, "功能開發中，敬請期待。")
+
     return {"status": "ok"}
 
