@@ -526,6 +526,19 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     else:
                         reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
                 
+                elif data == "action=weekly_fortune":
+                    # 本週占卜 - Rich Menu 按鈕觸發
+                    gender_selection = create_gender_selection_message()
+                    if gender_selection:
+                        line_bot_api.reply_message(
+                            ReplyMessageRequest(
+                                reply_token=reply_token,
+                                messages=[gender_selection]
+                            )
+                        )
+                    else:
+                        reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
+                
                 elif data == "action=show_instructions":
                     # 使用說明
                     instructions = """📖 使用說明
@@ -626,25 +639,51 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                         
                         if latest_record:
                             try:
+                                logger.info(f"找到最新占卜記錄，ID: {latest_record.id}")
+                                
                                 # 解析太極宮對映資訊
-                                taichi_mapping = json.loads(latest_record.taichi_palace_mapping or "{}")
-                                taichi_chart_data = json.loads(latest_record.taichi_chart_data or "{}")
+                                taichi_mapping_raw = latest_record.taichi_palace_mapping or "{}"
+                                taichi_chart_data_raw = latest_record.taichi_chart_data or "{}"
                                 
-                                # 創建結果字典
-                                result_data = {
-                                    "taichi_palace_mapping": taichi_mapping,
-                                    "basic_chart": taichi_chart_data
-                                }
+                                logger.info(f"原始太極宮對映: {taichi_mapping_raw[:100]}...")
+                                logger.info(f"原始太極盤數據: {taichi_chart_data_raw[:100]}...")
                                 
-                                # 生成太極點命宮 Carousel
-                                taichi_message = divination_flex_generator._create_taichi_palace_carousel(result_data)
-                                if taichi_message:
-                                    send_line_flex_messages(user_id, [taichi_message], reply_token=reply_token)
+                                taichi_mapping = json.loads(taichi_mapping_raw)
+                                taichi_chart_data = json.loads(taichi_chart_data_raw)
+                                
+                                logger.info(f"解析後太極宮對映: {taichi_mapping}")
+                                logger.info(f"解析後太極盤數據鍵: {list(taichi_chart_data.keys()) if taichi_chart_data else '空'}")
+                                
+                                # 簡化版太極宮資訊顯示
+                                if taichi_mapping:
+                                    taichi_info = f"""🎯 太極十二宮資訊
+
+⏰ 占卜時間: {latest_record.divination_time.strftime('%Y-%m-%d %H:%M')}
+🔮 太極宮: {latest_record.taichi_palace}
+🌟 分鐘地支: {latest_record.minute_dizhi}
+
+🏛️ 太極宮位對應:
+"""
+                                    # 顯示太極宮對映
+                                    palace_names = ["命宮", "父母宮", "福德宮", "田宅宮", "官祿宮", "交友宮", 
+                                                   "遷移宮", "疾厄宮", "財帛宮", "子女宮", "夫妻宮", "兄弟宮"]
+                                    
+                                    for original_branch, new_palace in taichi_mapping.items():
+                                        taichi_info += f"• {new_palace} ← 原{original_branch}宮\n"
+                                    
+                                    taichi_info += "\n💫 太極點轉換完成！"
+                                    
+                                    reply_text(reply_token, taichi_info)
                                 else:
-                                    reply_text(reply_token, "無法生成太極十二宮資訊，請稍後再試。")
+                                    reply_text(reply_token, "太極宮對映資料為空，請重新進行占卜。")
+                                    
+                            except json.JSONDecodeError as e:
+                                logger.error(f"JSON解析失敗: {e}")
+                                reply_text(reply_token, "太極宮資訊格式錯誤，請重新進行占卜。")
                             except Exception as e:
                                 logger.error(f"解析太極宮資訊失敗: {e}")
-                                reply_text(reply_token, "太極宮資訊解析失敗。")
+                                logger.error(f"錯誤詳情: {traceback.format_exc()}")
+                                reply_text(reply_token, f"太極宮資訊解析失敗: {str(e)}")
                         else:
                             reply_text(reply_token, "未找到占卜記錄，請先進行占卜。")
                     else:
