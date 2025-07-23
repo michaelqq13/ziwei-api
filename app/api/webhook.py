@@ -44,7 +44,7 @@ async def create_divination_record(user_id: str, divination_result: dict, db) ->
         if not user:
             logger.warning(f"用戶 {user_id} 不存在，無法創建占卜記錄")
             return None
-        
+
         # 根據 DivinationHistory 模型的實際字段創建記錄
         record = DivinationHistory(
             user_id=user.id,
@@ -470,6 +470,14 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     else:
                         reply_text(reply_token, "無法生成功能面板，請稍後再試。")
                 
+                elif text == "本週占卜":
+                    # 本週占卜 - 顯示性別選擇選單
+                    gender_selection = create_gender_selection_message()
+                    if gender_selection:
+                        send_line_flex_messages(user_id, [gender_selection], reply_token=reply_token)
+                    else:
+                        reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
+                
                 elif text.startswith("占卜"):
                     # 檢查是否指定了性別
                     if "男" in text or "女" in text:
@@ -522,11 +530,6 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     parts = text.split(" ")
                     if len(parts) > 1:
                         sihua_type = parts[1].replace("星更多解釋", "")
-                        # 使用正確的函數生成四化詳細資訊
-                        # detail_message = generate_sihua_detail_message(sihua_type, user_type="free")
-                        # if detail_message:
-                        #     send_line_flex_messages(user_id, [detail_message])
-                        # else:
                         reply_text(reply_token, "四化詳細解釋功能開發中，敬請期待。")
 
                 # 管理員測試模式指令
@@ -571,188 +574,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                         reply_text(reply_token, member_info)
                     else:
                         reply_text(reply_token, "無法獲取會員資訊，請稍後再試。")
-                        
-                elif data == "action=show_instructions":
-                    # 使用說明
-                    instructions = """📖 使用說明
-                    
-🔮 基本占卜：輸入「占卜」或「占卜男」/「占卜女」
-⭐ 功能選單：輸入「功能選單」查看所有功能
-👤 會員資訊：查看您的會員狀態和使用記錄
-💎 升級會員：聯繫管理員升級為付費會員
-
-✨ 更多功能正在開發中，敬請期待！"""
-                    
-                    reply_text(reply_token, instructions)
-                    
-                elif data == "control_panel=basic_divination":
-                    # 基本占卜功能 - 所有用戶都可以使用
-                    reply_text(reply_token, "請輸入「占卜」開始占卜，或輸入「占卜男」/「占卜女」指定性別。")
-                    
-                elif data == "action=show_control_panel":
-                    # 顯示功能選單
-                    user = await get_user_by_line_id(user_id, db)
-                    if not user:
-                        # 自動創建新用戶
-                        user = LineBotUser(
-                            line_user_id=user_id,
-                            display_name="LINE用戶",
-                            is_active=True
-                        )
-                        db.add(user)
-                        db.commit()
-                        db.refresh(user)
-                        logger.info(f"自動創建新用戶: {user_id}")
-                    
-                    user_stats = permission_manager.get_user_stats(db, user)
-                    control_panel = generate_carousel_control_panel(user_stats)
-                    if control_panel:
-                        send_line_flex_messages(user_id, [control_panel], reply_token=reply_token)
-                    else:
-                        reply_text(reply_token, "無法生成功能面板，請稍後再試。")
-                    
-                elif data == "action=weekly_fortune":
-                    # 週運勢功能
-                    user = await get_user_by_line_id(user_id, db)
-                    if user and (user.is_admin() or user.is_premium()):
-                        reply_text(reply_token, "週運勢功能開發中，敬請期待。")
-                    else:
-                        reply_text(reply_token, "此功能需要付費會員才能使用，請聯繫管理員升級會員。")
-                        
-                elif data.startswith("control_panel=yearly_fortune") or data.startswith("control_panel=monthly_fortune") or data.startswith("control_panel=daily_fortune"):
-                    # 進階占卜功能
-                    user = await get_user_by_line_id(user_id, db)
-                    if user and (user.is_admin() or user.is_premium()):
-                        reply_text(reply_token, "進階占卜功能開發中，敬請期待。")
-                    else:
-                        reply_text(reply_token, "此功能需要付費會員才能使用，請聯繫管理員升級會員。")
-                        
-                elif data.startswith("control_panel=member_upgrade"):
-                    # 會員升級
-                    user = await get_user_by_line_id(user_id, db)
-                    if user and user.is_admin():
-                        reply_text(reply_token, "您已經是管理員，擁有所有權限。")
-                    elif user and user.is_premium():
-                        reply_text(reply_token, "您已經是付費會員，感謝您的支持！")
-                    else:
-                        reply_text(reply_token, "請聯繫管理員升級為付費會員，享受更多功能。")
-                        
-                elif data.startswith("admin_action="):
-                    # 管理員功能
-                    user = await get_user_by_line_id(user_id, db)
-                    if user and user.is_admin():
-                        reply_text(reply_token, "管理員功能開發中，敬請期待。")
-                    else:
-                        reply_text(reply_token, "此功能僅限管理員使用。")
-                        
-                elif data.startswith("admin_view_taichi="):
-                    # 管理員查看太極十二宮
-                    user = await get_user_by_line_id(user_id, db)
-                    if not user or not user.is_admin():
-                        reply_text(reply_token, "此功能僅限管理員使用。")
-                        return
-                    
-                    divination_id = data.split("=")[1]
-                    if divination_id == "latest":
-                        # 獲取最新的占卜記錄
-                        latest_record = db.query(DivinationHistory).filter(
-                            DivinationHistory.user_id == user.id
-                        ).order_by(DivinationHistory.divination_time.desc()).first()
-                        
-                        if latest_record:
-                            try:
-                                # 解析太極宮對映資訊
-                                taichi_mapping = json.loads(latest_record.taichi_palace_mapping or "{}")
-                                taichi_chart_data = json.loads(latest_record.taichi_chart_data or "{}")
-                                
-                                # 創建結果字典
-                                result_data = {
-                                    "taichi_palace_mapping": taichi_mapping,
-                                    "basic_chart": taichi_chart_data
-                                }
-                                
-                                # 生成太極點命宮 Carousel
-                                taichi_message = divination_flex_generator._create_taichi_palace_carousel(result_data)
-                                if taichi_message:
-                                    send_line_flex_messages(user_id, [taichi_message], reply_token=reply_token)
-                                else:
-                                    reply_text(reply_token, "無法生成太極十二宮資訊，請稍後再試。")
-                            except Exception as e:
-                                logger.error(f"解析太極宮資訊失敗: {e}")
-                                reply_text(reply_token, "太極宮資訊解析失敗。")
-                        else:
-                            reply_text(reply_token, "未找到占卜記錄，請先進行占卜。")
-                    else:
-                        reply_text(reply_token, "指定占卜記錄查看功能開發中。")
-                        
-                elif data.startswith("admin_view_chart="):
-                    # 管理員查看基本命盤
-                    user = await get_user_by_line_id(user_id, db)
-                    if not user or not user.is_admin():
-                        reply_text(reply_token, "此功能僅限管理員使用。")
-                        return
-                        
-                    reply_text(reply_token, "基本命盤查看功能開發中，敬請期待。")
-                        
-                elif data.startswith("test_mode="):
-                    # 處理測試模式按鈕
-                    if not await _is_original_admin(user_id, db):
-                        reply_text(reply_token, "此功能僅限原始管理員使用。")
-                        return
-                    
-                    test_action = data.split("=")[1]
-                    user = await get_user_by_line_id(user_id, db)
-                    if not user:
-                        reply_text(reply_token, "用戶不存在")
-                        return
-                    
-                    if test_action == "free":
-                        user.set_test_mode(LineBotConfig.MembershipLevel.FREE, 10)
-                        db.commit()
-                        reply_text(reply_token, """🧪 已切換為免費會員身份
-                        
-⏰ 將在 10 分鐘後自動恢復管理員身份
-💡 所有功能都會以免費會員視角運作
-🔄 可透過測試分頁立即恢復""")
-                        
-                    elif test_action == "premium":
-                        user.set_test_mode(LineBotConfig.MembershipLevel.PREMIUM, 10)
-                        db.commit()
-                        reply_text(reply_token, """🧪 已切換為付費會員身份
-                        
-⏰ 將在 10 分鐘後自動恢復管理員身份  
-💡 所有功能都會以付費會員視角運作
-🔄 可透過測試分頁立即恢復""")
-                        
-                    elif test_action == "admin":
-                        user.clear_test_mode()
-                        db.commit()
-                        reply_text(reply_token, """✅ 已恢復管理員身份
-                        
-👑 歡迎回來，管理員！
-💫 所有管理員功能已恢復""")
-                        
-                    elif test_action == "status":
-                        if user.is_in_test_mode():
-                            test_info = user.get_test_mode_info()
-                            role_name = {
-                                LineBotConfig.MembershipLevel.FREE: "免費會員",
-                                LineBotConfig.MembershipLevel.PREMIUM: "付費會員",
-                                LineBotConfig.MembershipLevel.ADMIN: "管理員"
-                            }.get(test_info["test_role"], test_info["test_role"])
-                            
-                            reply_text(reply_token, f"""🧪 當前測試狀態
-                            
-🎭 測試身份: {role_name}
-⏰ 剩餘時間: {test_info['remaining_minutes']} 分鐘
-📅 過期時間: {test_info['expires_at'].strftime('%H:%M:%S')}
-🔄 可透過測試分頁立即恢復""")
-                        else:
-                            reply_text(reply_token, """✅ 當前狀態：管理員身份
-                            
-👑 您目前使用管理員身份
-🧪 可透過測試分頁切換測試身份""")
-                            
+                
                 elif data.startswith("divination_gender="):
                     # 處理性別選擇的 Postback
                     gender = data.split("=")[1]
@@ -793,12 +615,11 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                             reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                     else:
                         reply_text(reply_token, divination_result.get('message', '占卜失敗，請稍後再試。'))
-                        
+                
                 else:
-                    # 未知的 Postback 事件
-                    logger.warning(f"未處理的 Postback 事件: {data}")
+                    # 其他 Postback 事件的通用處理
                     reply_text(reply_token, "功能開發中，敬請期待。")
-        
+
         except Exception as e:
             # 處理單個事件處理過程中的錯誤，不影響其他事件
             logger.error(f"處理事件時發生錯誤 (用戶: {user_id if 'user_id' in locals() else 'unknown'}): {e}")

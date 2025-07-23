@@ -45,11 +45,11 @@ class FlexCarouselControlPanelGenerator:
         # 快取破壞者，確保LINE每次都重新載入圖片
         cache_buster = f"?v={int(time.time())}"
         
-        # 星空背景圖片 URL - 使用動態伺服器地址
+        # 星空背景圖片 URL - 使用可靠的外部圖片源
         self.background_images = {
-            "basic": f"{self.server_url}/assets/backgrounds/basic.jpg{cache_buster}",
-            "premium": f"{self.server_url}/assets/backgrounds/premium.jpg{cache_buster}",
-            "admin": f"{self.server_url}/assets/backgrounds/admin.jpg{cache_buster}"
+            "basic": "https://images.unsplash.com/photo-1446776877081-d282a0f896e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80",
+            "premium": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80",
+            "admin": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80"
         }
         
         # 如果無法存取 Unsplash，備用星空圖片 URL
