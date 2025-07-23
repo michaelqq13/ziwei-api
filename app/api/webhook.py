@@ -91,81 +91,33 @@ admin_panel_generator = FlexAdminPanelGenerator()
 divination_flex_generator = DivinationFlexMessageGenerator()
 
 def create_gender_selection_message():
-    """創建性別選擇 Flex Message"""
+    """創建性別選擇 - 使用 Quick Reply 按鈕"""
     try:
-        from linebot.v3.messaging import FlexMessage, FlexBubble, FlexBox, FlexText, FlexButton, PostbackAction
+        from linebot.v3.messaging import TextMessage, QuickReply, QuickReplyItem, PostbackAction
         
-        bubble = FlexBubble(
-            size="micro",
-            header=FlexBox(
-                layout="vertical",
-                contents=[
-                    FlexText(
-                        text="🔮 開始占卜",
-                        weight="bold",
-                        size="lg",
-                        color="#FFD700",
-                        align="center"
-                    ),
-                    FlexText(
-                        text="請選擇性別",
-                        size="sm",
-                        color="#B0C4DE",
-                        align="center",
-                        margin="xs"
+        # 使用 Quick Reply 按鈕，更容易點擊
+        quick_reply = QuickReply(
+            items=[
+                QuickReplyItem(
+                    action=PostbackAction(
+                        label="👨 男性",
+                        data="divination_gender=M",
+                        displayText="選擇男性"
                     )
-                ],
-                paddingAll="12px",
-                backgroundColor="#1A1A2E"
-            ),
-            body=FlexBox(
-                layout="vertical",
-                contents=[
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexButton(
-                                action=PostbackAction(
-                                    label="👨 男性",
-                                    data="divination_gender=M",
-                                    displayText="選擇男性"
-                                ),
-                                style="primary",
-                                color="#4A90E2",
-                                height="md",
-                                flex=1
-                            ),
-                            FlexButton(
-                                action=PostbackAction(
-                                    label="👩 女性", 
-                                    data="divination_gender=F",
-                                    displayText="選擇女性"
-                                ),
-                                style="primary",
-                                color="#E67E22",
-                                height="md",
-                                flex=1,
-                                margin="sm"
-                            )
-                        ],
-                        spacing="sm"
-                    ),
-                    FlexText(
-                        text="✨ 選擇後立即開始占卜",
-                        size="xs",
-                        color="#87CEEB",
-                        align="center",
-                        margin="md"
+                ),
+                QuickReplyItem(
+                    action=PostbackAction(
+                        label="👩 女性",
+                        data="divination_gender=F", 
+                        displayText="選擇女性"
                     )
-                ],
-                spacing="sm",
-                paddingAll="16px"
-            )
+                )
+            ]
         )
         
-        return FlexMessage(
-            alt_text="🔮 性別選擇",
-            contents=bubble
+        return TextMessage(
+            text="🔮 開始占卜\n\n請選擇您的性別：",
+            quickReply=quick_reply
         )
         
     except Exception as e:
@@ -173,109 +125,47 @@ def create_gender_selection_message():
         return None
 
 def create_admin_quick_buttons(divination_id: int = None):
-    """創建管理員快速按鈕 Flex Message"""
+    """創建管理員快速按鈕 - 使用 Quick Reply"""
     try:
-        from linebot.v3.messaging import FlexMessage, FlexBubble, FlexBox, FlexText, FlexButton, PostbackAction
+        from linebot.v3.messaging import TextMessage, QuickReply, QuickReplyItem, PostbackAction
         
-        bubble = FlexBubble(
-            size="micro",
-            header=FlexBox(
-                layout="vertical",
-                contents=[
-                    FlexText(
-                        text="👑 管理員快速功能",
-                        weight="bold",
-                        size="md",
-                        color="#FFD700",
-                        align="center"
-                    )
-                ],
-                paddingAll="8px",
-                backgroundColor="#1A1A2E"
+        # 使用 Quick Reply 按鈕，更容易點擊且文字清晰
+        quick_reply_items = [
+            QuickReplyItem(
+                action=PostbackAction(
+                    label="🏛️ 太極十二宮",
+                    data=f"admin_view_taichi={divination_id}" if divination_id else "admin_view_taichi=latest",
+                    displayText="查看太極十二宮"
+                )
             ),
-            body=FlexBox(
-                layout="vertical",
-                contents=[
-                    # 第一排按鈕
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexButton(
-                                action=PostbackAction(
-                                    label="🏛️ 太極十二宮",
-                                    data=f"admin_view_taichi={divination_id}" if divination_id else "admin_view_taichi=latest",
-                                    displayText="查看太極十二宮"
-                                ),
-                                style="primary",
-                                color="#9B59B6",
-                                height="sm",
-                                flex=1,
-                                size="sm"
-                            ),
-                            FlexButton(
-                                action=PostbackAction(
-                                    label="📊 基本命盤",
-                                    data=f"admin_view_chart={divination_id}" if divination_id else "admin_view_chart=latest",
-                                    displayText="查看基本命盤"
-                                ),
-                                style="primary",
-                                color="#4A90E2",
-                                height="sm",
-                                flex=1,
-                                size="sm",
-                                margin="xs"
-                            )
-                        ],
-                        spacing="xs",
-                        margin="xs"
-                    ),
-                    # 第二排按鈕
-                    FlexBox(
-                        layout="horizontal",
-                        contents=[
-                            FlexButton(
-                                action=PostbackAction(
-                                    label="⏰ 時間占卜",
-                                    data="admin_action=time_divination_start",
-                                    displayText="啟動時間占卜"
-                                ),
-                                style="secondary",
-                                height="sm",
-                                flex=1,
-                                size="sm"
-                            ),
-                            FlexButton(
-                                action=PostbackAction(
-                                    label="🌌 功能選單",
-                                    data="action=show_control_panel",
-                                    displayText="返回功能選單"
-                                ),
-                                style="secondary",
-                                height="sm",
-                                flex=1,
-                                size="sm",
-                                margin="xs"
-                            )
-                        ],
-                        spacing="xs",
-                        margin="xs"
-                    ),
-                    FlexText(
-                        text="🔥 管理員專屬快速功能",
-                        size="xxs",
-                        color="#87CEEB",
-                        align="center",
-                        margin="sm"
-                    )
-                ],
-                spacing="xs",
-                paddingAll="8px"
+            QuickReplyItem(
+                action=PostbackAction(
+                    label="📊 基本命盤",
+                    data=f"admin_view_chart={divination_id}" if divination_id else "admin_view_chart=latest",
+                    displayText="查看基本命盤"
+                )
+            ),
+            QuickReplyItem(
+                action=PostbackAction(
+                    label="⏰ 時間占卜",
+                    data="admin_action=time_divination_start",
+                    displayText="啟動時間占卜"
+                )
+            ),
+            QuickReplyItem(
+                action=PostbackAction(
+                    label="🌌 功能選單",
+                    data="action=show_control_panel",
+                    displayText="返回功能選單"
+                )
             )
-        )
+        ]
         
-        return FlexMessage(
-            alt_text="👑 管理員快速功能",
-            contents=bubble
+        quick_reply = QuickReply(items=quick_reply_items)
+        
+        return TextMessage(
+            text="👑 管理員快速功能\n\n請選擇您要執行的操作：",
+            quickReply=quick_reply
         )
         
     except Exception as e:
@@ -474,7 +364,12 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     # 本週占卜 - 顯示性別選擇選單
                     gender_selection = create_gender_selection_message()
                     if gender_selection:
-                        send_line_flex_messages(user_id, [gender_selection], reply_token=reply_token)
+                        line_bot_api.reply_message(
+                            ReplyMessageRequest(
+                                reply_token=reply_token,
+                                messages=[gender_selection]
+                            )
+                        )
                     else:
                         reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
                 
@@ -513,7 +408,12 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                                         # 稍微延遲發送快速按鈕，避免訊息衝突
                                         import asyncio
                                         await asyncio.sleep(0.5)
-                                        send_line_flex_messages(user_id, [quick_buttons])
+                                        line_bot_api.push_message(
+                                            PushMessageRequest(
+                                                to=user_id,
+                                                messages=[quick_buttons]
+                                            )
+                                        )
                             else:
                                 reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                         else:
@@ -522,7 +422,12 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                         # 沒有指定性別，顯示性別選擇選單
                         gender_selection = create_gender_selection_message()
                         if gender_selection:
-                            send_line_flex_messages(user_id, [gender_selection], reply_token=reply_token)
+                            line_bot_api.reply_message(
+                                ReplyMessageRequest(
+                                    reply_token=reply_token,
+                                    messages=[gender_selection]
+                                )
+                            )
                         else:
                             reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
 
@@ -610,7 +515,12 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                                     # 稍微延遲發送快速按鈕，避免訊息衝突
                                     import asyncio
                                     await asyncio.sleep(0.5)
-                                    send_line_flex_messages(user_id, [quick_buttons])
+                                    line_bot_api.push_message(
+                                        PushMessageRequest(
+                                            to=user_id,
+                                            messages=[quick_buttons]
+                                        )
+                                    )
                         else:
                             reply_text(reply_token, "占卜結果生成失敗，請稍後再試。")
                     else:
@@ -633,7 +543,12 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     # 基本占卜功能 - 所有用戶都可以使用
                     gender_selection = create_gender_selection_message()
                     if gender_selection:
-                        send_line_flex_messages(user_id, [gender_selection], reply_token=reply_token)
+                        line_bot_api.reply_message(
+                            ReplyMessageRequest(
+                                reply_token=reply_token,
+                                messages=[gender_selection]
+                            )
+                        )
                     else:
                         reply_text(reply_token, "請輸入「占卜」開始占卜，或輸入「占卜男」/「占卜女」指定性別。")
                     
