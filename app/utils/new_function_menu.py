@@ -145,7 +145,7 @@ class NewFunctionMenuGenerator:
                 spacing="xs",
                 contents=[
                     FlexText(
-                        text="✨ 基本功能",
+                        text="✨ 基本功能 ✨",
                         size="md",
                         weight="bold",
                         color=self.colors["star_gold"],
@@ -170,7 +170,7 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["text_light"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
             
             # 組合所有內容
             all_contents = [header_box]
@@ -186,9 +186,7 @@ class NewFunctionMenuGenerator:
                 ),
                 styles={
                     "body": {
-                        "backgroundImage": self.background_images.get("basic", self.fallback_images["basic"]),
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
+                        "backgroundColor": "#1A1A2E"  # 深夜藍背景
                     }
                 }
             )
@@ -239,7 +237,7 @@ class NewFunctionMenuGenerator:
                 spacing="xs",
                 contents=[
                     FlexText(
-                        text="💎 進階功能",
+                        text="💎 進階功能 💎",
                         size="md",
                         weight="bold",
                         color=self.colors["star_gold"],
@@ -264,7 +262,7 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["text_light"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
             
             # 組合所有內容
             all_contents = [header_box]
@@ -280,9 +278,7 @@ class NewFunctionMenuGenerator:
                 ),
                 styles={
                     "body": {
-                        "backgroundImage": self.background_images.get("advanced", self.fallback_images["advanced"]),
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
+                        "backgroundColor": "#2C1810"  # 深棕色背景
                     }
                 }
             )
@@ -333,7 +329,7 @@ class NewFunctionMenuGenerator:
                 spacing="xs",
                 contents=[
                     FlexText(
-                        text="👑 管理功能",
+                        text="👑 管理功能 👑",
                         size="md",
                         weight="bold",
                         color=self.colors["star_gold"],
@@ -358,7 +354,7 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["text_light"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
             
             # 組合所有內容
             all_contents = [header_box]
@@ -374,9 +370,7 @@ class NewFunctionMenuGenerator:
                 ),
                 styles={
                     "body": {
-                        "backgroundImage": self.background_images.get("admin", self.fallback_images["admin"]),
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
+                        "backgroundColor": "#2E1A1A"  # 深紅色背景
                     }
                 }
             )
@@ -427,7 +421,7 @@ class NewFunctionMenuGenerator:
                 spacing="xs",
                 contents=[
                     FlexText(
-                        text="🧪 測試功能",
+                        text="🧪 測試功能 🧪",
                         size="md",
                         weight="bold",
                         color=self.colors["star_gold"],
@@ -452,7 +446,7 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["text_light"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
             
             # 組合所有內容
             all_contents = [header_box]
@@ -468,9 +462,7 @@ class NewFunctionMenuGenerator:
                 ),
                 styles={
                     "body": {
-                        "backgroundImage": self.background_images.get("test", self.fallback_images["test"]),
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
+                        "backgroundColor": "#1A2E1A"  # 深綠色背景
                     }
                 }
             )
