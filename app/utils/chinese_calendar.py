@@ -80,8 +80,8 @@ class ChineseCalendar:
                 return 20
             else:
                 return 20 + cls.CHINESE_NUMBERS[day_str[1]]
-        elif day_str.startswith("卅"):
-            # 三十
+        elif day_str.startswith("卅") or day_str == "三十":
+            # 三十 或 卅
             return 30
         else:
             # 如果無法識別，嘗試直接轉換
