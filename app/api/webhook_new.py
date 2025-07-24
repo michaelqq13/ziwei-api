@@ -285,12 +285,15 @@ class WebhookHandler:
         
         # 新的 Rich Menu 按鈕
         if data == "action=member_info":
+            logger.info("處理會員資訊請求")
             await self.show_member_info()
         
         elif data == "action=function_menu":
+            logger.info("處理功能選單請求")
             await self.show_function_menu()
         
         elif data == "action=weekly_divination":
+            logger.info("處理本週占卜請求")
             gender_selection = self.create_gender_selection()
             line_bot_api.reply_message(
                 ReplyMessageRequest(
@@ -300,6 +303,7 @@ class WebhookHandler:
             )
         
         elif data == "action=instructions":
+            logger.info("處理使用說明請求")
             await self.show_instructions()
         
         # 性別選擇
@@ -330,16 +334,25 @@ class WebhookHandler:
     async def show_function_menu(self):
         """顯示功能選單"""
         try:
+            logger.info("開始生成功能選單")
             user = await self.get_or_create_user(self.user_id, self.db)
+            logger.info(f"獲取用戶成功: {user.line_user_id}")
+            
             user_stats = permission_manager.get_user_stats(self.db, user)
+            logger.info(f"獲取用戶統計成功: {user_stats}")
             
             function_menu = generate_new_function_menu(user_stats)
+            logger.info(f"生成功能選單結果: {function_menu is not None}")
+            
             if function_menu:
+                logger.info("準備發送功能選單 Flex Message")
                 self.send_flex_message(function_menu)
+                logger.info("功能選單發送成功")
             else:
+                logger.error("功能選單生成失敗，返回 None")
                 self.reply_text("無法生成功能選單，請稍後再試。")
         except Exception as e:
-            logger.error(f"顯示功能選單失敗: {e}")
+            logger.error(f"顯示功能選單失敗: {e}", exc_info=True)
             self.reply_text("功能選單載入失敗，請稍後再試。")
     
     async def show_member_info(self):
