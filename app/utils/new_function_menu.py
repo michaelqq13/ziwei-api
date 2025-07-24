@@ -141,20 +141,19 @@ class NewFunctionMenuGenerator:
             # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
-                # backgroundColor="rgba(26, 26, 46, 0.8)",  # 移除半透明遮罩
+                paddingAll="15px",
+                spacing="sm",
                 contents=[
                     FlexText(
                         text="✨ 基本功能",
-                        size="xl",
+                        size="lg",
                         weight="bold",
-                        color=self.colors["text_primary"],
+                        color=self.colors["star_gold"],
                         align="center"
                     ),
                     FlexText(
-                        text="所有用戶都可使用的基礎功能",
-                        size="sm",
+                        text="免費使用的基礎功能",
+                        size="xs",
                         color=self.colors["text_secondary"],
                         align="center",
                         wrap=True
@@ -178,63 +177,39 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="md", color=self.colors["text_secondary"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="sm", color=self.colors["text_light"]))
             
             # 主內容 Box
             body_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
+                paddingAll="15px",
+                spacing="sm",
                 contents=function_boxes
             )
             
-            # 底部資訊
-            footer_box = FlexBox(
-                layout="vertical",
-                paddingAll="15px",
-                spacing="sm",
-                contents=[
-                    FlexText(
-                        text="💫 星空紫微斗數",
-                        size="xs",
-                        color=self.colors["text_light"],
-                        align="center"
-                    ),
-                    FlexText(
-                        text="基礎功能 - 免費使用",
-                        size="xxs",
-                        color=self.colors["text_secondary"],
-                        align="center"
-                    )
-                ]
-            )
-            
             return FlexBubble(
-                size="kilo",
+                size="nano",  # 改為最小尺寸
                 hero=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    # backgroundColor="rgba(26, 26, 46, 0.8)",  # 移除
-                    contents=[
-                        FlexText(
-                            text=" ",
-                            size="xs"
-                        )
-                    ]
+                    height="60px",  # 設定固定高度
+                    contents=[header_box]
                 ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[header_box, body_box, footer_box]
+                    contents=[body_box]
                 ),
                 styles={
                     "hero": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundImage": self.background_images.get("basic", self.fallback_images["basic"]),
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
                     },
                     "body": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundColor": "#1A1A2E"  # 深夜藍背景
                     }
                 }
             )
@@ -281,20 +256,19 @@ class NewFunctionMenuGenerator:
             # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
-                # backgroundColor="rgba(155, 89, 182, 0.8)",  # 移除紫色半透明遮罩
+                paddingAll="15px",
+                spacing="sm",
                 contents=[
                     FlexText(
                         text="💎 進階功能",
-                        size="xl",
+                        size="lg",
                         weight="bold",
-                        color=self.colors["text_primary"],
+                        color=self.colors["star_gold"],
                         align="center"
                     ),
                     FlexText(
-                        text="付費會員專屬進階功能",
-                        size="sm",
+                        text="付費會員專屬功能",
+                        size="xs",
                         color=self.colors["text_secondary"],
                         align="center",
                         wrap=True
@@ -318,62 +292,39 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="md", color=self.colors["text_secondary"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="sm", color=self.colors["text_light"]))
             
             # 主內容 Box
             body_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
+                paddingAll="15px",
+                spacing="sm",
                 contents=function_boxes
             )
             
-            # 底部資訊
-            footer_box = FlexBox(
-                layout="vertical",
-                paddingAll="15px",
-                spacing="sm",
-                contents=[
-                    FlexText(
-                        text="💎 進階運勢分析",
-                        size="xs",
-                        color=self.colors["text_light"],
-                        align="center"
-                    ),
-                    FlexText(
-                        text="付費會員專屬",
-                        size="xxs",
-                        color=self.colors["accent"],
-                        align="center"
-                    )
-                ]
-            )
-            
             return FlexBubble(
-                size="kilo",
+                size="nano",  # 改為最小尺寸
                 hero=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[
-                        FlexText(
-                            text=" ",
-                            size="xs"
-                        )
-                    ]
+                    height="60px",  # 設定固定高度
+                    contents=[header_box]
                 ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[header_box, body_box, footer_box]
+                    contents=[body_box]
                 ),
                 styles={
                     "hero": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundImage": self.background_images.get("advanced", self.fallback_images["advanced"]),
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
                     },
                     "body": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundColor": "#1A1A2E"  # 深夜藍背景
                     }
                 }
             )
@@ -420,20 +371,19 @@ class NewFunctionMenuGenerator:
             # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
-                # backgroundColor="rgba(231, 76, 60, 0.8)",  # 移除紅色半透明遮罩
+                paddingAll="15px",
+                spacing="sm",
                 contents=[
                     FlexText(
                         text="👑 管理功能",
-                        size="xl",
+                        size="lg",
                         weight="bold",
-                        color=self.colors["text_primary"],
+                        color=self.colors["star_gold"],
                         align="center"
                     ),
                     FlexText(
-                        text="系統管理員專用功能",
-                        size="sm",
+                        text="系統管理員專用",
+                        size="xs",
                         color=self.colors["text_secondary"],
                         align="center",
                         wrap=True
@@ -457,62 +407,39 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="md", color=self.colors["text_secondary"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="sm", color=self.colors["text_light"]))
             
             # 主內容 Box
             body_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
+                paddingAll="15px",
+                spacing="sm",
                 contents=function_boxes
             )
             
-            # 底部資訊
-            footer_box = FlexBox(
-                layout="vertical",
-                paddingAll="15px",
-                spacing="sm",
-                contents=[
-                    FlexText(
-                        text="👑 系統管理功能",
-                        size="xs",
-                        color=self.colors["text_light"],
-                        align="center"
-                    ),
-                    FlexText(
-                        text="管理員專屬",
-                        size="xxs",
-                        color=self.colors["admin"],
-                        align="center"
-                    )
-                ]
-            )
-            
             return FlexBubble(
-                size="kilo",
+                size="nano",  # 改為最小尺寸
                 hero=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[
-                        FlexText(
-                            text=" ",
-                            size="xs"
-                        )
-                    ]
+                    height="60px",  # 設定固定高度
+                    contents=[header_box]
                 ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[header_box, body_box, footer_box]
+                    contents=[body_box]
                 ),
                 styles={
                     "hero": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundImage": self.background_images.get("admin", self.fallback_images["admin"]),
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
                     },
                     "body": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundColor": "#1A1A2E"  # 深夜藍背景
                     }
                 }
             )
@@ -559,20 +486,19 @@ class NewFunctionMenuGenerator:
             # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
-                # backgroundColor="rgba(46, 204, 113, 0.8)",  # 移除綠色半透明遮罩
+                paddingAll="15px",
+                spacing="sm",
                 contents=[
                     FlexText(
                         text="🧪 測試功能",
-                        size="xl",
+                        size="lg",
                         weight="bold",
-                        color=self.colors["text_primary"],
+                        color=self.colors["star_gold"],
                         align="center"
                     ),
                     FlexText(
                         text="權限測試與身份切換",
-                        size="sm",
+                        size="xs",
                         color=self.colors["text_secondary"],
                         align="center",
                         wrap=True
@@ -596,62 +522,39 @@ class NewFunctionMenuGenerator:
             
             # 分隔符號
             for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="md", color=self.colors["text_secondary"]))
+                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="sm", color=self.colors["text_light"]))
             
             # 主內容 Box
             body_box = FlexBox(
                 layout="vertical",
-                paddingAll="20px",
-                spacing="md",
+                paddingAll="15px",
+                spacing="sm",
                 contents=function_boxes
             )
             
-            # 底部資訊
-            footer_box = FlexBox(
-                layout="vertical",
-                paddingAll="15px",
-                spacing="sm",
-                contents=[
-                    FlexText(
-                        text="🧪 權限測試功能",
-                        size="xs",
-                        color=self.colors["text_light"],
-                        align="center"
-                    ),
-                    FlexText(
-                        text="身份切換測試",
-                        size="xxs",
-                        color=self.colors["test"],
-                        align="center"
-                    )
-                ]
-            )
-            
             return FlexBubble(
-                size="kilo",
+                size="nano",  # 改為最小尺寸
                 hero=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[
-                        FlexText(
-                            text=" ",
-                            size="xs"
-                        )
-                    ]
+                    height="60px",  # 設定固定高度
+                    contents=[header_box]
                 ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="0px",
                     spacing="none",
-                    contents=[header_box, body_box, footer_box]
+                    contents=[body_box]
                 ),
                 styles={
                     "hero": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundImage": self.background_images.get("test", self.fallback_images["test"]),
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
                     },
                     "body": {
-                        # "backgroundColor": "#FFFFFF"  # 移除
+                        "backgroundColor": "#1A1A2E"  # 深夜藍背景
                     }
                 }
             )
@@ -684,7 +587,7 @@ class NewFunctionMenuGenerator:
                         contents=[
                             FlexText(
                                 text=emoji,
-                                size="xl",
+                                size="lg",  # 減小圖標尺寸
                                 color=icon_color,
                                 align="center",
                                 weight="bold"
@@ -701,13 +604,13 @@ class NewFunctionMenuGenerator:
                             FlexText(
                                 text=title,
                                 weight="bold",
-                                size="md",
+                                size="sm",  # 減小標題尺寸
                                 color=text_color,
                                 wrap=True
                             ),
                             FlexText(
                                 text=subtitle,
-                                size="sm",
+                                size="xs",  # 減小副標題尺寸
                                 color=desc_color,
                                 wrap=True,
                                 margin="xs"
@@ -717,11 +620,10 @@ class NewFunctionMenuGenerator:
                         justifyContent="center"
                     )
                 ],
-                # backgroundColor=bg_color,  # 移除半透明背景
                 borderWidth="1px",
                 borderColor=border_color,
-                cornerRadius="8px",
-                paddingAll="12px",
+                cornerRadius="6px",  # 減小圓角
+                paddingAll="8px",  # 減小內邊距
                 action=PostbackAction(
                     data=data,
                     displayText=title
