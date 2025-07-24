@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from linebot.v3.messaging import (
     FlexMessage, FlexCarousel, FlexBubble, FlexBox, FlexText,
-    FlexSeparator, PostbackAction
+    FlexSeparator, PostbackAction, FlexImage
 )
 import time
 
@@ -136,94 +136,80 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_basic_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建基本功能分頁 - 測試方案2: 內建生成SVG背景"""
+        """創建基本功能分頁 - 圖片背景方案"""
         try:
-            # 基本功能按鈕配置
-            functions = [
-                {
-                    "emoji": "🔮",
-                    "title": "本週占卜",
-                    "subtitle": "即時觸機占卜",
-                    "data": "function=weekly_divination",
-                    "enabled": True
-                },
-                {
-                    "emoji": "👤",
-                    "title": "會員資訊",
-                    "subtitle": "查看個人資訊",
-                    "data": "function=member_info",
-                    "enabled": True
-                },
-                {
-                    "emoji": "📖",
-                    "title": "使用說明",
-                    "subtitle": "功能操作指南",
-                    "data": "function=instructions",
-                    "enabled": True
-                }
-            ]
+            # 創建標題文字層
+            title_text = FlexText(
+                text="✨ 基本功能 ✨",
+                size="md",
+                weight="bold",
+                color=self.colors["star_gold"],
+                align="center"
+            )
             
-            # 創建標題 Box
-            header_box = FlexBox(
-                layout="vertical",
-                paddingAll="10px",
-                spacing="xs",
+            # 創建功能按鈕 (疊加在圖片上)
+            function_buttons = FlexBox(
+                layout="horizontal",
+                spacing="sm",
                 contents=[
-                    FlexText(
-                        text="✨ 基本功能 ✨",
-                        size="md",
-                        weight="bold",
-                        color=self.colors["star_gold"],
-                        align="center"
+                    FlexBox(
+                        layout="vertical",
+                        flex=1,
+                        contents=[
+                            FlexText(text="🔮", size="lg", align="center", color=self.colors["star_gold"]),
+                            FlexText(text="本週占卜", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
+                        ],
+                        action=PostbackAction(data="function=weekly_divination", displayText="本週占卜"),
+                        paddingAll="8px",
+                        cornerRadius="8px"
+                    ),
+                    FlexBox(
+                        layout="vertical", 
+                        flex=1,
+                        contents=[
+                            FlexText(text="👤", size="lg", align="center", color=self.colors["star_gold"]),
+                            FlexText(text="會員資訊", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
+                        ],
+                        action=PostbackAction(data="function=member_info", displayText="會員資訊"),
+                        paddingAll="8px", 
+                        cornerRadius="8px"
+                    ),
+                    FlexBox(
+                        layout="vertical",
+                        flex=1, 
+                        contents=[
+                            FlexText(text="📖", size="lg", align="center", color=self.colors["star_gold"]),
+                            FlexText(text="使用說明", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
+                        ],
+                        action=PostbackAction(data="function=instructions", displayText="使用說明"),
+                        paddingAll="8px",
+                        cornerRadius="8px"
                     )
                 ]
             )
             
-            # 創建功能按鈕
-            function_boxes = []
-            for func in functions:
-                button_box = self._create_function_button(
-                    emoji=func["emoji"],
-                    title=func["title"],
-                    subtitle=func["subtitle"],
-                    data=func["data"],
-                    enabled=func["enabled"],
-                    color=self.colors["primary"]
-                )
-                if button_box:
-                    function_boxes.append(button_box)
-            
-            # 分隔符號
-            for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
-            
-            # 組合所有內容
-            all_contents = [header_box]
-            all_contents.extend(function_boxes)
+            # 組合標題和按鈕
+            content_overlay = FlexBox(
+                layout="vertical",
+                spacing="md",
+                paddingAll="15px",
+                contents=[title_text, function_buttons]
+            )
             
             return FlexBubble(
                 size="nano",
-                hero=FlexBox(
-                    layout="vertical",
-                    height="40px",
-                    paddingAll="0px",
-                    spacing="none",
-                    contents=[]
+                # 使用 hero 作為星空背景圖片
+                hero=FlexImage(
+                    url="https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=200&fit=crop&auto=format",
+                    size="full",
+                    aspectRatio="20:10",
+                    aspectMode="cover"
                 ),
-                body=FlexBox(
-                    layout="vertical",
-                    paddingAll="10px",
-                    spacing="xs",
-                    contents=all_contents
-                ),
+                # body 作為內容疊加層
+                body=content_overlay,
                 styles={
-                    "hero": {
-                        "backgroundImage": self.generated_backgrounds.get("basic"),  # 方案2: SVG背景
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
-                    },
                     "body": {
-                        "backgroundColor": "#1A1A2E"  # 深夜藍背景
+                        "backgroundColor": "rgba(26, 26, 46, 0.8)"  # 半透明背景
                     }
                 }
             )
@@ -233,101 +219,103 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_advanced_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建進階功能分頁 - 測試方案3: 簡單外部圖片"""
+        """創建進階功能分頁 - 圖片背景方案"""
         try:
-            # 進階功能按鈕配置 
-            functions = [
-                {
-                    "emoji": "🌟",
-                    "title": "大限運勢",
-                    "subtitle": "十年大運分析",
-                    "data": "function=daxian_fortune",
-                    "enabled": is_premium or is_admin
-                },
-                {
-                    "emoji": "🎯",
-                    "title": "小限運勢",
-                    "subtitle": "年度運勢詳解", 
-                    "data": "function=xiaoxian_fortune",
-                    "enabled": is_premium or is_admin
-                },
-                {
-                    "emoji": "📅",
-                    "title": "流年運勢",
-                    "subtitle": "當年運勢走向",
-                    "data": "function=yearly_fortune",
-                    "enabled": is_premium or is_admin
-                },
-                {
-                    "emoji": "🌙",
-                    "title": "流月運勢",
-                    "subtitle": "月度運勢指引",
-                    "data": "function=monthly_fortune",
-                    "enabled": is_premium or is_admin
-                }
-            ]
+            # 創建標題文字層
+            title_text = FlexText(
+                text="💎 進階功能 💎",
+                size="md",
+                weight="bold",
+                color=self.colors["star_gold"],
+                align="center"
+            )
             
-            # 創建標題 Box
-            header_box = FlexBox(
+            # 創建功能按鈕 (疊加在圖片上)
+            function_buttons = FlexBox(
                 layout="vertical",
-                paddingAll="10px",
                 spacing="xs",
                 contents=[
-                    FlexText(
-                        text="💎 進階功能 💎",
-                        size="md",
-                        weight="bold",
-                        color=self.colors["star_gold"],
-                        align="center"
+                    FlexBox(
+                        layout="horizontal",
+                        spacing="sm",
+                        contents=[
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="🌟", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="大限運勢", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="function=daxian_fortune", displayText="大限運勢") if (is_premium or is_admin) else None,
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            ),
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="🎯", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="小限運勢", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="function=xiaoxian_fortune", displayText="小限運勢") if (is_premium or is_admin) else None,
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            )
+                        ]
+                    ),
+                    FlexBox(
+                        layout="horizontal",
+                        spacing="sm",
+                        contents=[
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="📅", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="流年運勢", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="function=yearly_fortune", displayText="流年運勢") if (is_premium or is_admin) else None,
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            ),
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="🌙", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="流月運勢", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="function=monthly_fortune", displayText="流月運勢") if (is_premium or is_admin) else None,
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            )
+                        ]
                     )
                 ]
             )
             
-            # 創建功能按鈕
-            function_boxes = []
-            for func in functions:
-                button_box = self._create_function_button(
-                    emoji=func["emoji"],
-                    title=func["title"],
-                    subtitle=func["subtitle"],
-                    data=func["data"],
-                    enabled=func["enabled"],
-                    color=self.colors["accent"]
-                )
-                if button_box:
-                    function_boxes.append(button_box)
-            
-            # 分隔符號
-            for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
-            
-            # 組合所有內容
-            all_contents = [header_box]
-            all_contents.extend(function_boxes)
+            # 組合標題和按鈕
+            content_overlay = FlexBox(
+                layout="vertical",
+                spacing="sm",
+                paddingAll="12px",
+                contents=[title_text, function_buttons]
+            )
             
             return FlexBubble(
                 size="nano",
-                hero=FlexBox(
-                    layout="vertical",
-                    height="40px",
-                    paddingAll="0px",
-                    spacing="none",
-                    contents=[]
+                # 使用 hero 作為星空背景圖片
+                hero=FlexImage(
+                    url="https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=400&h=200&fit=crop&auto=format",
+                    size="full",
+                    aspectRatio="20:10",
+                    aspectMode="cover"
                 ),
-                body=FlexBox(
-                    layout="vertical",
-                    paddingAll="10px",
-                    spacing="xs",
-                    contents=all_contents
-                ),
+                # body 作為內容疊加層
+                body=content_overlay,
                 styles={
-                    "hero": {
-                        "backgroundImage": self.simple_backgrounds.get("advanced"),  # 方案3: 簡單圖片
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
-                    },
                     "body": {
-                        "backgroundColor": "#2C1810"  # 深棕色背景
+                        "backgroundColor": "rgba(155, 89, 182, 0.8)"  # 紫色半透明背景
                     }
                 }
             )
