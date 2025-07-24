@@ -34,7 +34,32 @@ class NewFunctionMenuGenerator:
             "disabled": "#6C7B7F"        # 禁用顏色
         }
         
-        # 星空背景圖片配置 - 快取破壞者
+        # 嘗試多種星空背景方案
+        # 方案1: 直接的星空圖片URL (不使用快取破壞者)
+        self.background_images_v1 = {
+            "basic": "https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=200&fit=crop&auto=format",
+            "advanced": "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=400&h=200&fit=crop&auto=format", 
+            "admin": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&h=200&fit=crop&auto=format",
+            "test": "https://images.unsplash.com/photo-1464802686167-b939a6910659?w=400&h=200&fit=crop&auto=format"
+        }
+        
+        # 方案2: 內建生成的漸變圖案
+        self.generated_backgrounds = {
+            "basic": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InN0YXJzIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMEYwRjIzIi8+PHN0b3Agb2Zmc2V0PSI1MCUiIHN0b3AtY29sb3I9IiMxQTFBMkUiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxNjIxM0UiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3N0YXJzKSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjRkZENzAwIiBmb250LXNpemU9IjI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+4pyoIOKcqCDimIU8L3RleHQ+PC9zdmc+",
+            "advanced": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InB1cnBsZSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzJDMTgxMCIvPjxzdG9wIG9mZnNldD0iNTAlIiBzdG9wLWNvbG9yPSIjOUI1OUI2Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMUExMDJFIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwdXJwbGUpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNGRkQ3MDAiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wn5KOIPCfjpEg4pyoPC90ZXh0Pjwvc3ZnPg==",
+            "admin": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InJlZCI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzJFMUExQSIvPjxzdG9wIG9mZnNldD0iNTAlIiBzdG9wLWNvbG9yPSIjRTc0QzNDIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMUEwQTBBIi8+PC9yYWRpYWxHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNyZWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNGRkQ3MDAiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wn5GRIPCfkqkg4pyoPC90ZXh0Pjwvc3ZnPg==",
+            "test": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyZWVuIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMEYxNDE5Ii8+PHN0b3Agb2Zmc2V0PSI1MCUiIHN0b3AtY29sb3I9IiMyRUNDNzEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxQTJFMUEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyZWVuKSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjRkZENzAwIiBmb250LXNpemU9IjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+ngqog4pyoIOKcqDwvdGV4dD48L3N2Zz4="
+        }
+        
+        # 方案3: 更簡單的外部圖片
+        self.simple_backgrounds = {
+            "basic": "https://via.placeholder.com/400x200/1A1A2E/FFD700?text=✨+星空+✨",
+            "advanced": "https://via.placeholder.com/400x200/9B59B6/FFD700?text=💎+進階+💎", 
+            "admin": "https://via.placeholder.com/400x200/E74C3C/FFD700?text=👑+管理+👑",
+            "test": "https://via.placeholder.com/400x200/2ECC71/FFD700?text=🧪+測試+🧪"
+        }
+        
+        # 方案4: 保留原始方案作為備用
         cache_buster = f"?v={int(time.time())}"
         self.background_images = {
             "basic": f"https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80{cache_buster}",
@@ -111,7 +136,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_basic_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建基本功能分頁 - 嘗試 hero 背景"""
+        """創建基本功能分頁 - 測試方案2: 內建生成SVG背景"""
         try:
             # 基本功能按鈕配置
             functions = [
@@ -193,7 +218,7 @@ class NewFunctionMenuGenerator:
                 ),
                 styles={
                     "hero": {
-                        "backgroundImage": self.background_images.get("basic", self.fallback_images["basic"]),
+                        "backgroundImage": self.generated_backgrounds.get("basic"),  # 方案2: SVG背景
                         "backgroundSize": "cover",
                         "backgroundPosition": "center"
                     },
@@ -208,7 +233,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_advanced_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建進階功能分頁 - 方法2：使用 Image 組件作為背景"""
+        """創建進階功能分頁 - 測試方案3: 簡單外部圖片"""
         try:
             # 進階功能按鈕配置 
             functions = [
@@ -282,6 +307,13 @@ class NewFunctionMenuGenerator:
             
             return FlexBubble(
                 size="nano",
+                hero=FlexBox(
+                    layout="vertical",
+                    height="40px",
+                    paddingAll="0px",
+                    spacing="none",
+                    contents=[]
+                ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="10px",
@@ -289,6 +321,11 @@ class NewFunctionMenuGenerator:
                     contents=all_contents
                 ),
                 styles={
+                    "hero": {
+                        "backgroundImage": self.simple_backgrounds.get("advanced"),  # 方案3: 簡單圖片
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
+                    },
                     "body": {
                         "backgroundColor": "#2C1810"  # 深棕色背景
                     }
@@ -300,7 +337,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_admin_function_page(self) -> Optional[FlexBubble]:
-        """創建管理員功能分頁 - 深色背景"""
+        """創建管理員功能分頁 - 測試方案1: 優化的外部星空圖片"""
         try:
             # 管理員功能按鈕配置
             functions = [
@@ -374,6 +411,13 @@ class NewFunctionMenuGenerator:
             
             return FlexBubble(
                 size="nano",
+                hero=FlexBox(
+                    layout="vertical",
+                    height="40px",
+                    paddingAll="0px",
+                    spacing="none",
+                    contents=[]
+                ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="10px",
@@ -381,6 +425,11 @@ class NewFunctionMenuGenerator:
                     contents=all_contents
                 ),
                 styles={
+                    "hero": {
+                        "backgroundImage": self.background_images_v1.get("admin"),  # 方案1: 優化星空圖片
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
+                    },
                     "body": {
                         "backgroundColor": "#2E1A1A"  # 深紅色背景
                     }
@@ -392,7 +441,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_test_function_page(self) -> Optional[FlexBubble]:
-        """創建測試功能分頁 - 回到簡單深色背景但加星星表情"""
+        """創建測試功能分頁 - 測試方案4: 原始方案作為備用"""
         try:
             # 測試功能按鈕配置
             functions = [
@@ -472,6 +521,13 @@ class NewFunctionMenuGenerator:
             
             return FlexBubble(
                 size="nano",
+                hero=FlexBox(
+                    layout="vertical",
+                    height="40px",
+                    paddingAll="0px",
+                    spacing="none",
+                    contents=[]
+                ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="10px",
@@ -479,6 +535,11 @@ class NewFunctionMenuGenerator:
                     contents=all_contents
                 ),
                 styles={
+                    "hero": {
+                        "backgroundImage": self.fallback_images.get("test"),  # 方案4: 備用方案
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
+                    },
                     "body": {
                         "backgroundColor": "#0F1419"  # 非常深的夜空色
                     }
