@@ -111,7 +111,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_basic_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建基本功能分頁"""
+        """創建基本功能分頁 - 嘗試 hero 背景"""
         try:
             # 基本功能按鈕配置
             functions = [
@@ -138,7 +138,7 @@ class NewFunctionMenuGenerator:
                 }
             ]
             
-            # 創建標題 Box（移到 body 內）
+            # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
                 paddingAll="10px",
@@ -178,6 +178,13 @@ class NewFunctionMenuGenerator:
             
             return FlexBubble(
                 size="nano",
+                hero=FlexBox(
+                    layout="vertical",
+                    height="40px",
+                    paddingAll="0px",
+                    spacing="none",
+                    contents=[]
+                ),
                 body=FlexBox(
                     layout="vertical",
                     paddingAll="10px",
@@ -185,6 +192,11 @@ class NewFunctionMenuGenerator:
                     contents=all_contents
                 ),
                 styles={
+                    "hero": {
+                        "backgroundImage": self.background_images.get("basic", self.fallback_images["basic"]),
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center"
+                    },
                     "body": {
                         "backgroundColor": "#1A1A2E"  # 深夜藍背景
                     }
@@ -196,9 +208,9 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_advanced_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建進階功能分頁"""
+        """創建進階功能分頁 - 方法2：使用 Image 組件作為背景"""
         try:
-            # 進階功能按鈕配置
+            # 進階功能按鈕配置 
             functions = [
                 {
                     "emoji": "🌟",
@@ -209,8 +221,8 @@ class NewFunctionMenuGenerator:
                 },
                 {
                     "emoji": "🎯",
-                    "title": "小限運勢", 
-                    "subtitle": "年度運勢詳解",
+                    "title": "小限運勢",
+                    "subtitle": "年度運勢詳解", 
                     "data": "function=xiaoxian_fortune",
                     "enabled": is_premium or is_admin
                 },
@@ -230,7 +242,7 @@ class NewFunctionMenuGenerator:
                 }
             ]
             
-            # 創建標題 Box（移到 body 內）
+            # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
                 paddingAll="10px",
@@ -288,7 +300,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_admin_function_page(self) -> Optional[FlexBubble]:
-        """創建管理員功能分頁"""
+        """創建管理員功能分頁 - 深色背景"""
         try:
             # 管理員功能按鈕配置
             functions = [
@@ -322,7 +334,7 @@ class NewFunctionMenuGenerator:
                 }
             ]
             
-            # 創建標題 Box（移到 body 內）
+            # 創建標題 Box
             header_box = FlexBox(
                 layout="vertical",
                 paddingAll="10px",
@@ -380,7 +392,7 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_test_function_page(self) -> Optional[FlexBubble]:
-        """創建測試功能分頁"""
+        """創建測試功能分頁 - 回到簡單深色背景但加星星表情"""
         try:
             # 測試功能按鈕配置
             functions = [
@@ -414,17 +426,23 @@ class NewFunctionMenuGenerator:
                 }
             ]
             
-            # 創建標題 Box（移到 body 內）
+            # 創建星空裝飾標題
             header_box = FlexBox(
                 layout="vertical",
                 paddingAll="10px",
                 spacing="xs",
                 contents=[
                     FlexText(
-                        text="🧪 測試功能 🧪",
+                        text="✨🌟⭐ 測試功能 ⭐🌟✨",
                         size="md",
                         weight="bold",
                         color=self.colors["star_gold"],
+                        align="center"
+                    ),
+                    FlexText(
+                        text="🌌 🌟 ✨ 🌟 🌌",
+                        size="xs",
+                        color=self.colors["text_light"],
                         align="center"
                     )
                 ]
@@ -462,7 +480,7 @@ class NewFunctionMenuGenerator:
                 ),
                 styles={
                     "body": {
-                        "backgroundColor": "#1A2E1A"  # 深綠色背景
+                        "backgroundColor": "#0F1419"  # 非常深的夜空色
                     }
                 }
             )
