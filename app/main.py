@@ -23,6 +23,7 @@ from app.api import payment_routes
 from app.api import chart_binding_routes
 from app.api import webhook  # Added LINE Bot webhook
 from app.api import webhook_simple # Added Simple LINE Bot webhook
+from app.api import webhook_new  # Added New LINE Bot webhook (重構版)
 from app.logic.divination_logic import divination_logic
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException
@@ -207,6 +208,7 @@ app.include_router(payment_routes.router, prefix="/api/payment")
 app.include_router(chart_binding_routes.router, prefix="/api")
 app.include_router(webhook.router)  # LINE Bot webhook at root path
 app.include_router(webhook_simple.router, prefix="/api/linebot")
+app.include_router(webhook_new.router, prefix="/api/webhook_new")
 
 @app.get("/")
 @limiter.limit("10/minute")  # 首頁限制

@@ -21,6 +21,7 @@ from ..logic.divination_logic import get_divination_result
 from ..logic.permission_manager import permission_manager
 from ..utils.divination_flex_message import DivinationFlexMessageGenerator
 from ..utils.flex_carousel_control_panel import generate_carousel_control_panel
+from ..utils.new_function_menu import generate_new_function_menu  # 新的功能選單
 from ..utils.flex_instructions import FlexInstructionsGenerator
 from ..utils.time_picker_flex_message import TimePickerFlexMessageGenerator
 from ..utils.flex_admin_panel import FlexAdminPanelGenerator
