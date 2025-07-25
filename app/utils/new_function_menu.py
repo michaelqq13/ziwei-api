@@ -10,7 +10,7 @@ from linebot.v3.messaging import (
     FlexMessage, FlexCarousel, FlexBubble, FlexBox, FlexText,
     FlexSeparator, PostbackAction, FlexImage, TemplateMessage, 
     ImageCarouselTemplate, ImageCarouselColumn, URIAction,
-    TextMessage, QuickReply, QuickReplyButton
+    TextMessage, QuickReply, QuickReplyItem
 )
 import time
 
@@ -101,7 +101,7 @@ class NewFunctionMenuGenerator:
             
             # 1. 基本功能 - 所有用戶都能看到
             quick_reply_buttons.append(
-                QuickReplyButton(
+                QuickReplyItem(
                     action=PostbackAction(
                         data="category=basic_functions",
                         displayText="🔮 基本功能"
@@ -112,7 +112,7 @@ class NewFunctionMenuGenerator:
             # 2. 進階功能 - 付費會員和管理員可見
             if is_premium or is_admin:
                 quick_reply_buttons.append(
-                    QuickReplyButton(
+                    QuickReplyItem(
                         action=PostbackAction(
                             data="category=advanced_functions", 
                             displayText="💎 進階功能"
@@ -123,7 +123,7 @@ class NewFunctionMenuGenerator:
             # 3. 管理員功能 - 僅管理員可見
             if is_admin:
                 quick_reply_buttons.append(
-                    QuickReplyButton(
+                    QuickReplyItem(
                         action=PostbackAction(
                             data="category=admin_functions",
                             displayText="👑 管理功能"
@@ -133,7 +133,7 @@ class NewFunctionMenuGenerator:
                 
                 # 4. 測試功能 - 僅管理員可見
                 quick_reply_buttons.append(
-                    QuickReplyButton(
+                    QuickReplyItem(
                         action=PostbackAction(
                             data="category=test_functions",
                             displayText="🧪 測試功能"
