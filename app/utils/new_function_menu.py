@@ -136,80 +136,77 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_basic_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
-        """創建基本功能分頁 - 圖片背景方案"""
+        """創建基本功能分頁 - 單一容器疊加方案"""
         try:
-            # 創建標題文字層
-            title_text = FlexText(
-                text="✨ 基本功能 ✨",
-                size="md",
-                weight="bold",
-                color=self.colors["star_gold"],
-                align="center"
-            )
-            
-            # 創建功能按鈕 (疊加在圖片上)
-            function_buttons = FlexBox(
-                layout="horizontal",
-                spacing="sm",
-                contents=[
-                    FlexBox(
-                        layout="vertical",
-                        flex=1,
-                        contents=[
-                            FlexText(text="🔮", size="lg", align="center", color=self.colors["star_gold"]),
-                            FlexText(text="本週占卜", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
-                        ],
-                        action=PostbackAction(data="function=weekly_divination", displayText="本週占卜"),
-                        paddingAll="8px",
-                        cornerRadius="8px"
-                    ),
-                    FlexBox(
-                        layout="vertical", 
-                        flex=1,
-                        contents=[
-                            FlexText(text="👤", size="lg", align="center", color=self.colors["star_gold"]),
-                            FlexText(text="會員資訊", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
-                        ],
-                        action=PostbackAction(data="function=member_info", displayText="會員資訊"),
-                        paddingAll="8px", 
-                        cornerRadius="8px"
-                    ),
-                    FlexBox(
-                        layout="vertical",
-                        flex=1, 
-                        contents=[
-                            FlexText(text="📖", size="lg", align="center", color=self.colors["star_gold"]),
-                            FlexText(text="使用說明", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
-                        ],
-                        action=PostbackAction(data="function=instructions", displayText="使用說明"),
-                        paddingAll="8px",
-                        cornerRadius="8px"
-                    )
-                ]
-            )
-            
-            # 組合標題和按鈕
-            content_overlay = FlexBox(
-                layout="vertical",
-                spacing="md",
-                paddingAll="15px",
-                backgroundColor="#1A1A2E",  # 深夜藍背景 (不用 rgba)
-                cornerRadius="12px",  # 圓角讓它看起來像浮層
-                contents=[title_text, function_buttons]
-            )
-            
             return FlexBubble(
                 size="nano",
-                # 使用 hero 作為星空背景圖片
-                hero=FlexImage(
-                    url="https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=200&fit=crop&auto=format",
-                    size="full",
-                    aspectRatio="20:10",
-                    aspectMode="cover"
-                ),
-                # body 作為內容疊加層
-                body=content_overlay
-                # 移除 styles，因為 LINE API 不支援 rgba backgroundColor
+                body=FlexBox(
+                    layout="vertical",
+                    paddingAll="0px",
+                    spacing="none",
+                    backgroundImage="https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=200&fit=crop&auto=format",
+                    contents=[
+                        # 疊加的內容層
+                        FlexBox(
+                            layout="vertical",
+                            paddingAll="15px",
+                            spacing="md",
+                            contents=[
+                                # 標題
+                                FlexText(
+                                    text="✨ 基本功能 ✨",
+                                    size="md",
+                                    weight="bold",
+                                    color=self.colors["star_gold"],
+                                    align="center"
+                                ),
+                                # 按鈕區域
+                                FlexBox(
+                                    layout="horizontal",
+                                    spacing="sm",
+                                    contents=[
+                                        FlexBox(
+                                            layout="vertical",
+                                            flex=1,
+                                            backgroundColor="#1A1A2ECC",  # 使用 hex + alpha
+                                            cornerRadius="8px",
+                                            paddingAll="8px",
+                                            contents=[
+                                                FlexText(text="🔮", size="lg", align="center", color=self.colors["star_gold"]),
+                                                FlexText(text="本週占卜", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
+                                            ],
+                                            action=PostbackAction(data="function=weekly_divination", displayText="本週占卜")
+                                        ),
+                                        FlexBox(
+                                            layout="vertical",
+                                            flex=1,
+                                            backgroundColor="#1A1A2ECC",  # 使用 hex + alpha
+                                            cornerRadius="8px", 
+                                            paddingAll="8px",
+                                            contents=[
+                                                FlexText(text="👤", size="lg", align="center", color=self.colors["star_gold"]),
+                                                FlexText(text="會員資訊", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
+                                            ],
+                                            action=PostbackAction(data="function=member_info", displayText="會員資訊")
+                                        ),
+                                        FlexBox(
+                                            layout="vertical",
+                                            flex=1,
+                                            backgroundColor="#1A1A2ECC",  # 使用 hex + alpha
+                                            cornerRadius="8px",
+                                            paddingAll="8px", 
+                                            contents=[
+                                                FlexText(text="📖", size="lg", align="center", color=self.colors["star_gold"]),
+                                                FlexText(text="使用說明", size="xs", align="center", color=self.colors["text_primary"], weight="bold")
+                                            ],
+                                            action=PostbackAction(data="function=instructions", displayText="使用說明")
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                )
             )
             
         except Exception as e:
