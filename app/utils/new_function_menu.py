@@ -193,6 +193,8 @@ class NewFunctionMenuGenerator:
                 layout="vertical",
                 spacing="md",
                 paddingAll="15px",
+                backgroundColor="#1A1A2E",  # 深夜藍背景 (不用 rgba)
+                cornerRadius="12px",  # 圓角讓它看起來像浮層
                 contents=[title_text, function_buttons]
             )
             
@@ -206,12 +208,8 @@ class NewFunctionMenuGenerator:
                     aspectMode="cover"
                 ),
                 # body 作為內容疊加層
-                body=content_overlay,
-                styles={
-                    "body": {
-                        "backgroundColor": "rgba(26, 26, 46, 0.8)"  # 半透明背景
-                    }
-                }
+                body=content_overlay
+                # 移除 styles，因為 LINE API 不支援 rgba backgroundColor
             )
             
         except Exception as e:
@@ -299,6 +297,8 @@ class NewFunctionMenuGenerator:
                 layout="vertical",
                 spacing="sm",
                 paddingAll="12px",
+                backgroundColor="#2C1810",  # 深棕色背景
+                cornerRadius="12px",  # 圓角浮層效果
                 contents=[title_text, function_buttons]
             )
             
@@ -312,12 +312,8 @@ class NewFunctionMenuGenerator:
                     aspectMode="cover"
                 ),
                 # body 作為內容疊加層
-                body=content_overlay,
-                styles={
-                    "body": {
-                        "backgroundColor": "rgba(155, 89, 182, 0.8)"  # 紫色半透明背景
-                    }
-                }
+                body=content_overlay
+                # 移除 styles，因為 LINE API 不支援 rgba backgroundColor
             )
             
         except Exception as e:
@@ -325,103 +321,102 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_admin_function_page(self) -> Optional[FlexBubble]:
-        """創建管理員功能分頁 - 測試方案1: 優化的外部星空圖片"""
+        """創建管理員功能分頁 - 圖片背景方案"""
         try:
-            # 管理員功能按鈕配置
-            functions = [
-                {
-                    "emoji": "⏰",
-                    "title": "指定時間占卜",
-                    "subtitle": "自定義時間占卜",
-                    "data": "admin_function=time_divination",
-                    "enabled": True
-                },
-                {
-                    "emoji": "📊",
-                    "title": "系統監控",
-                    "subtitle": "系統狀態監控",
-                    "data": "admin_function=system_monitor",
-                    "enabled": True
-                },
-                {
-                    "emoji": "👥",
-                    "title": "用戶管理",
-                    "subtitle": "管理用戶資料",
-                    "data": "admin_function=user_management",
-                    "enabled": True
-                },
-                {
-                    "emoji": "⚙️",
-                    "title": "選單管理",
-                    "subtitle": "功能選單設定",
-                    "data": "admin_function=menu_management",
-                    "enabled": True
-                }
-            ]
+            # 創建標題文字層
+            title_text = FlexText(
+                text="👑 管理功能 👑",
+                size="md",
+                weight="bold",
+                color=self.colors["star_gold"],
+                align="center"
+            )
             
-            # 創建標題 Box
-            header_box = FlexBox(
+            # 創建功能按鈕 (疊加在圖片上)
+            function_buttons = FlexBox(
                 layout="vertical",
-                paddingAll="10px",
                 spacing="xs",
                 contents=[
-                    FlexText(
-                        text="👑 管理功能 👑",
-                        size="md",
-                        weight="bold",
-                        color=self.colors["star_gold"],
-                        align="center"
+                    FlexBox(
+                        layout="horizontal",
+                        spacing="sm",
+                        contents=[
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="⏰", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="指定時間占卜", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="admin_function=time_divination", displayText="指定時間占卜"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            ),
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="📊", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="系統監控", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="admin_function=system_monitor", displayText="系統監控"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            )
+                        ]
+                    ),
+                    FlexBox(
+                        layout="horizontal",
+                        spacing="sm",
+                        contents=[
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="👥", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="用戶管理", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="admin_function=user_management", displayText="用戶管理"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            ),
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="⚙️", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="選單管理", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="admin_function=menu_management", displayText="選單管理"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            )
+                        ]
                     )
                 ]
             )
             
-            # 創建功能按鈕
-            function_boxes = []
-            for func in functions:
-                button_box = self._create_function_button(
-                    emoji=func["emoji"],
-                    title=func["title"],
-                    subtitle=func["subtitle"],
-                    data=func["data"],
-                    enabled=func["enabled"],
-                    color=self.colors["admin"]
-                )
-                if button_box:
-                    function_boxes.append(button_box)
-            
-            # 分隔符號
-            for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
-            
-            # 組合所有內容
-            all_contents = [header_box]
-            all_contents.extend(function_boxes)
+            # 組合標題和按鈕
+            content_overlay = FlexBox(
+                layout="vertical",
+                spacing="sm",
+                paddingAll="12px",
+                backgroundColor="#2E1A1A",  # 深紅色背景
+                cornerRadius="12px",  # 圓角浮層效果
+                contents=[title_text, function_buttons]
+            )
             
             return FlexBubble(
                 size="nano",
-                hero=FlexBox(
-                    layout="vertical",
-                    height="40px",
-                    paddingAll="0px",
-                    spacing="none",
-                    contents=[]
+                # 使用 hero 作為星空背景圖片
+                hero=FlexImage(
+                    url="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&h=200&fit=crop&auto=format",
+                    size="full",
+                    aspectRatio="20:10",
+                    aspectMode="cover"
                 ),
-                body=FlexBox(
-                    layout="vertical",
-                    paddingAll="10px",
-                    spacing="xs",
-                    contents=all_contents
-                ),
-                styles={
-                    "hero": {
-                        "backgroundImage": self.background_images_v1.get("admin"),  # 方案1: 優化星空圖片
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
-                    },
-                    "body": {
-                        "backgroundColor": "#2E1A1A"  # 深紅色背景
-                    }
-                }
+                # body 作為內容疊加層
+                body=content_overlay
             )
             
         except Exception as e:
@@ -429,109 +424,102 @@ class NewFunctionMenuGenerator:
             return None
 
     def _create_test_function_page(self) -> Optional[FlexBubble]:
-        """創建測試功能分頁 - 測試方案4: 原始方案作為備用"""
+        """創建測試功能分頁 - 圖片背景方案"""
         try:
-            # 測試功能按鈕配置
-            functions = [
-                {
-                    "emoji": "🧪",
-                    "title": "測試免費",
-                    "subtitle": "切換免費會員身份",
-                    "data": "test_function=test_free",
-                    "enabled": True
-                },
-                {
-                    "emoji": "💎",
-                    "title": "測試付費",
-                    "subtitle": "切換付費會員身份",
-                    "data": "test_function=test_premium",
-                    "enabled": True
-                },
-                {
-                    "emoji": "👑",
-                    "title": "回復管理員",
-                    "subtitle": "恢復管理員身份",
-                    "data": "test_function=restore_admin",
-                    "enabled": True
-                },
-                {
-                    "emoji": "📋",
-                    "title": "檢查狀態",
-                    "subtitle": "查看當前測試狀態",
-                    "data": "test_function=check_status",
-                    "enabled": True
-                }
-            ]
+            # 創建標題文字層
+            title_text = FlexText(
+                text="🧪 測試功能 🧪",
+                size="md",
+                weight="bold",
+                color=self.colors["star_gold"],
+                align="center"
+            )
             
-            # 創建星空裝飾標題
-            header_box = FlexBox(
+            # 創建功能按鈕 (疊加在圖片上)
+            function_buttons = FlexBox(
                 layout="vertical",
-                paddingAll="10px",
                 spacing="xs",
                 contents=[
-                    FlexText(
-                        text="✨🌟⭐ 測試功能 ⭐🌟✨",
-                        size="md",
-                        weight="bold",
-                        color=self.colors["star_gold"],
-                        align="center"
+                    FlexBox(
+                        layout="horizontal",
+                        spacing="sm",
+                        contents=[
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="🧪", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="測試免費", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="test_function=test_free", displayText="測試免費"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            ),
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="💎", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="測試付費", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="test_function=test_premium", displayText="測試付費"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            )
+                        ]
                     ),
-                    FlexText(
-                        text="🌌 🌟 ✨ 🌟 🌌",
-                        size="xs",
-                        color=self.colors["text_light"],
-                        align="center"
+                    FlexBox(
+                        layout="horizontal",
+                        spacing="sm",
+                        contents=[
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="👑", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="回復管理員", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="test_function=restore_admin", displayText="回復管理員"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            ),
+                            FlexBox(
+                                layout="vertical",
+                                flex=1,
+                                contents=[
+                                    FlexText(text="📋", size="md", align="center", color=self.colors["star_gold"]),
+                                    FlexText(text="檢查狀態", size="xxs", align="center", color=self.colors["text_primary"], weight="bold")
+                                ],
+                                action=PostbackAction(data="test_function=check_status", displayText="檢查狀態"),
+                                paddingAll="6px",
+                                cornerRadius="6px"
+                            )
+                        ]
                     )
                 ]
             )
             
-            # 創建功能按鈕
-            function_boxes = []
-            for func in functions:
-                button_box = self._create_function_button(
-                    emoji=func["emoji"],
-                    title=func["title"],
-                    subtitle=func["subtitle"],
-                    data=func["data"],
-                    enabled=func["enabled"],
-                    color=self.colors["test"]
-                )
-                if button_box:
-                    function_boxes.append(button_box)
-            
-            # 分隔符號
-            for i in range(len(function_boxes) - 1):
-                function_boxes.insert((i + 1) * 2 - 1, FlexSeparator(margin="xs", color=self.colors["star_gold"]))
-            
-            # 組合所有內容
-            all_contents = [header_box]
-            all_contents.extend(function_boxes)
+            # 組合標題和按鈕
+            content_overlay = FlexBox(
+                layout="vertical",
+                spacing="sm",
+                paddingAll="12px",
+                backgroundColor="#0F1419",  # 非常深的夜空色
+                cornerRadius="12px",  # 圓角浮層效果
+                contents=[title_text, function_buttons]
+            )
             
             return FlexBubble(
                 size="nano",
-                hero=FlexBox(
-                    layout="vertical",
-                    height="40px",
-                    paddingAll="0px",
-                    spacing="none",
-                    contents=[]
+                # 使用 hero 作為星空背景圖片
+                hero=FlexImage(
+                    url="https://images.unsplash.com/photo-1464802686167-b939a6910659?w=400&h=200&fit=crop&auto=format",
+                    size="full",
+                    aspectRatio="20:10",
+                    aspectMode="cover"
                 ),
-                body=FlexBox(
-                    layout="vertical",
-                    paddingAll="10px",
-                    spacing="xs",
-                    contents=all_contents
-                ),
-                styles={
-                    "hero": {
-                        "backgroundImage": self.fallback_images.get("test"),  # 方案4: 備用方案
-                        "backgroundSize": "cover",
-                        "backgroundPosition": "center"
-                    },
-                    "body": {
-                        "backgroundColor": "#0F1419"  # 非常深的夜空色
-                    }
-                }
+                # body 作為內容疊加層
+                body=content_overlay
             )
             
         except Exception as e:
