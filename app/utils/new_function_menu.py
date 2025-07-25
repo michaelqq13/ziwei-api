@@ -103,6 +103,7 @@ class NewFunctionMenuGenerator:
             quick_reply_buttons.append(
                 QuickReplyItem(
                     action=PostbackAction(
+                        label="🔮 基本功能",
                         data="category=basic_functions",
                         displayText="🔮 基本功能"
                     )
@@ -114,6 +115,7 @@ class NewFunctionMenuGenerator:
                 quick_reply_buttons.append(
                     QuickReplyItem(
                         action=PostbackAction(
+                            label="💎 進階功能",
                             data="category=advanced_functions", 
                             displayText="💎 進階功能"
                         )
@@ -125,6 +127,7 @@ class NewFunctionMenuGenerator:
                 quick_reply_buttons.append(
                     QuickReplyItem(
                         action=PostbackAction(
+                            label="👑 管理功能",
                             data="category=admin_functions",
                             displayText="👑 管理功能"
                         )
@@ -135,6 +138,7 @@ class NewFunctionMenuGenerator:
                 quick_reply_buttons.append(
                     QuickReplyItem(
                         action=PostbackAction(
+                            label="🧪 測試功能",
                             data="category=test_functions",
                             displayText="🧪 測試功能"
                         )
