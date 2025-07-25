@@ -8,7 +8,9 @@ import logging
 from typing import Dict, List, Optional, Any
 from linebot.v3.messaging import (
     FlexMessage, FlexCarousel, FlexBubble, FlexBox, FlexText,
-    FlexSeparator, PostbackAction, FlexImage
+    FlexSeparator, PostbackAction, FlexImage, TemplateMessage, 
+    ImageCarouselTemplate, ImageCarouselColumn, URIAction,
+    TextMessage, QuickReply, QuickReplyButton
 )
 import time
 
@@ -76,15 +78,15 @@ class NewFunctionMenuGenerator:
             "test": "https://via.placeholder.com/800x400/2ECC71/FFD700?text=🧪+測試功能+🧪"
         }
 
-    def generate_function_menu(self, user_stats: Dict[str, Any]) -> Optional[FlexMessage]:
+    def generate_function_menu(self, user_stats: Dict[str, Any]) -> Optional[TextMessage]:
         """
-        生成功能選單 Carousel
+        生成功能選單 Quick Reply (第一層：分類選擇)
         
         Args:
             user_stats: 用戶統計資訊，包含權限和會員資訊
             
         Returns:
-            FlexMessage 物件或 None
+            TextMessage 物件或 None
         """
         try:
             # 獲取用戶權限
@@ -94,45 +96,99 @@ class NewFunctionMenuGenerator:
             is_admin = user_info.get("is_admin", False)
             is_premium = membership_info.get("is_premium", False)
             
-            # 創建所有分頁
-            bubbles = []
+            # 創建快速回覆按鈕
+            quick_reply_buttons = []
             
             # 1. 基本功能 - 所有用戶都能看到
-            basic_bubble = self._create_basic_function_page(is_admin, is_premium)
-            if basic_bubble:
-                bubbles.append(basic_bubble)
+            quick_reply_buttons.append(
+                QuickReplyButton(
+                    action=PostbackAction(
+                        data="category=basic_functions",
+                        displayText="🔮 基本功能"
+                    )
+                )
+            )
             
             # 2. 進階功能 - 付費會員和管理員可見
             if is_premium or is_admin:
-                advanced_bubble = self._create_advanced_function_page(is_admin, is_premium)
-                if advanced_bubble:
-                    bubbles.append(advanced_bubble)
+                quick_reply_buttons.append(
+                    QuickReplyButton(
+                        action=PostbackAction(
+                            data="category=advanced_functions", 
+                            displayText="💎 進階功能"
+                        )
+                    )
+                )
             
             # 3. 管理員功能 - 僅管理員可見
             if is_admin:
-                admin_bubble = self._create_admin_function_page()
-                if admin_bubble:
-                    bubbles.append(admin_bubble)
+                quick_reply_buttons.append(
+                    QuickReplyButton(
+                        action=PostbackAction(
+                            data="category=admin_functions",
+                            displayText="👑 管理功能"
+                        )
+                    )
+                )
                 
                 # 4. 測試功能 - 僅管理員可見
-                test_bubble = self._create_test_function_page()
-                if test_bubble:
-                    bubbles.append(test_bubble)
+                quick_reply_buttons.append(
+                    QuickReplyButton(
+                        action=PostbackAction(
+                            data="category=test_functions",
+                            displayText="🧪 測試功能"
+                        )
+                    )
+                )
             
-            if not bubbles:
-                logger.warning("沒有可用的功能分頁")
+            if not quick_reply_buttons:
+                logger.warning("沒有可用的功能分類")
                 return None
             
-            # 創建 Carousel
-            carousel = FlexCarousel(contents=bubbles)
+            # 創建快速回覆
+            quick_reply = QuickReply(items=quick_reply_buttons)
             
-            return FlexMessage(
-                alt_text="🌌 功能選單",
-                contents=carousel
+            return TextMessage(
+                text="✨ 請選擇功能分類 ✨\n\n選擇後將顯示該分類的詳細功能選單",
+                quickReply=quick_reply
             )
             
         except Exception as e:
             logger.error(f"生成功能選單失敗: {e}", exc_info=True)
+            return None
+
+    def generate_category_menu(self, category: str, user_stats: Dict[str, Any]) -> Optional[TemplateMessage]:
+        """
+        生成特定分類的功能選單 Image Carousel (第二層：詳細功能)
+        
+        Args:
+            category: 功能分類 (basic_functions, advanced_functions, admin_functions, test_functions)
+            user_stats: 用戶統計資訊
+            
+        Returns:
+            TemplateMessage 物件或 None
+        """
+        try:
+            user_info = user_stats.get("user_info", {})
+            membership_info = user_stats.get("membership_info", {})
+            
+            is_admin = user_info.get("is_admin", False)
+            is_premium = membership_info.get("is_premium", False)
+            
+            if category == "basic_functions":
+                return self._create_basic_functions_carousel()
+            elif category == "advanced_functions" and (is_premium or is_admin):
+                return self._create_advanced_functions_carousel()
+            elif category == "admin_functions" and is_admin:
+                return self._create_admin_functions_carousel()
+            elif category == "test_functions" and is_admin:
+                return self._create_test_functions_carousel()
+            else:
+                logger.warning(f"無權限訪問分類: {category}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"生成分類選單失敗: {e}", exc_info=True)
             return None
 
     def _create_basic_function_page(self, is_admin: bool, is_premium: bool) -> Optional[FlexBubble]:
@@ -533,6 +589,155 @@ class NewFunctionMenuGenerator:
         except Exception as e:
             logger.error(f"創建測試功能分頁失敗: {e}")
             return None
+
+    def _create_basic_functions_carousel(self) -> TemplateMessage:
+        """創建基本功能的 Image Carousel"""
+        columns = [
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=weekly_divination",
+                    displayText="🔮 本週占卜"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=member_info", 
+                    displayText="👤 會員資訊"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=instructions",
+                    displayText="📖 使用說明"
+                )
+            )
+        ]
+        
+        template = ImageCarouselTemplate(columns=columns)
+        return TemplateMessage(
+            altText="🔮 基本功能選單",
+            template=template
+        )
+
+    def _create_advanced_functions_carousel(self) -> TemplateMessage:
+        """創建進階功能的 Image Carousel"""
+        columns = [
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1464802686167-b939a6910659?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=daxian_fortune",
+                    displayText="🌟 大限運勢"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=xiaoxian_fortune",
+                    displayText="🎯 小限運勢"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=yearly_fortune",
+                    displayText="📅 流年運勢"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="function=monthly_fortune",
+                    displayText="🌙 流月運勢"
+                )
+            )
+        ]
+        
+        template = ImageCarouselTemplate(columns=columns)
+        return TemplateMessage(
+            altText="💎 進階功能選單",
+            template=template
+        )
+
+    def _create_admin_functions_carousel(self) -> TemplateMessage:
+        """創建管理員功能的 Image Carousel"""
+        columns = [
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="admin_function=time_divination",
+                    displayText="⏰ 指定時間占卜"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="admin_function=system_monitor",
+                    displayText="📊 系統監控"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="admin_function=user_management",
+                    displayText="👥 用戶管理"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="admin_function=menu_management",
+                    displayText="⚙️ 選單管理"
+                )
+            )
+        ]
+        
+        template = ImageCarouselTemplate(columns=columns)
+        return TemplateMessage(
+            altText="👑 管理功能選單",
+            template=template
+        )
+
+    def _create_test_functions_carousel(self) -> TemplateMessage:
+        """創建測試功能的 Image Carousel"""
+        columns = [
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="test_function=test_free",
+                    displayText="🧪 測試免費"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="test_function=test_premium",
+                    displayText="💎 測試付費"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="test_function=restore_admin",
+                    displayText="👑 回復管理員"
+                )
+            ),
+            ImageCarouselColumn(
+                imageUrl="https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?w=400&h=240&fit=crop&auto=format",
+                action=PostbackAction(
+                    data="test_function=check_status",
+                    displayText="📋 檢查狀態"
+                )
+            )
+        ]
+        
+        template = ImageCarouselTemplate(columns=columns)
+        return TemplateMessage(
+            altText="🧪 測試功能選單",
+            template=template
+        )
 
     def _create_function_button(self, emoji: str, title: str, subtitle: str, data: str, enabled: bool, color: str) -> Optional[FlexBox]:
         """創建功能按鈕"""

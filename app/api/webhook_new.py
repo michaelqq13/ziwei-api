@@ -21,7 +21,7 @@ from ..config.linebot_config import LineBotConfig
 from ..logic.divination_logic import get_divination_result
 from ..logic.permission_manager import permission_manager
 from ..utils.divination_flex_message import DivinationFlexMessageGenerator
-from ..utils.new_function_menu import generate_new_function_menu
+from ..utils.new_function_menu import new_function_menu_generator
 from ..utils.flex_instructions import FlexInstructionsGenerator
 from ..models.linebot_models import LineBotUser, DivinationHistory
 from ..db.database import get_db
@@ -283,15 +283,12 @@ class WebhookHandler:
         """處理 Postback 事件"""
         logger.info(f"收到 Postback: {data}")
         
-        # 新的 Rich Menu 按鈕
         if data == "action=member_info":
             logger.info("處理會員資訊請求")
             await self.show_member_info()
-        
         elif data == "action=function_menu":
             logger.info("處理功能選單請求")
             await self.show_function_menu()
-        
         elif data == "action=weekly_divination":
             logger.info("處理本週占卜請求")
             gender_selection = self.create_gender_selection()
@@ -301,35 +298,55 @@ class WebhookHandler:
                     messages=[gender_selection]
                 )
             )
-        
         elif data == "action=instructions":
             logger.info("處理使用說明請求")
             await self.show_instructions()
-        
-        # 性別選擇
-        elif data.startswith("gender="):
-            gender = data.split("=")[1]
-            await self.handle_divination(gender)
-        
-        # 功能選單中的按鈕
+        elif data.startswith("category="):
+            logger.info("處理功能分類請求")
+            await self.handle_category_selection(data)
         elif data.startswith("function="):
             await self.handle_function_action(data)
-        
         elif data.startswith("admin_function="):
             await self.handle_admin_function(data)
-        
         elif data.startswith("test_function="):
             await self.handle_test_function(data)
-        
-        # 管理員查看功能
-        elif data.startswith("admin_taichi="):
-            await self.show_taichi_info(data)
-        
+        elif data.startswith("gender="):
+            await self.handle_gender_selection(data)
+        elif data.startswith("chart="):
+            await self.handle_chart_request(data)
         elif data.startswith("admin_chart="):
-            await self.show_chart_info(data)
-        
+            await self.handle_admin_chart_request(data)
         else:
-            self.reply_text("功能開發中，敬請期待。")
+            logger.warning(f"未知的 Postback 數據: {data}")
+            self.reply_text("未知的操作，請重新選擇。")
+
+    async def handle_category_selection(self, data: str):
+        """處理功能分類選擇 (第二層選單)"""
+        try:
+            category = data.split("=")[1]
+            logger.info(f"用戶選擇功能分類: {category}")
+            
+            user = await self.get_or_create_user(self.user_id, self.db)
+            user_stats = permission_manager.get_user_stats(self.db, user)
+            
+            category_menu = new_function_menu_generator.generate_category_menu(category, user_stats)
+            
+            if category_menu:
+                logger.info(f"成功生成 {category} 分類選單")
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(
+                        reply_token=self.reply_token,
+                        messages=[category_menu]
+                    )
+                )
+                logger.info("分類選單發送成功")
+            else:
+                logger.error(f"無法生成 {category} 分類選單")
+                self.reply_text("無法生成該分類選單，請檢查權限或稍後再試。")
+                
+        except Exception as e:
+            logger.error(f"處理分類選擇失敗: {e}", exc_info=True)
+            self.reply_text("分類選單載入失敗，請稍後再試。")
     
     async def show_function_menu(self):
         """顯示功能選單"""
@@ -341,7 +358,7 @@ class WebhookHandler:
             user_stats = permission_manager.get_user_stats(self.db, user)
             logger.info(f"獲取用戶統計成功: {user_stats}")
             
-            function_menu = generate_new_function_menu(user_stats)
+            function_menu = new_function_menu_generator.generate_function_menu(user_stats)
             logger.info(f"生成功能選單結果: {function_menu is not None}")
             
             if function_menu:
