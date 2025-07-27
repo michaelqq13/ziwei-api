@@ -329,19 +329,17 @@ class WebhookHandler:
             user = await self.get_or_create_user(self.user_id, self.db)
             
             # 直接進行占卜
-            from app.logic.divination_records import create_divination_record
-            
             divination_result = get_divination_result(self.db, user, gender)
             logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
             
             if divination_result.get('success'):
-                # 創建占卜記錄
-                record_id = await create_divination_record(self.user_id, divination_result, self.db)
+                # 創建占卜記錄 (使用 self 的方法)
+                record_id = await self.create_divination_record(divination_result)
                 
                 # 根據用戶等級設定 user_type
                 user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
                 
-                # 生成占卜結果訊息
+                # 生成占卜結果訊息 (使用全局變量)
                 flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
                 
                 if flex_messages:
@@ -652,6 +650,66 @@ class WebhookHandler:
             user.clear_test_mode()
             self.db.commit()
             self.reply_text("✅ 已恢復管理員身份\n👑 歡迎回來，管理員！")
+
+    async def handle_chart_request(self, data: str):
+        """處理命盤請求"""
+        try:
+            # 解析請求數據
+            chart_type = data.split("=")[1] if "=" in data else "basic"
+            logger.info(f"處理命盤請求: {chart_type}")
+            
+            user = await self.get_or_create_user(self.user_id, self.db)
+            
+            # 檢查權限
+            if not (user.is_admin() or user.is_premium()):
+                self.reply_text("命盤功能需要付費會員才能使用，請聯繫管理員升級會員。")
+                return
+            
+            # 功能開發中
+            self.reply_text("命盤功能開發中，敬請期待。")
+            
+        except Exception as e:
+            logger.error(f"處理命盤請求失敗: {e}")
+            self.reply_text("命盤請求處理失敗，請稍後再試。")
+
+    async def handle_admin_chart_request(self, data: str):
+        """處理管理員命盤請求"""
+        try:
+            user = await self.get_or_create_user(self.user_id, self.db)
+            
+            # 檢查管理員權限
+            if not user.is_admin():
+                self.reply_text("此功能僅限管理員使用。")
+                return
+            
+            # 解析請求數據
+            chart_data = data.split("=")[1] if "=" in data else "latest"
+            logger.info(f"管理員命盤請求: {chart_data}")
+            
+            if chart_data == "latest":
+                # 獲取最新占卜記錄
+                latest_record = self.db.query(DivinationHistory).filter(
+                    DivinationHistory.user_id == user.id
+                ).order_by(DivinationHistory.divination_time.desc()).first()
+                
+                if latest_record:
+                    chart_info = f"""📊 基本命盤資訊
+
+⏰ 占卜時間: {latest_record.divination_time.strftime('%Y-%m-%d %H:%M')}
+🔮 太極宮: {latest_record.taichi_palace}
+🌟 分鐘地支: {latest_record.minute_dizhi}
+👤 性別: {'男性' if latest_record.gender == 'M' else '女性'}
+
+💫 更詳細的命盤功能開發中..."""
+                    self.reply_text(chart_info)
+                else:
+                    self.reply_text("未找到占卜記錄，請先進行占卜。")
+            else:
+                self.reply_text("指定記錄命盤功能開發中。")
+                
+        except Exception as e:
+            logger.error(f"處理管理員命盤請求失敗: {e}")
+            self.reply_text("管理員命盤請求處理失敗，請稍後再試。")
 
 
 @router.post("/webhook-new", include_in_schema=False)
