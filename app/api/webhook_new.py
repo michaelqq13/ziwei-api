@@ -581,41 +581,55 @@ class WebhookHandler:
             return
         
         record_id = data.split("=")[1]
+        logger.info(f"查看太極十二宮，record_id: {record_id}")
+        
+        target_record = None
         
         if record_id == "latest":
             # 獲取最新占卜記錄
-            latest_record = self.db.query(DivinationHistory).filter(
+            target_record = self.db.query(DivinationHistory).filter(
                 DivinationHistory.user_id == user.id
             ).order_by(DivinationHistory.divination_time.desc()).first()
-            
-            if latest_record:
-                try:
-                    taichi_mapping_raw = latest_record.taichi_palace_mapping or "{}"
-                    taichi_mapping = json.loads(taichi_mapping_raw)
-                    
-                    if taichi_mapping:
-                        taichi_info = f"""🎯 太極十二宮資訊
+        else:
+            # 獲取指定 ID 的占卜記錄
+            try:
+                record_id_int = int(record_id)
+                target_record = self.db.query(DivinationHistory).filter(
+                    DivinationHistory.id == record_id_int,
+                    DivinationHistory.user_id == user.id
+                ).first()
+            except (ValueError, TypeError):
+                logger.error(f"無效的記錄 ID: {record_id}")
+                self.reply_text("無效的記錄 ID，請重新進行占卜。")
+                return
+        
+        if target_record:
+            try:
+                taichi_mapping_raw = target_record.taichi_palace_mapping or "{}"
+                taichi_mapping = json.loads(taichi_mapping_raw)
+                
+                if taichi_mapping:
+                    taichi_info = f"""🎯 太極十二宮資訊
 
-⏰ 占卜時間: {latest_record.divination_time.strftime('%Y-%m-%d %H:%M')}
-🔮 太極宮: {latest_record.taichi_palace}
-🌟 分鐘地支: {latest_record.minute_dizhi}
+⏰ 占卜時間: {target_record.divination_time.strftime('%Y-%m-%d %H:%M')}
+🔮 太極宮: {target_record.taichi_palace}
+🌟 分鐘地支: {target_record.minute_dizhi}
+📋 記錄編號: {target_record.id}
 
 🏛️ 太極宮位對應:
 """
-                        for original_branch, new_palace in taichi_mapping.items():
-                            taichi_info += f"• {new_palace} ← 原{original_branch}宮\n"
-                        
-                        taichi_info += "\n💫 太極點轉換完成！"
-                        self.reply_text(taichi_info)
-                    else:
-                        self.reply_text("太極宮對映資料為空，請重新進行占卜。")
-                except Exception as e:
-                    logger.error(f"解析太極宮資訊失敗: {e}")
-                    self.reply_text("太極宮資訊解析失敗，請重新進行占卜。")
-            else:
-                self.reply_text("未找到占卜記錄，請先進行占卜。")
+                    for original_branch, new_palace in taichi_mapping.items():
+                        taichi_info += f"• {new_palace} ← 原{original_branch}宮\n"
+                    
+                    taichi_info += "\n💫 太極點轉換完成！"
+                    self.reply_text(taichi_info)
+                else:
+                    self.reply_text("太極宮對映資料為空，請重新進行占卜。")
+            except Exception as e:
+                logger.error(f"解析太極宮資訊失敗: {e}")
+                self.reply_text("太極宮資訊解析失敗，請重新進行占卜。")
         else:
-            self.reply_text("指定記錄查看功能開發中。")
+            self.reply_text("未找到指定的占卜記錄，請確認記錄是否存在。")
     
     async def show_chart_info(self, data: str):
         """顯示基本命盤資訊"""
