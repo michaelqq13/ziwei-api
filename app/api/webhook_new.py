@@ -316,6 +316,8 @@ class WebhookHandler:
             await self.handle_chart_request(data)
         elif data.startswith("admin_chart="):
             await self.handle_admin_chart_request(data)
+        elif data.startswith("admin_taichi="):
+            await self.handle_admin_taichi_request(data)
         else:
             logger.warning(f"未知的 Postback 數據: {data}")
             self.reply_text("未知的操作，請重新選擇。")
@@ -710,6 +712,15 @@ class WebhookHandler:
         except Exception as e:
             logger.error(f"處理管理員命盤請求失敗: {e}")
             self.reply_text("管理員命盤請求處理失敗，請稍後再試。")
+
+    async def handle_admin_taichi_request(self, data: str):
+        """處理管理員太極十二宮請求"""
+        try:
+            logger.info(f"處理太極十二宮請求: {data}")
+            await self.show_taichi_info(data)
+        except Exception as e:
+            logger.error(f"處理太極十二宮請求失敗: {e}")
+            self.reply_text("太極十二宮請求處理失敗，請稍後再試。")
 
 
 @router.post("/webhook-new", include_in_schema=False)
