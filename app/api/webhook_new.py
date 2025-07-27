@@ -605,29 +605,40 @@ class WebhookHandler:
         
         if target_record:
             try:
-                taichi_mapping_raw = target_record.taichi_palace_mapping or "{}"
-                taichi_mapping = json.loads(taichi_mapping_raw)
+                # 重構占卜結果數據
+                divination_result = {
+                    "taichi_palace_mapping": json.loads(target_record.taichi_palace_mapping or "{}"),
+                    "taichi_chart_data": json.loads(target_record.taichi_chart_data or "{}"),
+                    "basic_chart": json.loads(target_record.taichi_chart_data or "{}").get("basic_chart", {}),
+                    "divination_time": target_record.divination_time.strftime('%Y-%m-%d %H:%M'),
+                    "taichi_palace": target_record.taichi_palace,
+                    "minute_dizhi": target_record.minute_dizhi,
+                    "record_id": target_record.id
+                }
                 
-                if taichi_mapping:
-                    taichi_info = f"""🎯 太極十二宮資訊
-
-⏰ 占卜時間: {target_record.divination_time.strftime('%Y-%m-%d %H:%M')}
-🔮 太極宮: {target_record.taichi_palace}
-🌟 分鐘地支: {target_record.minute_dizhi}
-📋 記錄編號: {target_record.id}
-
-🏛️ 太極宮位對應:
-"""
-                    for original_branch, new_palace in taichi_mapping.items():
-                        taichi_info += f"• {new_palace} ← 原{original_branch}宮\n"
-                    
-                    taichi_info += "\n💫 太極點轉換完成！"
-                    self.reply_text(taichi_info)
+                # 檢查必要數據
+                if not divination_result["taichi_palace_mapping"] or not divination_result["basic_chart"]:
+                    self.reply_text("太極宮數據不完整，請重新進行占卜。")
+                    return
+                
+                # 生成太極十二宮 Flex Message
+                taichi_flex_message = divination_flex_generator.generate_taichi_palace_message(divination_result)
+                
+                if taichi_flex_message:
+                    logger.info("成功生成太極十二宮 Flex Message")
+                    line_bot_api.reply_message(
+                        ReplyMessageRequest(
+                            reply_token=self.reply_token,
+                            messages=[taichi_flex_message]
+                        )
+                    )
                 else:
-                    self.reply_text("太極宮對映資料為空，請重新進行占卜。")
+                    logger.error("生成太極十二宮 Flex Message 失敗")
+                    self.reply_text("太極十二宮資訊生成失敗，請稍後再試。")
+                    
             except Exception as e:
-                logger.error(f"解析太極宮資訊失敗: {e}")
-                self.reply_text("太極宮資訊解析失敗，請重新進行占卜。")
+                logger.error(f"處理太極宮資訊失敗: {e}")
+                self.reply_text("太極宮資訊處理失敗，請重新進行占卜。")
         else:
             self.reply_text("未找到指定的占卜記錄，請確認記錄是否存在。")
     

@@ -1482,4 +1482,30 @@ class DivinationFlexMessageGenerator:
                 FlexText(text=value, size="sm", weight="bold", flex=2, align="end")
             ],
             margin="sm"
-        ) 
+        )
+
+    def generate_taichi_palace_message(self, result: Dict[str, Any]) -> Optional[FlexMessage]:
+        """
+        生成太極十二宮 Flex Message
+        
+        Args:
+            result: 占卜結果數據，必須包含 taichi_palace_mapping 和 basic_chart
+            
+        Returns:
+            FlexMessage: 太極十二宮 Carousel 或 None
+        """
+        try:
+            logger.info("開始生成太極十二宮 Flex Message")
+            
+            taichi_message = self._create_taichi_palace_carousel(result)
+            
+            if taichi_message:
+                logger.info("✅ 太極十二宮 Flex Message 生成成功")
+                return taichi_message
+            else:
+                logger.warning("❌ 太極十二宮 Flex Message 生成失敗")
+                return None
+                
+        except Exception as e:
+            logger.error(f"生成太極十二宮 Flex Message 時發生錯誤: {e}")
+            return None 
