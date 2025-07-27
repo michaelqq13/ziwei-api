@@ -320,6 +320,67 @@ class WebhookHandler:
             logger.warning(f"未知的 Postback 數據: {data}")
             self.reply_text("未知的操作，請重新選擇。")
 
+    async def handle_gender_selection(self, data: str):
+        """處理性別選擇並進行占卜"""
+        try:
+            gender = data.split("=")[1]
+            logger.info(f"用戶選擇性別: {gender}")
+            
+            user = await self.get_or_create_user(self.user_id, self.db)
+            
+            # 直接進行占卜
+            from app.logic.divination_logic import get_divination_result
+            from app.utils.divination_flex_generator import divination_flex_generator
+            from app.logic.divination_records import create_divination_record
+            
+            divination_result = get_divination_result(self.db, user, gender)
+            logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
+            
+            if divination_result.get('success'):
+                # 創建占卜記錄
+                record_id = await create_divination_record(self.user_id, divination_result, self.db)
+                
+                # 根據用戶等級設定 user_type
+                user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                
+                # 生成占卜結果訊息
+                flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
+                
+                if flex_messages:
+                    logger.info("發送占卜結果")
+                    line_bot_api.reply_message(
+                        ReplyMessageRequest(
+                            reply_token=self.reply_token,
+                            messages=flex_messages
+                        )
+                    )
+                    
+                    # 如果是管理員，發送快速按鈕
+                    if user.is_admin():
+                        from app.utils.admin_quick_buttons import create_admin_quick_buttons
+                        quick_buttons = create_admin_quick_buttons(record_id)
+                        if quick_buttons:
+                            # 稍微延遲發送快速按鈕，避免訊息衝突
+                            import asyncio
+                            await asyncio.sleep(0.5)
+                            line_bot_api.push_message(
+                                PushMessageRequest(
+                                    to=self.user_id,
+                                    messages=[quick_buttons]
+                                )
+                            )
+                else:
+                    logger.error("生成占卜結果訊息失敗")
+                    self.reply_text("占卜結果生成失敗，請稍後再試。")
+            else:
+                error_msg = divination_result.get('message', '占卜失敗')
+                logger.error(f"占卜失敗: {error_msg}")
+                self.reply_text(f"占卜失敗：{error_msg}")
+                
+        except Exception as e:
+            logger.error(f"處理性別選擇失敗: {e}", exc_info=True)
+            self.reply_text("占卜過程發生錯誤，請稍後再試。")
+
     async def handle_category_selection(self, data: str):
         """處理功能分類選擇 (第二層選單)"""
         try:
