@@ -312,8 +312,9 @@ class WebhookHandler:
             logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
             
             if divination_result.get('success'):
-                # 創建占卜記錄 (使用 self 的方法)
-                record_id = await self.create_divination_record(divination_result)
+                # 從占卜結果中獲取記錄 ID (不重複創建)
+                record_id = divination_result.get('divination_id')
+                logger.info(f"使用占卜結果中的記錄 ID: {record_id}")
                 
                 # 根據用戶等級設定 user_type
                 user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
