@@ -137,6 +137,18 @@ class DivinationLogic:
             taichi_chart_data = chart.get_chart()
             logger.info("太極盤資料獲取完成")
             
+            # 調試：檢查太極盤數據結構
+            palaces_data = taichi_chart_data.get("palaces", {})
+            logger.info(f"太極盤宮位數量: {len(palaces_data)}")
+            logger.info(f"太極盤宮位名稱: {list(palaces_data.keys())}")
+            
+            # 顯示前3個宮位的詳細數據（避免日誌過長）
+            for i, (palace_name, palace_data) in enumerate(palaces_data.items()):
+                if i < 3:
+                    logger.info(f"宮位 {palace_name} 數據: tiangan={palace_data.get('tiangan')}, dizhi={palace_data.get('dizhi')}, stars={len(palace_data.get('stars', []))}")
+                if i >= 3:
+                    break
+            
             # 7. 基於太極盤獲取四化解釋
             sihua_results = chart.get_taichi_sihua_explanations(palace_tiangan)
             logger.info(f"四化解釋獲取完成，共 {len(sihua_results)} 個")
@@ -148,6 +160,12 @@ class DivinationLogic:
                     sihua_json = json.dumps(sihua_results, ensure_ascii=False)
                     taichi_mapping_json = json.dumps(chart.taichi_palace_mapping, ensure_ascii=False)
                     taichi_chart_json = json.dumps(taichi_chart_data.get("palaces", {}), ensure_ascii=False)
+                    
+                    # 調試：檢查要保存的數據
+                    logger.info(f"準備保存 - 太極映射: {len(chart.taichi_palace_mapping)} 個")
+                    logger.info(f"準備保存 - 太極盤宮位: {len(taichi_chart_data.get('palaces', {}))} 個")
+                    logger.info(f"太極映射 JSON 長度: {len(taichi_mapping_json)} 字符")
+                    logger.info(f"太極盤 JSON 長度: {len(taichi_chart_json)} 字符")
                     
                     divination_record = DivinationHistory(
                         user_id=user.id,
