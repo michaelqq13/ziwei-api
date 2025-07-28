@@ -605,11 +605,18 @@ class WebhookHandler:
         
         if target_record:
             try:
-                # 重構占卜結果數據
+                # 解析太極宮對映
+                taichi_palace_mapping = json.loads(target_record.taichi_palace_mapping or "{}")
+                # 解析太極盤數據 (注意：這裡存儲的是 palaces 數據，不是 basic_chart)
+                taichi_chart_palaces = json.loads(target_record.taichi_chart_data or "{}")
+                
+                logger.info(f"太極宮對映數據: {len(taichi_palace_mapping)} 個宮位")
+                logger.info(f"太極盤宮位數據: {len(taichi_chart_palaces)} 個宮位")
+                
+                # 重構占卜結果數據 - 正確的數據結構
                 divination_result = {
-                    "taichi_palace_mapping": json.loads(target_record.taichi_palace_mapping or "{}"),
-                    "taichi_chart_data": json.loads(target_record.taichi_chart_data or "{}"),
-                    "basic_chart": json.loads(target_record.taichi_chart_data or "{}").get("basic_chart", {}),
+                    "taichi_palace_mapping": taichi_palace_mapping,
+                    "basic_chart": taichi_chart_palaces,  # 使用 taichi_chart_data 作為 basic_chart
                     "divination_time": target_record.divination_time.strftime('%Y-%m-%d %H:%M'),
                     "taichi_palace": target_record.taichi_palace,
                     "minute_dizhi": target_record.minute_dizhi,
@@ -617,9 +624,17 @@ class WebhookHandler:
                 }
                 
                 # 檢查必要數據
-                if not divination_result["taichi_palace_mapping"] or not divination_result["basic_chart"]:
-                    self.reply_text("太極宮數據不完整，請重新進行占卜。")
+                if not divination_result["taichi_palace_mapping"]:
+                    logger.error("太極宮對映數據為空")
+                    self.reply_text("太極宮對映數據為空，請重新進行占卜。")
                     return
+                    
+                if not divination_result["basic_chart"]:
+                    logger.error("太極盤宮位數據為空")
+                    self.reply_text("太極盤宮位數據為空，請重新進行占卜。")
+                    return
+                
+                logger.info("開始生成太極十二宮 Flex Message")
                 
                 # 生成太極十二宮 Flex Message
                 taichi_flex_message = divination_flex_generator.generate_taichi_palace_message(divination_result)
@@ -636,8 +651,11 @@ class WebhookHandler:
                     logger.error("生成太極十二宮 Flex Message 失敗")
                     self.reply_text("太極十二宮資訊生成失敗，請稍後再試。")
                     
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON 解析失敗: {e}")
+                self.reply_text("太極宮數據格式錯誤，請重新進行占卜。")
             except Exception as e:
-                logger.error(f"處理太極宮資訊失敗: {e}")
+                logger.error(f"處理太極宮資訊失敗: {e}", exc_info=True)
                 self.reply_text("太極宮資訊處理失敗，請重新進行占卜。")
         else:
             self.reply_text("未找到指定的占卜記錄，請確認記錄是否存在。")

@@ -381,18 +381,27 @@ class DivinationFlexMessageGenerator:
             taichi_mapping = result.get("taichi_palace_mapping", {})
             basic_chart = result.get("basic_chart", {})
             
+            logger.info(f"太極宮映射: {taichi_mapping}")
+            logger.info(f"基本命盤宮位: {list(basic_chart.keys())}")
+            
             if not taichi_mapping or not basic_chart:
+                logger.error(f"數據不完整 - 太極映射: {bool(taichi_mapping)}, 基本命盤: {bool(basic_chart)}")
                 return None
             
             bubbles = []
             
             # 根據太極點重新分佈創建bubble
             for original_branch, new_palace_name in taichi_mapping.items():
+                logger.info(f"尋找地支 {original_branch} 對應的宮位數據")
+                
                 # 找到原始地支對應的宮位數據
                 palace_data = None
                 for palace_name, data in basic_chart.items():
-                    if data.get("dizhi") == original_branch:
+                    palace_dizhi = data.get("dizhi", "")
+                    logger.debug(f"檢查宮位 {palace_name}: dizhi={palace_dizhi}")
+                    if palace_dizhi == original_branch:
                         palace_data = data
+                        logger.info(f"找到匹配: {palace_name} (dizhi={palace_dizhi}) -> {new_palace_name}")
                         break
                 
                 if palace_data:
@@ -403,8 +412,16 @@ class DivinationFlexMessageGenerator:
                     )
                     if bubble:
                         bubbles.append(bubble)
+                        logger.info(f"成功創建 {new_palace_name} bubble")
+                    else:
+                        logger.warning(f"創建 {new_palace_name} bubble 失敗")
+                else:
+                    logger.error(f"未找到地支 {original_branch} 對應的宮位數據")
+            
+            logger.info(f"共創建 {len(bubbles)} 個 bubble")
             
             if not bubbles:
+                logger.error("沒有成功創建任何 bubble")
                 return None
             
             # 限制最多12個bubble  
@@ -418,7 +435,7 @@ class DivinationFlexMessageGenerator:
             )
             
         except Exception as e:
-            logger.error(f"創建太極點Carousel失敗: {e}")
+            logger.error(f"創建太極點Carousel失敗: {e}", exc_info=True)
             return None
     
     def _create_sihua_carousel(self, result: Dict[str, Any], user_type: str) -> Optional[FlexMessage]:
