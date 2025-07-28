@@ -133,14 +133,15 @@ class WebhookHandler:
             divination_result = get_divination_result(self.db, user, gender)
             
             if divination_result.get('success'):
-                # 保存記錄
-                record_id = await self.create_divination_record(divination_result)
+                # 從占卜結果中獲取記錄 ID (不重複創建)
+                record_id = divination_result.get('divination_id')
+                logger.info(f"使用占卜結果中的記錄 ID: {record_id}")
                 
-                # 生成結果訊息
+                # 根據用戶等級設定 user_type
                 user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
-                flex_messages = divination_flex_generator.generate_divination_messages(
-                    divination_result, user_type=user_type
-                )
+                
+                # 生成占卜結果訊息 (使用全局變量)
+                flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
                 
                 if flex_messages:
                     # 發送結果
@@ -162,30 +163,6 @@ class WebhookHandler:
         except Exception as e:
             logger.error(f"處理占卜失敗: {e}")
             self.reply_text("占卜過程發生錯誤，請稍後再試。")
-    
-    async def create_divination_record(self, divination_result: dict) -> int:
-        """創建占卜記錄"""
-        try:
-            user = await self.get_or_create_user(self.user_id, self.db)
-            
-            record = DivinationHistory(
-                user_id=user.id,
-                gender=divination_result.get('gender', 'M'),
-                divination_time=datetime.utcnow(),
-                taichi_palace=divination_result.get('taichi_palace', ''),
-                minute_dizhi=divination_result.get('minute_dizhi', ''),
-                sihua_results=json.dumps(divination_result.get('sihua_results', [])),
-                taichi_palace_mapping=json.dumps(divination_result.get('taichi_palace_mapping', {})),
-                taichi_chart_data=json.dumps(divination_result.get('taichi_chart_data', {}))
-            )
-            self.db.add(record)
-            self.db.commit()
-            self.db.refresh(record)
-            return record.id
-        except Exception as e:
-            logger.error(f"創建占卜記錄失敗: {e}")
-            self.db.rollback()
-            return None
     
     async def send_admin_quick_buttons(self, record_id: int = None):
         """發送管理員快速按鈕"""
