@@ -1044,21 +1044,21 @@ async def line_bot_webhook_new(request: Request, db: Session = Depends(get_db)):
                     datetime_params = event.postback.params
                     logger.info(f"收到 DatetimePickerAction 回調，參數: {datetime_params}")
                     
-                    # 提取日期時間信息
-                    if hasattr(datetime_params, 'datetime'):
-                        selected_datetime = datetime_params.datetime
+                    # 提取日期時間信息 - params 是字典格式
+                    if isinstance(datetime_params, dict) and 'datetime' in datetime_params:
+                        selected_datetime = datetime_params['datetime']
                         logger.info(f"用戶選擇的日期時間: {selected_datetime}")
                         
                         # 處理日期時間選擇
                         await handler.handle_datetime_picker_result(event.postback.data, selected_datetime)
-                    elif hasattr(datetime_params, 'date'):
-                        selected_date = datetime_params.date
+                    elif isinstance(datetime_params, dict) and 'date' in datetime_params:
+                        selected_date = datetime_params['date']
                         logger.info(f"用戶選擇的日期: {selected_date}")
                         
                         # 處理日期選擇（可能需要時間補充）
                         await handler.handle_date_picker_result(event.postback.data, selected_date)
                     else:
-                        logger.warning(f"未知的 DatetimePickerAction 參數: {datetime_params}")
+                        logger.warning(f"未知的 DatetimePickerAction 參數格式: {datetime_params}")
                         await handler.handle_postback_event(event.postback.data)
                 else:
                     # 普通的 PostbackAction
