@@ -1,4 +1,7 @@
 from typing import Tuple, Dict, List
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ChineseCalendar:
     """中國曆法工具類 - 簡化版本，準備整合6tail系統"""
@@ -156,17 +159,27 @@ class ChineseCalendar:
 
     @classmethod
     def parse_chinese_month(cls, lunar_month: str) -> int:
-        """解析農曆月份為數字"""
+        """解析農曆月份為數字，支持閏月處理"""
         month_mapping = {
             "正月": 1, "一月": 1,
             "二月": 2, "三月": 3, "四月": 4, "五月": 5, "六月": 6,
             "七月": 7, "八月": 8, "九月": 9, "十月": 10, "十一月": 11, "十二月": 12
         }
         
+        # 處理閏月的情況
+        if "閏" in lunar_month:
+            # 提取閏月中的月份，例如 "閏六月" -> "六月"
+            month_part = lunar_month.replace("閏", "")
+            month_num = month_mapping.get(month_part, 1)
+            logger.info(f"解析閏月：{lunar_month} -> {month_part} -> {month_num}")
+            return month_num
+        
         # 去除"月"字
         month_str = lunar_month.replace('月', '')
         
-        return month_mapping.get(lunar_month, month_mapping.get(month_str, 1))
+        result = month_mapping.get(lunar_month, month_mapping.get(month_str, 1))
+        logger.debug(f"解析農曆月份：{lunar_month} -> {result}")
+        return result
 
     @classmethod
     def get_minute_branch(cls, hour: int, minute: int) -> str:
