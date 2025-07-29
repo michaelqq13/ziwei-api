@@ -98,9 +98,14 @@ class DivinationLogic:
             Dict: 占卜結果
         """
         try:
+            logger.info(f"🔍 perform_divination 收到參數 - current_time: {current_time}")
+            
             # 1. 獲取當前時間（台北時間）
             if current_time is None:
                 current_time = get_current_taipei_time()
+                logger.info(f"⚠️ current_time 為 None，使用當前時間: {current_time}")
+            else:
+                logger.info(f"✅ 使用指定時間: {current_time}")
             
             logger.info(f"開始占卜 - User: {user.line_user_id if user else 'N/A'}, 時間：{current_time}，性別：{gender}，數據庫：{'有' if db else '無'}")
             
@@ -243,6 +248,8 @@ def get_divination_result(db: Optional[Session], user: LineBotUser, gender: str,
         Dict: 占卜結果
     """
     try:
+        logger.info(f"🔍 get_divination_result 收到參數 - current_time: {current_time}")
+        
         divination_logic = DivinationLogic()
         result = divination_logic.perform_divination(user, gender, current_time, db)
         
