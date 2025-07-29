@@ -826,47 +826,51 @@ class WebhookHandler:
         )
 
     async def handle_time_divination_execution(self, data: str):
-        """處理指定時間占卜的執行 - 重構版本"""
+        """處理指定時間占卜的執行 - 簡化版本，復用本週占卜邏輯"""
         try:
-            from app.services.time_divination_service import TimeDivinationService
-            from app.utils.divination_flex_message import DivinationFlexMessageGenerator
-            
             logger.info(f"🎯 收到指定時間占卜請求: {data}")
             
-            # 1. 使用新服務解析數據
-            gender, time_value = TimeDivinationService.parse_line_bot_data(data)
+            # 1. 解析數據：格式為 "time_gender=M&time=2025-07-28T19:32"
+            data_clean = data.replace("time_gender=", "")
+            
+            if "&time=" in data_clean:
+                gender, time_value = data_clean.split("&time=", 1)
+            else:
+                logger.error(f"❌ 數據格式錯誤: {data}")
+                self.reply_text("數據格式錯誤，請重新選擇。")
+                return
+            
             logger.info(f"✅ 解析成功 - 性別: {gender}, 時間: {time_value}")
             
-            # 2. 獲取用戶
+            # 2. 獲取用戶（復用本週占卜邏輯）
             user = await self.get_or_create_user(self.user_id, self.db)
             
-            # 3. 執行指定時間占卜
-            result = TimeDivinationService.execute_time_divination(
-                user=user,
-                gender=gender,
-                target_time=time_value,
-                db=self.db,
-                purpose="LINE Bot 指定時間占卜"
-            )
+            # 3. 解析指定時間
+            if time_value == "now":
+                from app.utils.timezone_helper import TimezoneHelper
+                current_time = TimezoneHelper.get_current_taipei_time()
+                logger.info(f"使用當前時間: {current_time}")
+            else:
+                from app.utils.timezone_helper import TimezoneHelper
+                current_time = TimezoneHelper.parse_datetime_string(time_value)
+                current_time = TimezoneHelper.to_taipei_time(current_time)
+                logger.info(f"✅ 解析指定時間成功: {current_time}")
             
-            if result.success:
-                logger.info(f"✅ 占卜成功 - ID: {result.divination_id}")
+            # 4. 執行占卜（完全復用本週占卜邏輯）
+            divination_result = get_divination_result(self.db, user, gender, current_time)
+            logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
+            
+            if divination_result.get('success'):
+                # 從占卜結果中獲取記錄 ID (不重複創建)
+                record_id = divination_result.get('divination_id')
+                logger.info(f"使用占卜結果中的記錄 ID: {record_id}")
                 
-                # 4. 生成 Flex Message
-                divination_result = {
-                    "success": True,
-                    "divination_id": result.divination_id,
-                    "divination_time": result.target_time,
-                    "gender": result.gender,
-                    "taichi_palace": result.taichi_palace,
-                    "minute_dizhi": result.minute_dizhi,
-                    "palace_tiangan": result.palace_tiangan,
-                    "sihua_results": result.sihua_results,
-                }
-                
+                # 根據用戶等級設定 user_type（復用本週占卜邏輯）
                 user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                
+                # 生成 Flex Message（復用本週占卜邏輯）
                 flex_messages = divination_flex_generator.generate_divination_messages(
-                    divination_result, 
+                    divination_result,
                     user_type=user_type
                 )
                 
@@ -879,16 +883,16 @@ class WebhookHandler:
                         )
                     )
                     
-                    # 如果是管理員，發送快速按鈕
-                    if user.is_admin() and result.divination_id:
-                        await self.send_admin_quick_buttons(int(result.divination_id))
+                    # 如果是管理員，發送快速按鈕（復用本週占卜邏輯）
+                    if user.is_admin() and record_id:
+                        await self.send_admin_quick_buttons(int(record_id))
                 else:
                     logger.error("生成占卜結果訊息失敗")
                     self.reply_text("占卜結果生成失敗，請稍後再試。")
             else:
-                # 占卜失敗
-                logger.error(f"❌ 占卜失敗: {result.error}")
-                error_message = result.error or result.message
+                # 占卜失敗（復用本週占卜邏輯）
+                error_message = divination_result.get('error', '占卜過程發生錯誤')
+                logger.error(f"❌ 占卜失敗: {error_message}")
                 self.reply_text(f"占卜失敗：{error_message}")
                 
         except Exception as e:
