@@ -30,15 +30,17 @@ class TimezoneHelper:
             if isinstance(dt, str):
                 dt = TimezoneHelper.parse_datetime_string(dt)
             
-            # 如果沒有時區信息，假設為 UTC
+            # 如果沒有時區信息，假設為台北時間（LINE Datetime Picker 默認使用用戶本地時間）
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=TAIPEI_TZ)
+                logger.info(f"無時區信息的時間，假設為台北時間：{dt}")
+            else:
+                # 如果有時區信息，轉換為台北時間
+                taipei_time = dt.astimezone(TAIPEI_TZ)
+                logger.info(f"時區轉換：{dt} → {taipei_time}")
+                dt = taipei_time
             
-            # 轉換為台北時間
-            taipei_time = dt.astimezone(TAIPEI_TZ)
-            logger.info(f"時區轉換：{dt} → {taipei_time}")
-            
-            return taipei_time
+            return dt
             
         except Exception as e:
             logger.error(f"時區轉換失敗: {e}")

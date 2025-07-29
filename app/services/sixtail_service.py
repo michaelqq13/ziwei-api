@@ -30,13 +30,27 @@ class SixTailService:
     
     def __init__(self):
         """初始化6tail服務"""
+        self.calendar = None  # 初始化為 None
+        
         try:
             if SixTailCalendar is None:
+                logger.error("SixTailCalendar 類無法導入，可能是 main.py 導入失敗")
                 raise ImportError("無法導入SixTailCalendar")
+            
+            logger.info("嘗試初始化 SixTailCalendar...")
             self.calendar = SixTailCalendar()
             logger.info("6tail時間資料服務初始化成功")
+            
+        except ImportError as e:
+            logger.error(f"6tail服務初始化失敗 (ImportError): {e}")
+            logger.error("可能原因：1) sxtwl 庫未安裝 2) main.py 導入失敗")
+            self.calendar = None
+            
         except Exception as e:
-            logger.error(f"6tail服務初始化失敗: {e}")
+            logger.error(f"6tail服務初始化失敗 (其他錯誤): {e}")
+            logger.error(f"錯誤類型: {type(e).__name__}")
+            import traceback
+            logger.error(f"完整錯誤信息: {traceback.format_exc()}")
             self.calendar = None
     
     def get_complete_info(self, year: int, month: int, day: int, hour: int = 0, minute: int = 0) -> Dict[str, Any]:
