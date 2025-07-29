@@ -8,14 +8,20 @@ from datetime import datetime
 import sys
 import os
 
-# 添加項目根目錄到路徑，以便導入main.py中的SixTailCalendar
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
+# 嘗試導入main.py中的SixTailCalendar，考慮不同的路徑
 try:
+    # 方法1：直接從項目根目錄導入
     from main import SixTailCalendar
 except ImportError:
-    # 如果無法導入，設置為None，觸發維修模式
-    SixTailCalendar = None
+    try:
+        # 方法2：添加項目根目錄到路徑後導入
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        from main import SixTailCalendar
+    except ImportError:
+        # 如果都無法導入，設置為None，觸發維修模式
+        SixTailCalendar = None
 
 logger = logging.getLogger(__name__)
 
