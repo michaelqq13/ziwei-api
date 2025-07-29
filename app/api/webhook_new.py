@@ -918,6 +918,47 @@ class WebhookHandler:
             logger.error(f"處理 LINE Datetime Picker 選擇失敗: {e}", exc_info=True)
             self.reply_text("日期時間選擇處理失敗，請稍後再試。")
 
+    async def handle_datetime_picker_result(self, data: str, selected_datetime: str):
+        """處理 DatetimePickerAction 的結果"""
+        try:
+            logger.info(f"處理 DatetimePickerAction 結果: data={data}, datetime={selected_datetime}")
+            
+            # 進入性別選擇步驟
+            gender_selection = self.create_time_divination_gender_selection(selected_datetime)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=self.reply_token,
+                    messages=[gender_selection]
+                )
+            )
+                
+        except Exception as e:
+            logger.error(f"處理 DatetimePickerAction 結果失敗: {e}", exc_info=True)
+            self.reply_text("日期時間選擇處理失敗，請稍後再試。")
+
+    async def handle_date_picker_result(self, data: str, selected_date: str):
+        """處理 DatePickerAction 的結果（如果只選擇日期，需要補充時間）"""
+        try:
+            logger.info(f"處理 DatePickerAction 結果: data={data}, date={selected_date}")
+            
+            # 如果只有日期，預設使用當前時間
+            from datetime import datetime
+            current_time = datetime.now()
+            full_datetime = f"{selected_date}T{current_time.strftime('%H:%M')}"
+            
+            # 進入性別選擇步驟
+            gender_selection = self.create_time_divination_gender_selection(full_datetime)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=self.reply_token,
+                    messages=[gender_selection]
+                )
+            )
+                
+        except Exception as e:
+            logger.error(f"處理 DatePickerAction 結果失敗: {e}", exc_info=True)
+            self.reply_text("日期選擇處理失敗，請稍後再試。")
+
     def create_time_selection_interface(self):
         """創建時間選擇界面 - 使用 LINE 內建的 Datetime Picker"""
         from linebot.v3.messaging import DatetimePickerAction
@@ -996,7 +1037,32 @@ async def line_bot_webhook_new(request: Request, db: Session = Depends(get_db)):
                 
             elif isinstance(event, PostbackEvent):
                 handler.reply_token = event.reply_token
-                await handler.handle_postback_event(event.postback.data)
+                
+                # 檢查是否為 DatetimePickerAction 的回調
+                if hasattr(event.postback, 'params') and event.postback.params:
+                    # DatetimePickerAction 的日期時間會在 params 中
+                    datetime_params = event.postback.params
+                    logger.info(f"收到 DatetimePickerAction 回調，參數: {datetime_params}")
+                    
+                    # 提取日期時間信息
+                    if hasattr(datetime_params, 'datetime'):
+                        selected_datetime = datetime_params.datetime
+                        logger.info(f"用戶選擇的日期時間: {selected_datetime}")
+                        
+                        # 處理日期時間選擇
+                        await handler.handle_datetime_picker_result(event.postback.data, selected_datetime)
+                    elif hasattr(datetime_params, 'date'):
+                        selected_date = datetime_params.date
+                        logger.info(f"用戶選擇的日期: {selected_date}")
+                        
+                        # 處理日期選擇（可能需要時間補充）
+                        await handler.handle_date_picker_result(event.postback.data, selected_date)
+                    else:
+                        logger.warning(f"未知的 DatetimePickerAction 參數: {datetime_params}")
+                        await handler.handle_postback_event(event.postback.data)
+                else:
+                    # 普通的 PostbackAction
+                    await handler.handle_postback_event(event.postback.data)
                 
         except Exception as e:
             logger.error(f"處理事件時發生錯誤 (用戶: {handler.user_id}): {e}")
