@@ -119,8 +119,8 @@ class PurpleStarChart:
                 raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
             
             try:
-                # 從6tail服務獲取農曆資料
-                sixtail_data = sixtail_service.get_lunar_info(
+                # 從6tail服務獲取完整資料
+                sixtail_data = sixtail_service.get_complete_info(
                     self.birth_info.year, 
                     self.birth_info.month, 
                     self.birth_info.day,
@@ -162,27 +162,25 @@ class PurpleStarChart:
         calendar_data.gregorian_hour = self.birth_info.hour
         calendar_data.gregorian_minute = self.birth_info.minute
         
-        # 干支資料 - 新格式直接從頂層獲取
-        calendar_data.year_gan_zhi = sixtail_data.get("year_ganzhi", "甲子")
-        calendar_data.month_gan_zhi = sixtail_data.get("month_ganzhi", "甲子")
-        calendar_data.day_gan_zhi = sixtail_data.get("day_ganzhi", "甲子")
-        calendar_data.hour_gan_zhi = sixtail_data.get("hour_ganzhi", "甲子")
+        # 干支資料
+        ganzhi = sixtail_data.get("ganzhi", {})
+        calendar_data.year_gan_zhi = ganzhi.get("year", "甲子")
+        calendar_data.month_gan_zhi = ganzhi.get("month", "甲子")
+        calendar_data.day_gan_zhi = ganzhi.get("day", "甲子")
+        calendar_data.hour_gan_zhi = ganzhi.get("hour", "甲子")
         
-        # 計算分干支 (使用時干支)
-        calendar_data.minute_gan_zhi = sixtail_data.get("hour_ganzhi", "甲子")
+        # 計算分干支 (6tail系統沒有分干支，使用時干支)
+        calendar_data.minute_gan_zhi = ganzhi.get("hour", "甲子")
         
-        # 農曆資料 - 新格式直接從頂層獲取
-        calendar_data.lunar_month_in_chinese = sixtail_data.get("lunar_month_in_chinese", "正月")
-        calendar_data.lunar_day_in_chinese = sixtail_data.get("lunar_day_in_chinese", "初一")
-        
-        # 構建農曆年份的中文表示
-        lunar_year = sixtail_data.get("lunar_year", self.birth_info.year)
-        year_ganzhi = sixtail_data.get("year_ganzhi", "甲子")
-        calendar_data.lunar_year_in_chinese = f"{year_ganzhi}年"
+        # 農曆資料
+        lunar = sixtail_data.get("lunar", {})
+        calendar_data.lunar_month_in_chinese = lunar.get("month_chinese", "正月")
+        calendar_data.lunar_day_in_chinese = lunar.get("day_chinese", "初一")
+        calendar_data.lunar_year_in_chinese = lunar.get("year_chinese", "甲子年")
         
         # 其他資料
-        calendar_data.solar_term = ""  # lunar_python 沒有直接提供節氣，可以後續擴展
-        calendar_data.data_source = "lunar_python"
+        calendar_data.solar_term = sixtail_data.get("solar_term", "")
+        calendar_data.data_source = "6tail"
         
         return calendar_data
     

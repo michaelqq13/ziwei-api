@@ -1,132 +1,141 @@
 """
 6tail時間資料整合服務
-提供與舊計算方法相同的接口，但使用lunar_python系統查詢準確資料
+提供與舊計算方法相同的接口，但使用6tail系統查詢準確資料
 """
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
+import sys
+import os
 
-# 使用 lunar_adapter 替代 sxtwl
+# 嘗試導入main.py中的SixTailCalendar，考慮不同的路徑
 try:
-    from .lunar_adapter import lunar_adapter
-    HAS_LUNAR_ADAPTER = True
+    # 方法1：直接從項目根目錄導入
+    from main import SixTailCalendar
 except ImportError:
-    HAS_LUNAR_ADAPTER = False
-    lunar_adapter = None
+    try:
+        # 方法2：添加項目根目錄到路徑後導入
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        from main import SixTailCalendar
+    except ImportError:
+        # 如果都無法導入，設置為None，觸發維修模式
+        SixTailCalendar = None
 
 logger = logging.getLogger(__name__)
 
-
 class SixTailService:
-    """6tail時間資料服務 - 使用 lunar_python 實現"""
+    """6tail時間資料服務"""
 
     def __init__(self):
         """初始化6tail服務"""
-        self.available = HAS_LUNAR_ADAPTER and lunar_adapter and lunar_adapter.is_available()
-        
-        if not self.available:
-            logger.error("Lunar adapter 不可用，農曆計算功能將無法使用")
-            logger.error("請確保已安裝 lunar_python: pip install lunar_python")
-        else:
-            logger.info("6tail時間資料服務初始化成功 (使用 lunar_python)")
+        self.calendar = None  # 初始化為 None
 
+        try:
+            if SixTailCalendar is None:
+                logger.error("SixTailCalendar 類無法導入，可能是 main.py 導入失敗")
+                raise ImportError("無法導入SixTailCalendar")
+
+            logger.info("嘗試初始化 SixTailCalendar...")
+            self.calendar = SixTailCalendar()
+            logger.info("6tail時間資料服務初始化成功")
+
+        except ImportError as e:
+            logger.error(f"6tail服務初始化失敗 (ImportError): {e}")
+            logger.error("可能原因：1) sxtwl 庫未安裝 2) main.py 導入失敗")
+            self.calendar = None
+
+        except Exception as e:
+            logger.error(f"6tail服務初始化失敗 (其他錯誤): {e}")
+            logger.error(f"錯誤類型: {type(e).__name__}")
+            import traceback
+            logger.error(f"完整錯誤信息: {traceback.format_exc()}")
+            self.calendar = None
+
+    def get_complete_info(self, year: int, month: int, day: int, hour: int = 0, minute: int = 0) -> Dict[str, Any]:
+        """
+        獲取完整的時間資料
+        
+        Args:
+            year: 年
+            month: 月
+            day: 日
+            hour: 時
+            minute: 分
+            
+        Returns:
+            完整的時間資料字典
+            
+        Raises:
+            RuntimeError: 當6tail服務不可用時
+        """
+        if not self.calendar:
+            logger.error("6tail服務未初始化，系統進入維修模式")
+            raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
+            
+        try:
+            return self.calendar.get_complete_calendar_info(year, month, day, hour, minute)
+        except Exception as e:
+            logger.error(f"6tail查詢失敗: {e}")
+            raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
+    
+    def get_year_ganzhi(self, year: int) -> str:
+        """獲取年干支"""
+        info = self.get_complete_info(year, 1, 1)
+        return info.get("ganzhi", {}).get("year", "甲子")
+
+    def get_month_ganzhi(self, year: int, month: int) -> str:
+        """獲取月干支"""
+        info = self.get_complete_info(year, month, 1)
+        return info.get("ganzhi", {}).get("month", "甲子")
+    
+    def get_day_ganzhi(self, year: int, month: int, day: int) -> str:
+        """獲取日干支"""
+        info = self.get_complete_info(year, month, day)
+        return info.get("ganzhi", {}).get("day", "甲子")
+    
+    def get_hour_ganzhi(self, year: int, month: int, day: int, hour: int) -> str:
+        """獲取時干支"""
+        info = self.get_complete_info(year, month, day, hour)
+        return info.get("ganzhi", {}).get("hour", "甲子")
+    
+    def get_minute_ganzhi(self, year: int, month: int, day: int, hour: int, minute: int) -> str:
+        """獲取分干支"""
+        info = self.get_complete_info(year, month, day, hour, minute)
+        # 6tail系統暫時沒有分干支，使用時干支
+        return info.get("ganzhi", {}).get("hour", "甲子")
+    
+    def get_lunar_info(self, year: int, month: int, day: int) -> Dict[str, Any]:
+        """獲取農曆資訊"""
+        info = self.get_complete_info(year, month, day)
+        return info.get("lunar", {})
+    
+    def get_ganzhi_info(self, year: int, month: int, day: int, hour: int = 0, minute: int = 0) -> Dict[str, str]:
+        """
+        獲取完整干支資訊
+        
+        Returns:
+            包含年月日時分干支的字典
+            
+        Raises:
+            RuntimeError: 當6tail服務不可用時
+        """
+        info = self.get_complete_info(year, month, day, hour, minute)
+        ganzhi = info.get("ganzhi", {})
+        
+        return {
+            "year_ganzhi": ganzhi.get("year", "甲子"),
+            "month_ganzhi": ganzhi.get("month", "甲子"),
+            "day_ganzhi": ganzhi.get("day", "甲子"),
+            "hour_ganzhi": ganzhi.get("hour", "甲子"),
+            "minute_ganzhi": ganzhi.get("hour", "甲子"),  # 暫時使用時干支
+            "data_source": "6tail"
+        }
+    
     def is_available(self) -> bool:
-        """檢查服務是否可用"""
-        return self.available
-
-    def get_lunar_info(self, year: int, month: int, day: int, hour: int, minute: int = 0) -> Dict[str, Any]:
-        """
-        獲取指定時間的完整農曆信息
-        
-        Args:
-            year: 公曆年
-            month: 公曆月  
-            day: 公曆日
-            hour: 公曆時
-            minute: 公曆分
-            
-        Returns:
-            包含完整農曆信息的字典
-        """
-        if not self.available:
-            raise RuntimeError("6tail服務不可用，無法計算農曆信息")
-            
-        try:
-            logger.info(f"查詢農曆信息: {year}-{month}-{day} {hour}:{minute}")
-            
-            # 使用 lunar_adapter 獲取數據
-            lunar_data = lunar_adapter.get_lunar_data(year, month, day, hour, minute)
-            
-            # 轉換為與原有 sxtwl 兼容的格式
-            result = {
-                'solar_year': year,
-                'solar_month': month,
-                'solar_day': day,
-                'solar_hour': hour,
-                'solar_minute': minute,
-                'lunar_year': lunar_data['lunar_year'],
-                'lunar_month': lunar_data['lunar_month'],
-                'lunar_day': lunar_data['lunar_day'],
-                'is_leap_month': lunar_data['is_leap_month'],
-                'lunar_month_in_chinese': lunar_data['lunar_month_in_chinese'],
-                'lunar_day_in_chinese': lunar_data['lunar_day_in_chinese'],
-                'year_ganzhi': lunar_data['year_ganzhi'],
-                'month_ganzhi': lunar_data['month_ganzhi'], 
-                'day_ganzhi': lunar_data['day_ganzhi'],
-                'hour_ganzhi': lunar_data['hour_ganzhi'],
-                'full_string': lunar_data['full_lunar_string']
-            }
-            
-            logger.info(f"成功獲取農曆信息: {result['lunar_year']}年{result['lunar_month_in_chinese']}{result['lunar_day_in_chinese']}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"獲取農曆信息失敗: {e}")
-            raise RuntimeError(f"農曆信息計算失敗: {e}")
-
-    def get_ganzhi_info(self, year: int, month: int, day: int, hour: int, minute: int = 0) -> Dict[str, str]:
-        """
-        獲取干支信息
-        
-        Args:
-            year: 公曆年
-            month: 公曆月
-            day: 公曆日
-            hour: 公曆時
-            minute: 公曆分
-            
-        Returns:
-            包含年月日時干支的字典
-        """
-        if not self.available:
-            raise RuntimeError("6tail服務不可用，無法計算干支信息")
-            
-        try:
-            lunar_info = self.get_lunar_info(year, month, day, hour, minute)
-            
-            return {
-                'year_ganzhi': lunar_info['year_ganzhi'],
-                'month_ganzhi': lunar_info['month_ganzhi'],
-                'day_ganzhi': lunar_info['day_ganzhi'],
-                'hour_ganzhi': lunar_info['hour_ganzhi']
-            }
-            
-        except Exception as e:
-            logger.error(f"獲取干支信息失敗: {e}")
-            raise RuntimeError(f"干支信息計算失敗: {e}")
-
-    def format_time_for_query(self, dt: datetime) -> str:
-        """
-        格式化時間用於查詢
-        
-        Args:
-            dt: datetime 對象
-            
-        Returns:
-            格式化的時間字符串
-        """
-        return f"{dt.year}-{dt.month}-{dt.day} {dt.hour}:{dt.minute}"
-
+        """檢查6tail服務是否可用"""
+        return self.calendar is not None
 
 # 創建全局實例
 sixtail_service = SixTailService() 
