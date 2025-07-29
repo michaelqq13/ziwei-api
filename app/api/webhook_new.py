@@ -830,15 +830,26 @@ class WebhookHandler:
         try:
             # 解析數據：time_gender=M&time=2025-07-28T19:32
             logger.info(f"原始 data: {data}")
-            parts = data.split("=")[1]  # 獲取 "M&time=2025-07-28T19:32"
+            
+            # 修復：正確分割，避免時間中的 = 號干擾
+            if "time_gender=" in data:
+                parts = data.replace("time_gender=", "")  # 直接移除前綴，得到 "M&time=2025-07-28T19:32"
+            else:
+                parts = data.split("=", 1)[1]  # 使用 maxsplit=1，只分割第一個等號
+            
             logger.info(f"分割後的 parts: {parts}")
             
-            gender_and_time = parts.split("&time=")  # 分割為 ["M", "2025-07-28T19:32"]
-            logger.info(f"性別和時間分割: {gender_and_time}")
+            # 分割性別和時間
+            if "&time=" in parts:
+                gender_and_time = parts.split("&time=", 1)  # 使用 maxsplit=1
+                gender = gender_and_time[0]
+                time_value = gender_and_time[1] if len(gender_and_time) > 1 else "now"
+            else:
+                logger.error(f"無法找到 &time= 分隔符: {parts}")
+                gender = parts
+                time_value = "now"
             
-            gender = gender_and_time[0]
-            time_value = gender_and_time[1] if len(gender_and_time) > 1 else "now"
-            
+            logger.info(f"性別和時間分割: {gender_and_time if '&time=' in parts else [gender]}")
             logger.info(f"用戶選擇指定時間占卜，性別: {gender}, 時間: {time_value}")
             
             user = await self.get_or_create_user(self.user_id, self.db)
@@ -850,19 +861,22 @@ class WebhookHandler:
                     from datetime import datetime
                     # 修復：使用正確的時間格式 ISO 8601
                     target_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M")
-                    logger.info(f"解析指定時間成功: {target_time}")
+                    logger.info(f"✅ 解析指定時間成功: {target_time}")
                 except ValueError as e:
                     logger.error(f"時間格式解析失敗: {time_value}, 錯誤: {e}")
                     # 嘗試其他可能的格式
                     try:
                         target_time = datetime.fromisoformat(time_value.replace('T', ' '))
-                        logger.info(f"使用備用格式解析成功: {target_time}")
+                        logger.info(f"✅ 使用備用格式解析成功: {target_time}")
                     except Exception as e2:
                         logger.error(f"備用格式也解析失敗: {e2}")
                         self.reply_text("時間格式錯誤，將使用當前時間進行占卜。")
                         target_time = None
+            else:
+                logger.warning(f"⚠️ 時間值為 'now'，將使用當前時間")
             
             # 執行占卜（關鍵：傳遞指定時間）
+            logger.info(f"🎯 即將執行占卜 - 性別: {gender}, 指定時間: {target_time}")
             divination_result = get_divination_result(self.db, user, gender, target_time)
             logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
             
