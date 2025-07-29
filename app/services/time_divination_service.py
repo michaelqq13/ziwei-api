@@ -26,16 +26,33 @@ class TimeDivinationRequest(BaseModel):
     def validate_gender(cls, v):
         if v not in ['M', 'F']:
             raise ValueError('性別必須是 M 或 F')
-        return v
+        return v.upper()  # 統一轉換為大寫
     
     @validator('target_time')
     def validate_target_time(cls, v):
         try:
             # 驗證時間格式是否正確
-            TimezoneHelper.parse_datetime_string(v)
+            parsed_time = TimezoneHelper.parse_datetime_string(v)
+            
+            # 檢查時間範圍（不能太久遠）
+            current_time = TimezoneHelper.get_current_taipei_time()
+            time_diff = current_time - parsed_time
+            
+            # 限制在過去 30 天到未來 7 天內
+            if time_diff.days > 30:
+                raise ValueError('目標時間不能超過 30 天前')
+            if time_diff.days < -7:
+                raise ValueError('目標時間不能超過 7 天後')
+                
             return v
         except Exception as e:
             raise ValueError(f'時間格式錯誤: {e}')
+    
+    @validator('purpose')
+    def validate_purpose(cls, v):
+        if v and len(v) > 100:
+            raise ValueError('占卜目的不能超過 100 字符')
+        return v or "指定時間占卜"
 
 class TimeDivinationResponse(BaseModel):
     """指定時間占卜回應模型"""
@@ -51,6 +68,14 @@ class TimeDivinationResponse(BaseModel):
     purpose: str
     message: str
     error: Optional[str] = None
+    
+    class Config:
+        # 允許任意類型（為了兼容性）
+        arbitrary_types_allowed = True
+        # JSON 序列化配置
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 class TimeDivinationService:
     """統一的指定時間占卜服務"""
