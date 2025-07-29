@@ -8,12 +8,7 @@ from sqlalchemy.orm import Session
 # 項目模組導入
 from app.utils.chinese_calendar import ChineseCalendar
 
-# 嘗試導入 sixtail_service，如果失敗則設為 None
-try:
-    from app.services.sixtail_service import sixtail_service
-except ImportError as e:
-    # 如果無法導入 sixtail_service，設置為 None
-    sixtail_service = None
+# 移除 sixtail_service 的靜態導入，改為動態導入避免循環導入
 
 from app.models.birth_info import BirthInfo
 from app.models.calendar import CalendarData  # 統一使用 calendar 模型
@@ -115,11 +110,17 @@ class PurpleStarChart:
         """使用6tail服務初始化：獲取準確的農曆資料"""
         logger.info(f"使用6tail服務獲取農曆數據，查詢條件：{self.birth_info.year}-{self.birth_info.month}-{self.birth_info.day} {self.birth_info.hour}:{self.birth_info.minute}")
         
-        # 使用6tail服務獲取完整時間資料
-        if sixtail_service and sixtail_service.is_available():
+        try:
+            # 動態導入 sixtail_service 避免循環導入
+            from app.services.sixtail_service import sixtail_service
+            
+            if sixtail_service is None or not sixtail_service.is_available():
+                logger.error("6tail服務不可用，系統進入維修模式")
+                raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
+            
             try:
-                # 從6tail服務獲取完整資料
-                sixtail_data = sixtail_service.get_complete_info(
+                # 從6tail服務獲取農曆資料
+                sixtail_data = sixtail_service.get_lunar_info(
                     self.birth_info.year, 
                     self.birth_info.month, 
                     self.birth_info.day,
@@ -145,8 +146,8 @@ class PurpleStarChart:
                 logger.error(f"6tail服務獲取資料失敗: {e}")
                 raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
                 
-        else:
-            logger.error("6tail服務不可用，系統進入維修模式")
+        except ImportError as e:
+            logger.error(f"無法導入 sixtail_service: {e}")
             raise RuntimeError("占卜系統目前維修中，請稍後再試。我們正在升級時間計算系統以提供更準確的服務。")
     
     def _create_calendar_data_from_sixtail(self, sixtail_data: Dict) -> CalendarData:
@@ -161,25 +162,27 @@ class PurpleStarChart:
         calendar_data.gregorian_hour = self.birth_info.hour
         calendar_data.gregorian_minute = self.birth_info.minute
         
-        # 干支資料
-        ganzhi = sixtail_data.get("ganzhi", {})
-        calendar_data.year_gan_zhi = ganzhi.get("year", "甲子")
-        calendar_data.month_gan_zhi = ganzhi.get("month", "甲子")
-        calendar_data.day_gan_zhi = ganzhi.get("day", "甲子")
-        calendar_data.hour_gan_zhi = ganzhi.get("hour", "甲子")
+        # 干支資料 - 新格式直接從頂層獲取
+        calendar_data.year_gan_zhi = sixtail_data.get("year_ganzhi", "甲子")
+        calendar_data.month_gan_zhi = sixtail_data.get("month_ganzhi", "甲子")
+        calendar_data.day_gan_zhi = sixtail_data.get("day_ganzhi", "甲子")
+        calendar_data.hour_gan_zhi = sixtail_data.get("hour_ganzhi", "甲子")
         
-        # 計算分干支 (6tail系統沒有分干支，使用時干支)
-        calendar_data.minute_gan_zhi = ganzhi.get("hour", "甲子")
+        # 計算分干支 (使用時干支)
+        calendar_data.minute_gan_zhi = sixtail_data.get("hour_ganzhi", "甲子")
         
-        # 農曆資料
-        lunar = sixtail_data.get("lunar", {})
-        calendar_data.lunar_month_in_chinese = lunar.get("month_chinese", "正月")
-        calendar_data.lunar_day_in_chinese = lunar.get("day_chinese", "初一")
-        calendar_data.lunar_year_in_chinese = lunar.get("year_chinese", "甲子年")
+        # 農曆資料 - 新格式直接從頂層獲取
+        calendar_data.lunar_month_in_chinese = sixtail_data.get("lunar_month_in_chinese", "正月")
+        calendar_data.lunar_day_in_chinese = sixtail_data.get("lunar_day_in_chinese", "初一")
+        
+        # 構建農曆年份的中文表示
+        lunar_year = sixtail_data.get("lunar_year", self.birth_info.year)
+        year_ganzhi = sixtail_data.get("year_ganzhi", "甲子")
+        calendar_data.lunar_year_in_chinese = f"{year_ganzhi}年"
         
         # 其他資料
-        calendar_data.solar_term = sixtail_data.get("solar_term", "")
-        calendar_data.data_source = "6tail"
+        calendar_data.solar_term = ""  # lunar_python 沒有直接提供節氣，可以後續擴展
+        calendar_data.data_source = "lunar_python"
         
         return calendar_data
     
