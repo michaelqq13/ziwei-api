@@ -828,9 +828,14 @@ class WebhookHandler:
     async def handle_time_divination_execution(self, data: str):
         """處理指定時間占卜的執行"""
         try:
-            # 解析數據：time_gender=M&time=2025-01-15 14:30
-            parts = data.split("=")[1]  # 獲取 "M&time=2025-01-15 14:30"
-            gender_and_time = parts.split("&time=")  # 分割為 ["M", "2025-01-15 14:30"]
+            # 解析數據：time_gender=M&time=2025-07-28T19:32
+            logger.info(f"原始 data: {data}")
+            parts = data.split("=")[1]  # 獲取 "M&time=2025-07-28T19:32"
+            logger.info(f"分割後的 parts: {parts}")
+            
+            gender_and_time = parts.split("&time=")  # 分割為 ["M", "2025-07-28T19:32"]
+            logger.info(f"性別和時間分割: {gender_and_time}")
+            
             gender = gender_and_time[0]
             time_value = gender_and_time[1] if len(gender_and_time) > 1 else "now"
             
@@ -843,12 +848,19 @@ class WebhookHandler:
             if time_value != "now":
                 try:
                     from datetime import datetime
-                    target_time = datetime.strptime(time_value, "%Y-%m-%d %H:%M")
+                    # 修復：使用正確的時間格式 ISO 8601
+                    target_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M")
                     logger.info(f"解析指定時間成功: {target_time}")
-                except ValueError:
-                    logger.error(f"時間格式解析失敗: {time_value}")
-                    self.reply_text("時間格式錯誤，將使用當前時間進行占卜。")
-                    target_time = None
+                except ValueError as e:
+                    logger.error(f"時間格式解析失敗: {time_value}, 錯誤: {e}")
+                    # 嘗試其他可能的格式
+                    try:
+                        target_time = datetime.fromisoformat(time_value.replace('T', ' '))
+                        logger.info(f"使用備用格式解析成功: {target_time}")
+                    except Exception as e2:
+                        logger.error(f"備用格式也解析失敗: {e2}")
+                        self.reply_text("時間格式錯誤，將使用當前時間進行占卜。")
+                        target_time = None
             
             # 執行占卜（關鍵：傳遞指定時間）
             divination_result = get_divination_result(self.db, user, gender, target_time)
