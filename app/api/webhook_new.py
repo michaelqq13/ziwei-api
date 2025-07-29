@@ -826,70 +826,49 @@ class WebhookHandler:
         )
 
     async def handle_time_divination_execution(self, data: str):
-        """處理指定時間占卜的執行"""
+        """處理指定時間占卜的執行 - 重構版本"""
         try:
-            # 解析數據：time_gender=M&time=2025-07-28T19:32
-            logger.info(f"原始 data: {data}")
+            from app.services.time_divination_service import TimeDivinationService
+            from app.utils.divination_flex_message import DivinationFlexMessageGenerator
             
-            # 修復：正確分割，避免時間中的 = 號干擾
-            if "time_gender=" in data:
-                parts = data.replace("time_gender=", "")  # 直接移除前綴，得到 "M&time=2025-07-28T19:32"
-            else:
-                parts = data.split("=", 1)[1]  # 使用 maxsplit=1，只分割第一個等號
+            logger.info(f"🎯 收到指定時間占卜請求: {data}")
             
-            logger.info(f"分割後的 parts: {parts}")
+            # 1. 使用新服務解析數據
+            gender, time_value = TimeDivinationService.parse_line_bot_data(data)
+            logger.info(f"✅ 解析成功 - 性別: {gender}, 時間: {time_value}")
             
-            # 分割性別和時間
-            if "&time=" in parts:
-                gender_and_time = parts.split("&time=", 1)  # 使用 maxsplit=1
-                gender = gender_and_time[0]
-                time_value = gender_and_time[1] if len(gender_and_time) > 1 else "now"
-            else:
-                logger.error(f"無法找到 &time= 分隔符: {parts}")
-                gender = parts
-                time_value = "now"
-            
-            logger.info(f"性別和時間分割: {gender_and_time if '&time=' in parts else [gender]}")
-            logger.info(f"用戶選擇指定時間占卜，性別: {gender}, 時間: {time_value}")
-            
+            # 2. 獲取用戶
             user = await self.get_or_create_user(self.user_id, self.db)
             
-            # 解析指定時間
-            target_time = None
-            if time_value != "now":
-                try:
-                    from datetime import datetime
-                    # 修復：使用正確的時間格式 ISO 8601
-                    target_time = datetime.strptime(time_value, "%Y-%m-%dT%H:%M")
-                    logger.info(f"✅ 解析指定時間成功: {target_time}")
-                except ValueError as e:
-                    logger.error(f"時間格式解析失敗: {time_value}, 錯誤: {e}")
-                    # 嘗試其他可能的格式
-                    try:
-                        target_time = datetime.fromisoformat(time_value.replace('T', ' '))
-                        logger.info(f"✅ 使用備用格式解析成功: {target_time}")
-                    except Exception as e2:
-                        logger.error(f"備用格式也解析失敗: {e2}")
-                        self.reply_text("時間格式錯誤，將使用當前時間進行占卜。")
-                        target_time = None
-            else:
-                logger.warning(f"⚠️ 時間值為 'now'，將使用當前時間")
+            # 3. 執行指定時間占卜
+            result = TimeDivinationService.execute_time_divination(
+                user=user,
+                gender=gender,
+                target_time=time_value,
+                db=self.db,
+                purpose="LINE Bot 指定時間占卜"
+            )
             
-            # 執行占卜（關鍵：傳遞指定時間）
-            logger.info(f"🎯 即將執行占卜 - 性別: {gender}, 指定時間: {target_time}")
-            divination_result = get_divination_result(self.db, user, gender, target_time)
-            logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
-            
-            if divination_result.get('success'):
-                # 從占卜結果中獲取記錄 ID (不重複創建)
-                record_id = divination_result.get('divination_id')
-                logger.info(f"使用占卜結果中的記錄 ID: {record_id}")
+            if result.success:
+                logger.info(f"✅ 占卜成功 - ID: {result.divination_id}")
                 
-                # 根據用戶等級設定 user_type
+                # 4. 生成 Flex Message
+                divination_result = {
+                    "success": True,
+                    "divination_id": result.divination_id,
+                    "divination_time": result.target_time,
+                    "gender": result.gender,
+                    "taichi_palace": result.taichi_palace,
+                    "minute_dizhi": result.minute_dizhi,
+                    "palace_tiangan": result.palace_tiangan,
+                    "sihua_results": result.sihua_results,
+                }
+                
                 user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
-                
-                # 生成占卜結果訊息 (使用全局變量)
-                flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
+                flex_messages = divination_flex_generator.generate_divination_messages(
+                    divination_result, 
+                    user_type=user_type
+                )
                 
                 if flex_messages:
                     logger.info("發送占卜結果")
@@ -901,18 +880,19 @@ class WebhookHandler:
                     )
                     
                     # 如果是管理員，發送快速按鈕
-                    if user.is_admin():
-                        await self.send_admin_quick_buttons(record_id)
+                    if user.is_admin() and result.divination_id:
+                        await self.send_admin_quick_buttons(int(result.divination_id))
                 else:
                     logger.error("生成占卜結果訊息失敗")
                     self.reply_text("占卜結果生成失敗，請稍後再試。")
             else:
-                error_msg = divination_result.get('message', '占卜失敗')
-                logger.error(f"占卜失敗: {error_msg}")
-                self.reply_text(f"占卜失敗：{error_msg}")
+                # 占卜失敗
+                logger.error(f"❌ 占卜失敗: {result.error}")
+                error_message = result.error or result.message
+                self.reply_text(f"占卜失敗：{error_message}")
                 
         except Exception as e:
-            logger.error(f"處理指定時間占卜執行失敗: {e}", exc_info=True)
+            logger.error(f"❌ 處理指定時間占卜執行失敗: {e}", exc_info=True)
             self.reply_text("占卜過程發生錯誤，請稍後再試。")
 
     async def handle_time_picker_selection(self, data: str):

@@ -12,15 +12,12 @@ import traceback
 from app.logic.purple_star_chart import PurpleStarChart
 from app.config.linebot_config import LineBotConfig
 from app.utils.chinese_calendar import ChineseCalendar
+from app.utils.timezone_helper import TimezoneHelper, TAIPEI_TZ
 from app.models.linebot_models import DivinationHistory, LineBotUser
 from app.data.heavenly_stems.four_transformations import four_transformations_explanations
 
 # 設置日誌
-import logging
-from datetime import datetime, timezone, timedelta
-
-# 台北時區
-TAIPEI_TZ = timezone(timedelta(hours=8))
+logger = logging.getLogger(__name__)
 
 class TaipeiFormatter(logging.Formatter):
     """台北時區的日誌格式化器"""
@@ -33,15 +30,10 @@ class TaipeiFormatter(logging.Formatter):
 
 # 設置日誌，使用台北時區
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # 為所有處理程序設置台北時區格式化器  
 for handler in logging.root.handlers:
     handler.setFormatter(TaipeiFormatter('%(asctime)s - %(levelname)s - %(message)s'))
-
-def get_current_taipei_time() -> datetime:
-    """獲取當前台北時間"""
-    return datetime.now(TAIPEI_TZ)
 
 class DivinationLogic:
     """占卜邏輯核心類"""
@@ -100,12 +92,14 @@ class DivinationLogic:
         try:
             logger.info(f"🔍 perform_divination 收到參數 - current_time: {current_time}")
             
-            # 1. 獲取當前時間（台北時間）
+            # 1. 獲取當前時間（台北時間）- 使用新的 TimezoneHelper
             if current_time is None:
-                current_time = get_current_taipei_time()
+                current_time = TimezoneHelper.get_current_taipei_time()
                 logger.info(f"⚠️ current_time 為 None，使用當前時間: {current_time}")
             else:
-                logger.info(f"✅ 使用指定時間: {current_time}")
+                # 確保傳入的時間是台北時區
+                current_time = TimezoneHelper.to_taipei_time(current_time)
+                logger.info(f"✅ 使用指定時間 (已轉換為台北時區): {current_time}")
             
             logger.info(f"開始占卜 - User: {user.line_user_id if user else 'N/A'}, 時間：{current_time}，性別：{gender}，數據庫：{'有' if db else '無'}")
             
