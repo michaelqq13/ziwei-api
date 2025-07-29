@@ -152,6 +152,7 @@ async def perform_time_divination(
         
         # 3. 執行占卜
         result = divination_logic.perform_divination(
+            user=user,                       # 添加缺少的 user 參數
             gender=divination_request.gender,
             current_time=target_time,
             db=db

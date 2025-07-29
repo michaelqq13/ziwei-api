@@ -295,6 +295,10 @@ class WebhookHandler:
             await self.handle_admin_chart_request(data)
         elif data.startswith("admin_taichi="):
             await self.handle_admin_taichi_request(data)
+        elif data.startswith("time_select="):
+            await self.handle_time_divination_selection(data)
+        elif data.startswith("time_gender="):
+            await self.handle_time_divination_execution(data)
         else:
             logger.warning(f"未知的 Postback 數據: {data}")
             self.reply_text("未知的操作，請重新選擇。")
@@ -489,14 +493,17 @@ class WebhookHandler:
         action = data.split("=")[1]
         
         function_map = {
-            "time_divination": "指定時間占卜功能開發中，敬請期待。",
+            "time_divination": None,  # 使用專門的處理邏輯
             "system_monitor": "系統監控功能開發中，敬請期待。",
             "user_management": "用戶管理功能開發中，敬請期待。",
             "menu_management": "選單管理功能開發中，敬請期待。"
         }
         
-        message = function_map.get(action, "管理員功能開發中，敬請期待。")
-        self.reply_text(message)
+        if action == "time_divination":
+            await self.handle_time_divination()
+        else:
+            message = function_map.get(action, "管理員功能開發中，敬請期待。")
+            self.reply_text(message)
     
     async def handle_test_function(self, data: str):
         """處理測試功能"""
@@ -742,6 +749,126 @@ class WebhookHandler:
         except Exception as e:
             logger.error(f"處理太極十二宮請求失敗: {e}")
             self.reply_text("太極十二宮請求處理失敗，請稍後再試。")
+
+    async def handle_time_divination_selection(self, data: str):
+        """處理指定時間占卜選擇"""
+        try:
+            time_value = data.split("=")[1]
+            logger.info(f"用戶選擇指定時間占卜: {time_value}")
+            
+            if time_value == "custom":
+                self.reply_text("請輸入您想要占卜的時間（格式：YYYY-MM-DD HH:MM），例如：2025-01-15 14:30\n\n輸入後我會請您選擇性別。")
+                return
+            else:
+                # 保存選擇的時間，然後請求性別選擇
+                # 這裡我們需要一個臨時存儲機制，或者直接在 postback 中包含時間信息
+                gender_selection = self.create_time_divination_gender_selection(time_value)
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(
+                        reply_token=self.reply_token,
+                        messages=[gender_selection]
+                    )
+                )
+                
+        except Exception as e:
+            logger.error(f"處理指定時間占卜選擇失敗: {e}", exc_info=True)
+            self.reply_text("時間選擇處理錯誤，請稍後再試。")
+
+    def create_time_divination_gender_selection(self, time_value: str):
+        """創建指定時間占卜的性別選擇 Quick Reply"""
+        quick_reply = QuickReply(
+            items=[
+                QuickReplyItem(
+                    action=PostbackAction(
+                        label="👨 男性",
+                        data=f"time_gender=M&time={time_value}",
+                        displayText="選擇男性"
+                    )
+                ),
+                QuickReplyItem(
+                    action=PostbackAction(
+                        label="👩 女性", 
+                        data=f"time_gender=F&time={time_value}",
+                        displayText="選擇女性"
+                    )
+                )
+            ]
+        )
+        
+        # 顯示選擇的時間
+        if time_value == "now":
+            time_display = "現在"
+        else:
+            time_display = time_value
+            
+        return TextMessage(
+            text=f"⏰ 指定時間占卜\n\n選擇的時間：{time_display}\n\n請選擇您的性別：",
+            quickReply=quick_reply
+        )
+
+    async def handle_time_divination_execution(self, data: str):
+        """處理指定時間占卜的執行"""
+        try:
+            # 解析數據：time_gender=M&time=2025-01-15 14:30
+            parts = data.split("=")[1]  # 獲取 "M&time=2025-01-15 14:30"
+            gender_and_time = parts.split("&time=")  # 分割為 ["M", "2025-01-15 14:30"]
+            gender = gender_and_time[0]
+            time_value = gender_and_time[1] if len(gender_and_time) > 1 else "now"
+            
+            logger.info(f"用戶選擇指定時間占卜，性別: {gender}, 時間: {time_value}")
+            
+            user = await self.get_or_create_user(self.user_id, self.db)
+            
+            # 解析指定時間
+            target_time = None
+            if time_value != "now":
+                try:
+                    from datetime import datetime
+                    target_time = datetime.strptime(time_value, "%Y-%m-%d %H:%M")
+                    logger.info(f"解析指定時間成功: {target_time}")
+                except ValueError:
+                    logger.error(f"時間格式解析失敗: {time_value}")
+                    self.reply_text("時間格式錯誤，將使用當前時間進行占卜。")
+                    target_time = None
+            
+            # 執行占卜（關鍵：傳遞指定時間）
+            divination_result = get_divination_result(self.db, user, gender, target_time)
+            logger.info(f"占卜結果獲取完成，成功：{divination_result.get('success')}")
+            
+            if divination_result.get('success'):
+                # 從占卜結果中獲取記錄 ID (不重複創建)
+                record_id = divination_result.get('divination_id')
+                logger.info(f"使用占卜結果中的記錄 ID: {record_id}")
+                
+                # 根據用戶等級設定 user_type
+                user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                
+                # 生成占卜結果訊息 (使用全局變量)
+                flex_messages = divination_flex_generator.generate_divination_messages(divination_result, user_type=user_type)
+                
+                if flex_messages:
+                    logger.info("發送占卜結果")
+                    line_bot_api.reply_message(
+                        ReplyMessageRequest(
+                            reply_token=self.reply_token,
+                            messages=flex_messages
+                        )
+                    )
+                    
+                    # 如果是管理員，發送快速按鈕
+                    if user.is_admin():
+                        await self.send_admin_quick_buttons(record_id)
+                else:
+                    logger.error("生成占卜結果訊息失敗")
+                    self.reply_text("占卜結果生成失敗，請稍後再試。")
+            else:
+                error_msg = divination_result.get('message', '占卜失敗')
+                logger.error(f"占卜失敗: {error_msg}")
+                self.reply_text(f"占卜失敗：{error_msg}")
+                
+        except Exception as e:
+            logger.error(f"處理指定時間占卜執行失敗: {e}", exc_info=True)
+            self.reply_text("占卜過程發生錯誤，請稍後再試。")
 
 
 @router.post("/webhook-new", include_in_schema=False)
