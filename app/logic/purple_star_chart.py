@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 
 # 項目模組導入
 from app.utils.chinese_calendar import ChineseCalendar
-from app.services.sixtail_service import sixtail_service  # 新增6tail服務
+
+# 嘗試導入 sixtail_service，如果失敗則設為 None
+try:
+    from app.services.sixtail_service import sixtail_service
+except ImportError as e:
+    # 如果無法導入 sixtail_service，設置為 None
+    sixtail_service = None
+
 from app.models.birth_info import BirthInfo
 from app.models.calendar import CalendarData  # 統一使用 calendar 模型
 from app.logic.star_calculator import StarCalculator
@@ -109,7 +116,7 @@ class PurpleStarChart:
         logger.info(f"使用6tail服務獲取農曆數據，查詢條件：{self.birth_info.year}-{self.birth_info.month}-{self.birth_info.day} {self.birth_info.hour}:{self.birth_info.minute}")
         
         # 使用6tail服務獲取完整時間資料
-        if sixtail_service.is_available():
+        if sixtail_service and sixtail_service.is_available():
             try:
                 # 從6tail服務獲取完整資料
                 sixtail_data = sixtail_service.get_complete_info(
