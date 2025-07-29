@@ -299,6 +299,8 @@ class WebhookHandler:
             await self.handle_time_divination_selection(data)
         elif data.startswith("time_gender="):
             await self.handle_time_divination_execution(data)
+        elif data.startswith("time_picker="):
+            await self.handle_time_picker_selection(data)
         else:
             logger.warning(f"未知的 Postback 數據: {data}")
             self.reply_text("未知的操作，請重新選擇。")
@@ -504,6 +506,23 @@ class WebhookHandler:
         else:
             message = function_map.get(action, "管理員功能開發中，敬請期待。")
             self.reply_text(message)
+    
+    async def handle_time_divination(self):
+        """處理指定時間占卜功能"""
+        try:
+            # 創建時間選擇界面
+            time_selection_message = self.create_time_selection_interface()
+            
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=self.reply_token,
+                    messages=[time_selection_message]
+                )
+            )
+            
+        except Exception as e:
+            logger.error(f"處理指定時間占卜失敗: {e}")
+            self.reply_text("指定時間占卜功能暫時無法使用，請稍後再試。")
     
     async def handle_test_function(self, data: str):
         """處理測試功能"""
@@ -753,22 +772,22 @@ class WebhookHandler:
     async def handle_time_divination_selection(self, data: str):
         """處理指定時間占卜選擇"""
         try:
+            # 解析數據：time_select=now
             time_value = data.split("=")[1]
             logger.info(f"用戶選擇指定時間占卜: {time_value}")
             
-            if time_value == "custom":
-                self.reply_text("請輸入您想要占卜的時間（格式：YYYY-MM-DD HH:MM），例如：2025-01-15 14:30\n\n輸入後我會請您選擇性別。")
-                return
-            else:
-                # 保存選擇的時間，然後請求性別選擇
-                # 這裡我們需要一個臨時存儲機制，或者直接在 postback 中包含時間信息
-                gender_selection = self.create_time_divination_gender_selection(time_value)
+            if time_value == "now":
+                # 選擇現在，直接進入性別選擇
+                gender_selection = self.create_time_divination_gender_selection("now")
                 line_bot_api.reply_message(
                     ReplyMessageRequest(
                         reply_token=self.reply_token,
                         messages=[gender_selection]
                     )
                 )
+            else:
+                logger.warning(f"未知的 time_select 數據: {data}")
+                self.reply_text("未知的操作，請重新選擇。")
                 
         except Exception as e:
             logger.error(f"處理指定時間占卜選擇失敗: {e}", exc_info=True)
@@ -869,6 +888,73 @@ class WebhookHandler:
         except Exception as e:
             logger.error(f"處理指定時間占卜執行失敗: {e}", exc_info=True)
             self.reply_text("占卜過程發生錯誤，請稍後再試。")
+
+    async def handle_time_picker_selection(self, data: str):
+        """處理 LINE Datetime Picker 的選擇結果"""
+        try:
+            # 解析 data 中的日期時間字串
+            date_time_str = data.split("=")[1] # 例如: "2024-03-20T10:30"
+            logger.info(f"收到 LINE Datetime Picker 選擇: {date_time_str}")
+            
+            # 驗證日期時間格式
+            try:
+                target_time = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
+                logger.info(f"解析 LINE Datetime Picker 時間成功: {target_time}")
+            except ValueError:
+                logger.error(f"LINE Datetime Picker 時間格式解析失敗: {date_time_str}")
+                self.reply_text("日期時間格式錯誤，請重新選擇。")
+                return
+            
+            # 進入性別選擇步驟（而不是直接占卜）
+            gender_selection = self.create_time_divination_gender_selection(date_time_str)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=self.reply_token,
+                    messages=[gender_selection]
+                )
+            )
+                
+        except Exception as e:
+            logger.error(f"處理 LINE Datetime Picker 選擇失敗: {e}", exc_info=True)
+            self.reply_text("日期時間選擇處理失敗，請稍後再試。")
+
+    def create_time_selection_interface(self):
+        """創建時間選擇界面 - 使用 LINE 內建的 Datetime Picker"""
+        from linebot.v3.messaging import DatetimePickerAction
+        from datetime import datetime, timedelta
+        
+        # 計算時間範圍
+        now = datetime.now()
+        min_time = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M")  # 7天前
+        max_time = (now + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")   # 1天後
+        initial_time = now.strftime("%Y-%m-%dT%H:%M")  # 當前時間作為預設
+        
+        quick_reply_items = [
+            QuickReplyItem(
+                action=DatetimePickerAction(
+                    label="📅 選擇日期時間",
+                    data="time_picker=datetime",
+                    mode="datetime",
+                    initial=initial_time,
+                    max=max_time,
+                    min=min_time
+                )
+            ),
+            QuickReplyItem(
+                action=PostbackAction(
+                    label="⏰ 現在",
+                    data="time_select=now",
+                    displayText="選擇現在"
+                )
+            )
+        ]
+        
+        quick_reply = QuickReply(items=quick_reply_items)
+        
+        return TextMessage(
+            text="⏰ 指定時間占卜\n\n請選擇要占卜的時間點：\n\n📅 點擊「選擇日期時間」使用日期選擇器\n⏰ 或點擊「現在」使用當前時間\n\n💡 可選擇過去7天到未來1天的任意時間",
+            quickReply=quick_reply
+        )
 
 
 @router.post("/webhook-new", include_in_schema=False)
