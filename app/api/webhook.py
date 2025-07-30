@@ -433,10 +433,110 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                             reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
 
                 elif text.startswith("查看"):
-                    parts = text.split(" ")
-                    if len(parts) > 1:
-                        sihua_type = parts[1].replace("星更多解釋", "")
-                        reply_text(reply_token, "四化詳細解釋功能開發中，敬請期待。")
+                    # 處理四化詳細解釋請求
+                    try:
+                        # 解析四化類型
+                        if "星更多解釋" in text:
+                            sihua_type = text.replace("查看", "").replace("星更多解釋", "").strip()
+                            logger.info(f"收到四化詳細解釋請求，類型: {sihua_type}")
+                            
+                            # 獲取用戶
+                            user = await get_user_by_line_id(user_id, db)
+                            if not user:
+                                reply_text(reply_token, "找不到用戶資訊，請重新進行占卜。")
+                                continue
+                            
+                            # 檢查用戶權限
+                            user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                            
+                            if user_type == "free":
+                                reply_text(reply_token, "🔒 此功能需要付費會員才能使用。\n\n💎 升級付費會員可查看：\n• 四化星詳細解釋\n• 吉凶指引\n• 完整占卜分析\n\n請聯繫管理員升級會員。")
+                                continue
+                            
+                            # 獲取用戶最新的占卜記錄
+                            latest_record = db.query(DivinationHistory).filter(
+                                DivinationHistory.user_id == user.id
+                            ).order_by(DivinationHistory.divination_time.desc()).first()
+                            
+                            if not latest_record:
+                                reply_text(reply_token, "找不到占卜記錄，請先進行占卜。")
+                                continue
+                            
+                            # 恢復占卜結果數據
+                            try:
+                                import json
+                                sihua_results = json.loads(latest_record.sihua_results or "[]")
+                                taichi_palace_mapping = json.loads(latest_record.taichi_palace_mapping or "{}")
+                                taichi_chart_data = json.loads(latest_record.taichi_chart_data or "{}")
+                                
+                                # 構建完整的占卜結果數據
+                                divination_result = {
+                                    "success": True,
+                                    "sihua_results": sihua_results,
+                                    "taichi_palace_mapping": taichi_palace_mapping,
+                                    "taichi_chart_data": taichi_chart_data,
+                                    "gender": latest_record.gender,
+                                    "divination_time": latest_record.divination_time.isoformat(),
+                                    "taichi_palace": latest_record.taichi_palace,
+                                    "minute_dizhi": latest_record.minute_dizhi
+                                }
+                                
+                                logger.info(f"恢復占卜數據成功，四化結果數量: {len(sihua_results)}")
+                                
+                                # 生成四化詳細解釋
+                                detail_message = divination_flex_generator.generate_sihua_detail_message(
+                                    divination_result, sihua_type, user_type
+                                )
+                                
+                                if detail_message:
+                                    # 檢查返回的是單個 Flex 訊息還是多個文字訊息
+                                    if isinstance(detail_message, list):
+                                        # 多個文字訊息：分別發送
+                                        logger.info(f"✅ 發送 {len(detail_message)} 條{sihua_type}星詳細解釋文字訊息")
+                                        
+                                        # 先回覆第一條訊息
+                                        line_bot_api.reply_message(
+                                            ReplyMessageRequest(
+                                                reply_token=reply_token,
+                                                messages=[detail_message[0]]
+                                            )
+                                        )
+                                        
+                                        # 如果有更多訊息，使用 push 發送（避免 reply_token 只能用一次的限制）
+                                        if len(detail_message) > 1:
+                                            import asyncio
+                                            await asyncio.sleep(0.5)  # 稍微延遲避免訊息衝突
+                                            
+                                            for message in detail_message[1:]:
+                                                line_bot_api.push_message(
+                                                    PushMessageRequest(
+                                                        to=user_id,
+                                                        messages=[message]
+                                                    )
+                                                )
+                                                await asyncio.sleep(0.3)  # 每條訊息間隔
+                                    else:
+                                        # 單個 Flex 訊息
+                                        line_bot_api.reply_message(
+                                            ReplyMessageRequest(
+                                                reply_token=reply_token,
+                                                messages=[detail_message]
+                                            )
+                                        )
+                                        logger.info(f"✅ {sihua_type}星詳細解釋 Flex 訊息發送成功")
+                                else:
+                                    reply_text(reply_token, f"無法生成{sihua_type}星的詳細解釋，可能該類型的四化星不存在於您的占卜結果中。")
+                                
+                            except json.JSONDecodeError as e:
+                                logger.error(f"解析占卜記錄數據失敗: {e}")
+                                reply_text(reply_token, "占卜記錄數據格式錯誤，請重新進行占卜。")
+                            
+                        else:
+                            reply_text(reply_token, "請使用正確的格式，例如：查看祿星更多解釋")
+                            
+                    except Exception as e:
+                        logger.error(f"處理四化詳細解釋失敗: {e}")
+                        reply_text(reply_token, "查看詳細解釋時發生錯誤，請稍後再試。")
 
                 # 管理員測試模式指令
                 elif text.startswith("測試") and await _is_original_admin(user_id, db):
