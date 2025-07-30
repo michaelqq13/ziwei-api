@@ -1377,6 +1377,19 @@ class DivinationFlexMessageGenerator:
             
             # 完整解釋內容 - 優化分段和排版
             if explanation:
+                # 處理字典格式的explanation
+                if isinstance(explanation, dict):
+                    # 將字典內容格式化為文字
+                    explanation_text = ""
+                    for key, value in explanation.items():
+                        if value:  # 確保值不為空
+                            explanation_text += f"{key}：{value}\n\n"
+                    explanation = explanation_text.strip()
+                
+                # 確保explanation是字串
+                if not isinstance(explanation, str):
+                    explanation = str(explanation)
+                
                 # 將解釋分段顯示，減少每段字數
                 explanation_parts = self._split_text_with_limit(explanation, 80)  # 減少到80字每段
                 
