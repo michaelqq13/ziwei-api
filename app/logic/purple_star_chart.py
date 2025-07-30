@@ -229,7 +229,7 @@ class PurpleStarChart:
         
     def _initialize_palaces(self):
         """初始化十二宮位"""
-        # 修正宮位名稱順序：命宮後面應該是父母宮，不是兄弟宮
+        # 宮位名稱順序：保持傳統計算順序（順時針）
         palace_names = [
             "命宮", "父母", "福德", "田宅", "官祿", "交友",
             "遷移", "疾厄", "財帛", "子女", "夫妻", "兄弟"
@@ -245,7 +245,7 @@ class PurpleStarChart:
         ming_index = ChineseCalendar.EARTHLY_BRANCHES.index(ming_branch)
         
         for i, name in enumerate(palace_names):
-            # 計算該宮位對應的地支索引（順時針排列）
+            # 計算該宮位對應的地支索引（順時針排列，保持傳統計算）
             branch_index = (ming_index + i) % 12
             branch = ChineseCalendar.EARTHLY_BRANCHES[branch_index]
             
@@ -696,7 +696,7 @@ class PurpleStarChart:
             # 十二地支順序
             branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
             
-            # 十二宮位順序（以命宮為起點）
+            # 十二宮位順序（以命宮為起點，保持傳統計算順序）
             palace_names = ["命宮", "父母宮", "福德宮", "田宅宮", "官祿宮", "交友宮", 
                            "遷移宮", "疾厄宮", "財帛宮", "子女宮", "夫妻宮", "兄弟宮"]
             

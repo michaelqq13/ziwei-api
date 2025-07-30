@@ -29,7 +29,7 @@ class DivinationFlexMessageGenerator:
         "財帛宮": "#FFEAA7",  # 黃色
         "疾厄宮": "#DDA0DD",  # 紫色
         "遷移宮": "#98D8C8",  # 薄荷綠
-        "奴僕宮": "#F7DC6F",  # 金黃
+        "交友宮": "#F7DC6F",  # 金黃
         "官祿宮": "#BB8FCE",  # 淡紫
         "田宅宮": "#85C1E9",  # 天藍
         "福德宮": "#F8C471",  # 橙色
@@ -86,7 +86,7 @@ class DivinationFlexMessageGenerator:
         
         self.palace_order = [
             "命宮", "兄弟宮", "夫妻宮", "子女宮", "財帛宮", "疾厄宮",
-            "遷移宮", "奴僕宮", "官祿宮", "田宅宮", "福德宮", "父母宮"
+            "遷移宮", "交友宮", "官祿宮", "田宅宮", "福德宮", "父母宮"
         ]
     
     @staticmethod
@@ -340,7 +340,7 @@ class DivinationFlexMessageGenerator:
             return None
     
     def _create_basic_chart_carousel(self, result: Dict[str, Any]) -> Optional[FlexMessage]:
-        """創建基本命盤資訊 Carousel"""
+        """創建基本命盤資訊 Carousel - 通過調整順序實現逆時針顯示"""
         try:
             basic_chart = result.get("basic_chart", {})
             if not basic_chart:
@@ -348,21 +348,39 @@ class DivinationFlexMessageGenerator:
             
             bubbles = []
             
-            # 為每個宮位創建一個 bubble
-            for palace_name in self.palace_order:
+            # 傳統順序的宮位名稱
+            traditional_order = [
+                "命宮", "父母", "福德", "田宅", "官祿", "交友",
+                "遷移", "疾厄", "財帛", "子女", "夫妻", "兄弟"
+            ]
+            
+            # 先按傳統順序創建所有bubble
+            traditional_bubbles = []
+            for palace_name in traditional_order:
                 palace_data = basic_chart.get(palace_name, {})
                 if not palace_data:
                     continue
                     
                 bubble = self._create_palace_bubble(palace_name, palace_data)
                 if bubble:
-                    bubbles.append(bubble)
+                    traditional_bubbles.append(bubble)
             
-            if not bubbles:
+            # 如果沒有bubble，直接返回
+            if not traditional_bubbles:
                 return None
             
+            # 調整順序：1, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2
+            # 即：命宮(1), 兄弟(12), 夫妻(11), 子女(10), 財帛(9), 疾厄(8), 遷移(7), 交友(6), 官祿(5), 田宅(4), 福德(3), 父母(2)
+            reordered_bubbles = []
+            if len(traditional_bubbles) >= 1:
+                reordered_bubbles.append(traditional_bubbles[0])  # 命宮(1)
+            
+            # 從最後一個往前加
+            for i in range(len(traditional_bubbles) - 1, 0, -1):
+                reordered_bubbles.append(traditional_bubbles[i])
+            
             # 限制最多12個bubble
-            bubbles = bubbles[:12]
+            bubbles = reordered_bubbles[:12]
             
             carousel = FlexCarousel(contents=bubbles)
             
@@ -376,7 +394,7 @@ class DivinationFlexMessageGenerator:
             return None
     
     def _create_taichi_palace_carousel(self, result: Dict[str, Any]) -> Optional[FlexMessage]:
-        """創建太極點命宮資訊 Carousel"""
+        """創建太極點命宮資訊 Carousel - 通過調整順序實現逆時針顯示"""
         try:
             taichi_mapping = result.get("taichi_palace_mapping", {})
             basic_chart = result.get("basic_chart", {})
@@ -388,11 +406,27 @@ class DivinationFlexMessageGenerator:
                 logger.error(f"數據不完整 - 太極映射: {bool(taichi_mapping)}, 基本命盤: {bool(basic_chart)}")
                 return None
             
-            bubbles = []
+            # 太極點的傳統順序
+            taichi_traditional_order = [
+                "命宮", "父母宮", "福德宮", "田宅宮", "官祿宮", "交友宮",
+                "遷移宮", "疾厄宮", "財帛宮", "子女宮", "夫妻宮", "兄弟宮"
+            ]
             
-            # 根據太極點重新分佈創建bubble
-            for original_branch, new_palace_name in taichi_mapping.items():
-                logger.info(f"尋找地支 {original_branch} 對應的宮位數據")
+            # 先按傳統順序創建所有bubble
+            traditional_bubbles = []
+            for new_palace_name in taichi_traditional_order:
+                # 找到對應的原始地支
+                original_branch = None
+                for orig_branch, mapped_palace in taichi_mapping.items():
+                    if mapped_palace == new_palace_name:
+                        original_branch = orig_branch
+                        break
+                
+                if not original_branch:
+                    logger.warning(f"未找到宮位 {new_palace_name} 對應的原始地支")
+                    continue
+                
+                logger.info(f"處理宮位: {new_palace_name} <- 原地支: {original_branch}")
                 
                 # 找到原始地支對應的宮位數據
                 palace_data = None
@@ -411,21 +445,31 @@ class DivinationFlexMessageGenerator:
                         is_taichi=True
                     )
                     if bubble:
-                        bubbles.append(bubble)
+                        traditional_bubbles.append(bubble)
                         logger.info(f"成功創建 {new_palace_name} bubble")
                     else:
                         logger.warning(f"創建 {new_palace_name} bubble 失敗")
                 else:
                     logger.error(f"未找到地支 {original_branch} 對應的宮位數據")
             
-            logger.info(f"共創建 {len(bubbles)} 個 bubble")
-            
-            if not bubbles:
+            # 如果沒有bubble，直接返回
+            if not traditional_bubbles:
                 logger.error("沒有成功創建任何 bubble")
                 return None
             
+            # 調整順序：1, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2
+            reordered_bubbles = []
+            if len(traditional_bubbles) >= 1:
+                reordered_bubbles.append(traditional_bubbles[0])  # 命宮(1)
+            
+            # 從最後一個往前加
+            for i in range(len(traditional_bubbles) - 1, 0, -1):
+                reordered_bubbles.append(traditional_bubbles[i])
+            
             # 限制最多12個bubble  
-            bubbles = bubbles[:12]
+            bubbles = reordered_bubbles[:12]
+            
+            logger.info(f"共創建 {len(bubbles)} 個 bubble")
             
             carousel = FlexCarousel(contents=bubbles)
             
