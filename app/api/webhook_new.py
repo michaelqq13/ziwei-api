@@ -502,6 +502,20 @@ class WebhookHandler:
                     
                     logger.info(f"恢復占卜數據成功，四化結果數量: {len(sihua_results)}")
                     
+                    # 調試：顯示四化結果的詳細內容
+                    logger.info(f"四化結果詳細內容:")
+                    for i, sihua_info in enumerate(sihua_results):
+                        logger.info(f"  [{i}] {sihua_info}")
+                    
+                    # 調試：檢查是否有匹配的四化類型
+                    matching_sihua = []
+                    for sihua_info in sihua_results:
+                        if sihua_info.get("type") == sihua_type:
+                            matching_sihua.append(sihua_info)
+                    logger.info(f"匹配 {sihua_type} 類型的四化星: {len(matching_sihua)} 個")
+                    for match in matching_sihua:
+                        logger.info(f"  匹配項: {match}")
+                    
                     # 生成四化詳細解釋
                     logger.info(f"開始生成 {sihua_type} 星詳細解釋")
                     detail_message = divination_flex_generator.generate_sihua_detail_message(
