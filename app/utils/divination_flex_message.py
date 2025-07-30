@@ -1417,8 +1417,7 @@ class DivinationFlexMessageGenerator:
                                     size="sm",
                                     color="#444444",
                                     wrap=True,
-                                    margin="xs",
-                                    lineSpacing="sm"
+                                    margin="xs"
                                 )
                             ],
                             backgroundColor="#FFFFFF",
