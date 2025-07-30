@@ -131,7 +131,7 @@ async def security_check_middleware(request: Request, call_next):
             raise HTTPException(status_code=403, detail="請求被拒絕")
         
         # 2. LINE Webhook 特殊檢查
-        if request.url.path == "/webhook":
+        if request.url.path == "/api/webhook_new/webhook-new":
             # 生產環境應啟用 IP 白名單檢查
             if os.getenv("ENABLE_LINE_IP_CHECK", "false").lower() == "true":
                 if not security_middleware.check_line_ip(client_ip):

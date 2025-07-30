@@ -218,12 +218,12 @@ class WebhookHandler:
     
     async def handle_text_message(self, text: str):
         """處理文字訊息"""
-        text = text.strip().lower()
+        text = text.strip()  # 移除 .lower()，保持原始大小寫
         
-        if text == "功能選單":
+        if text.lower() == "功能選單":
             await self.show_function_menu()
         
-        elif text == "本週占卜" or text == "占卜":
+        elif text.lower() == "本週占卜" or text.lower() == "占卜":
             gender_selection = self.create_gender_selection()
             line_bot_api.reply_message(
                 ReplyMessageRequest(
@@ -232,7 +232,7 @@ class WebhookHandler:
                 )
             )
         
-        elif text.startswith("占卜"):
+        elif text.lower().startswith("占卜"):
             if "男" in text:
                 await self.handle_divination("M")
             elif "女" in text:
@@ -246,14 +246,19 @@ class WebhookHandler:
                     )
                 )
         
+        elif text.startswith("查看"):
+            # 處理四化詳細解釋請求
+            await self.handle_sihua_detail_request(text)
+        
         # 管理員測試指令
-        elif text.startswith("測試") and await self.is_admin():
+        elif text.lower().startswith("測試") and await self.is_admin():
             await self.handle_test_commands(text)
         
-        elif text == "查看測試狀態" and await self.is_admin():
+        elif text.lower() == "查看測試狀態" and await self.is_admin():
             await self.show_test_status()
         
         else:
+            logger.warning(f"未匹配的文字訊息: {text} (來自用戶: {self.user_id})")
             self.reply_text("您好！請點擊下方選單或輸入「功能選單」開始使用。")
     
     async def handle_postback_event(self, data: str):
@@ -432,8 +437,127 @@ class WebhookHandler:
             
             self.reply_text(member_info)
         except Exception as e:
-            logger.error(f"顯示會員資訊失敗: {e}")
-            self.reply_text("無法獲取會員資訊，請稍後再試。")
+            logger.error(f"顯示會員資訊失敗: {e}", exc_info=True)
+            self.reply_text("會員資訊載入失敗，請稍後再試。")
+    
+    async def handle_sihua_detail_request(self, text: str):
+        """處理四化詳細解釋請求"""
+        try:
+            logger.info(f"收到查看請求，文字內容: {text}")
+            
+            # 解析四化類型
+            if "星更多解釋" in text:
+                sihua_type = text.replace("查看", "").replace("星更多解釋", "").strip()
+                logger.info(f"收到四化詳細解釋請求，類型: {sihua_type}")
+                
+                # 獲取用戶
+                user = await self.get_or_create_user(self.user_id, self.db)
+                if not user:
+                    logger.error(f"未找到用戶: {self.user_id}")
+                    self.reply_text("找不到用戶資訊，請重新進行占卜。")
+                    return
+                
+                logger.info(f"找到用戶: {user.line_user_id}, 管理員: {user.is_admin()}, 付費會員: {user.is_premium()}")
+                
+                # 檢查用戶權限
+                user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                logger.info(f"用戶類型: {user_type}")
+                
+                if user_type == "free":
+                    logger.info("免費用戶嘗試查看詳細解釋，已拒絕")
+                    self.reply_text("🔒 此功能需要付費會員才能使用。\n\n💎 升級付費會員可查看：\n• 四化星詳細解釋\n• 吉凶指引\n• 完整占卜分析\n\n請聯繫管理員升級會員。")
+                    return
+                
+                # 獲取用戶最新的占卜記錄
+                latest_record = self.db.query(DivinationHistory).filter(
+                    DivinationHistory.user_id == user.id
+                ).order_by(DivinationHistory.divination_time.desc()).first()
+                
+                if not latest_record:
+                    logger.error(f"未找到用戶 {user.id} 的占卜記錄")
+                    self.reply_text("找不到占卜記錄，請先進行占卜。")
+                    return
+                
+                logger.info(f"找到占卜記錄，ID: {latest_record.id}, 時間: {latest_record.divination_time}")
+                
+                # 恢復占卜結果數據
+                try:
+                    sihua_results = json.loads(latest_record.sihua_results or "[]")
+                    taichi_palace_mapping = json.loads(latest_record.taichi_palace_mapping or "{}")
+                    taichi_chart_data = json.loads(latest_record.taichi_chart_data or "{}")
+                    
+                    logger.info(f"數據解析成功 - 四化結果: {len(sihua_results)}個, 太極映射: {len(taichi_palace_mapping)}個")
+                    
+                    # 構建完整的占卜結果數據
+                    divination_result = {
+                        "success": True,
+                        "sihua_results": sihua_results,
+                        "taichi_palace_mapping": taichi_palace_mapping,
+                        "taichi_chart_data": taichi_chart_data,
+                        "gender": latest_record.gender,
+                        "divination_time": latest_record.divination_time.isoformat(),
+                        "taichi_palace": latest_record.taichi_palace,
+                        "minute_dizhi": latest_record.minute_dizhi
+                    }
+                    
+                    logger.info(f"恢復占卜數據成功，四化結果數量: {len(sihua_results)}")
+                    
+                    # 生成四化詳細解釋
+                    logger.info(f"開始生成 {sihua_type} 星詳細解釋")
+                    detail_message = divination_flex_generator.generate_sihua_detail_message(
+                        divination_result, sihua_type, user_type
+                    )
+                    
+                    if detail_message:
+                        # 檢查返回的是單個 Flex 訊息還是多個文字訊息
+                        if isinstance(detail_message, list):
+                            # 多個文字訊息：分別發送
+                            logger.info(f"✅ 發送 {len(detail_message)} 條{sihua_type}星詳細解釋文字訊息")
+                            
+                            # 先回覆第一條訊息
+                            line_bot_api.reply_message(
+                                ReplyMessageRequest(
+                                    reply_token=self.reply_token,
+                                    messages=[detail_message[0]]
+                                )
+                            )
+                            
+                            # 如果有更多訊息，使用 push 發送（避免 reply_token 只能用一次的限制）
+                            if len(detail_message) > 1:
+                                import asyncio
+                                await asyncio.sleep(0.5)  # 稍微延遲避免訊息衝突
+                                
+                                for message in detail_message[1:]:
+                                    line_bot_api.push_message(
+                                        PushMessageRequest(
+                                            to=self.user_id,
+                                            messages=[message]
+                                        )
+                                    )
+                                    await asyncio.sleep(0.3)  # 每條訊息間隔
+                        else:
+                            # 單個 Flex 訊息
+                            line_bot_api.reply_message(
+                                ReplyMessageRequest(
+                                    reply_token=self.reply_token,
+                                    messages=[detail_message]
+                                )
+                            )
+                            logger.info(f"✅ {sihua_type}星詳細解釋 Flex 訊息發送成功")
+                    else:
+                        self.reply_text(f"無法生成{sihua_type}星的詳細解釋，可能該類型的四化星不存在於您的占卜結果中。")
+                    
+                except json.JSONDecodeError as e:
+                    logger.error(f"解析占卜記錄數據失敗: {e}")
+                    self.reply_text("占卜記錄數據格式錯誤，請重新進行占卜。")
+                
+            else:
+                logger.warning(f"查看請求格式不正確: {text}")
+                self.reply_text("請使用正確的格式，例如：查看祿星更多解釋")
+                
+        except Exception as e:
+            logger.error(f"處理四化詳細解釋失敗: {e}")
+            self.reply_text("查看詳細解釋時發生錯誤，請稍後再試。")
     
     async def show_instructions(self):
         """顯示使用說明"""
@@ -685,17 +809,17 @@ class WebhookHandler:
         
         user = await self.get_or_create_user(self.user_id, self.db)
         
-        if text == "測試免費":
+        if text.lower() == "測試免費":
             user.set_test_mode(LineBotConfig.MembershipLevel.FREE, 10)
             self.db.commit()
             self.reply_text("🧪 已切換為免費會員身份\n⏰ 將在 10 分鐘後自動恢復管理員身份")
         
-        elif text == "測試付費":
+        elif text.lower() == "測試付費":
             user.set_test_mode(LineBotConfig.MembershipLevel.PREMIUM, 10)
             self.db.commit()
             self.reply_text("🧪 已切換為付費會員身份\n⏰ 將在 10 分鐘後自動恢復管理員身份")
         
-        elif text == "測試管理員":
+        elif text.lower() == "測試管理員":
             user.clear_test_mode()
             self.db.commit()
             self.reply_text("✅ 已恢復管理員身份\n👑 歡迎回來，管理員！")
