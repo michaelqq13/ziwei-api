@@ -187,7 +187,7 @@ async def _handle_test_mode_command(text: str, user_id: str, reply_token: str, d
         return
     
     # 解析指令
-    if text == "測試免費":
+    if text.lower() == "測試免費":
         user.set_test_mode(LineBotConfig.MembershipLevel.FREE, 10)
         db.commit()
         reply_text(reply_token, """🧪 已切換為免費會員身份
@@ -196,7 +196,7 @@ async def _handle_test_mode_command(text: str, user_id: str, reply_token: str, d
 💡 所有功能都會以免費會員視角運作
 🔄 輸入「測試管理員」可立即恢復""")
         
-    elif text == "測試付費":
+    elif text.lower() == "測試付費":
         user.set_test_mode(LineBotConfig.MembershipLevel.PREMIUM, 10)
         db.commit()
         reply_text(reply_token, """🧪 已切換為付費會員身份
@@ -205,7 +205,7 @@ async def _handle_test_mode_command(text: str, user_id: str, reply_token: str, d
 💡 所有功能都會以付費會員視角運作
 🔄 輸入「測試管理員」可立即恢復""")
         
-    elif text == "測試管理員":
+    elif text.lower() == "測試管理員":
         user.clear_test_mode()
         db.commit()
         reply_text(reply_token, """✅ 已恢復管理員身份
@@ -336,10 +336,10 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 logger.info(f"用戶 {user_id} 取消關注了機器人")
 
             elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
-                text = event.message.text.strip().lower()
+                text = event.message.text.strip()
                 reply_token = event.reply_token
 
-                if text == "功能選單":
+                if text.lower() == "功能選單":
                     # 獲取或創建用戶物件
                     user = await get_user_by_line_id(user_id, db)
                     if not user:
@@ -361,7 +361,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     else:
                         reply_text(reply_token, "無法生成功能面板，請稍後再試。")
                 
-                elif text == "本週占卜":
+                elif text.lower() == "本週占卜":
                     # 本週占卜 - 顯示性別選擇選單
                     gender_selection = create_gender_selection_message()
                     if gender_selection:
@@ -374,7 +374,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     else:
                         reply_text(reply_token, "請輸入「占卜男」或「占卜女」開始占卜。")
                 
-                elif text.startswith("占卜"):
+                elif text.lower().startswith("占卜"):
                     # 檢查是否指定了性別
                     if "男" in text or "女" in text:
                         gender = "M" if "男" in text else "F"
@@ -553,10 +553,10 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                         reply_text(reply_token, "查看詳細解釋時發生錯誤，請稍後再試。")
 
                 # 管理員測試模式指令
-                elif text.startswith("測試") and await _is_original_admin(user_id, db):
+                elif text.lower().startswith("測試") and await _is_original_admin(user_id, db):
                     await _handle_test_mode_command(text, user_id, reply_token, db)
                 
-                elif text == "查看測試狀態" and await _is_original_admin(user_id, db):
+                elif text.lower() == "查看測試狀態" and await _is_original_admin(user_id, db):
                     await _handle_test_status_command(user_id, reply_token, db)
 
                 else:
