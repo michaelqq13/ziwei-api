@@ -29,7 +29,7 @@ class DivinationFlexMessageGenerator:
         "財帛宮": "#FFEAA7",  # 黃色
         "疾厄宮": "#DDA0DD",  # 紫色
         "遷移宮": "#98D8C8",  # 薄荷綠
-        "交友宮": "#F7DC6F",  # 金黃
+        "奴僕宮": "#F7DC6F",  # 金黃
         "官祿宮": "#BB8FCE",  # 淡紫
         "田宅宮": "#85C1E9",  # 天藍
         "福德宮": "#F8C471",  # 橙色
@@ -86,7 +86,7 @@ class DivinationFlexMessageGenerator:
         
         self.palace_order = [
             "命宮", "兄弟宮", "夫妻宮", "子女宮", "財帛宮", "疾厄宮",
-            "遷移宮", "交友宮", "官祿宮", "田宅宮", "福德宮", "父母宮"
+            "遷移宮", "奴僕宮", "官祿宮", "田宅宮", "福德宮", "父母宮"
         ]
     
     @staticmethod
@@ -390,20 +390,9 @@ class DivinationFlexMessageGenerator:
             
             bubbles = []
             
-            # 按照逆時針順序創建太極點宮位bubble
-            for new_palace_name in self.palace_order:
-                # 找到對應的原始地支
-                original_branch = None
-                for orig_branch, mapped_palace in taichi_mapping.items():
-                    if mapped_palace == new_palace_name:
-                        original_branch = orig_branch
-                        break
-                
-                if not original_branch:
-                    logger.warning(f"未找到宮位 {new_palace_name} 對應的原始地支")
-                    continue
-                
-                logger.info(f"處理宮位: {new_palace_name} <- 原地支: {original_branch}")
+            # 根據太極點重新分佈創建bubble
+            for original_branch, new_palace_name in taichi_mapping.items():
+                logger.info(f"尋找地支 {original_branch} 對應的宮位數據")
                 
                 # 找到原始地支對應的宮位數據
                 palace_data = None
