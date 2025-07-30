@@ -435,6 +435,8 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                 elif text.startswith("查看"):
                     # 處理四化詳細解釋請求
                     try:
+                        logger.info(f"收到查看請求，文字內容: {text}")
+                        
                         # 解析四化類型
                         if "星更多解釋" in text:
                             sihua_type = text.replace("查看", "").replace("星更多解釋", "").strip()
@@ -443,13 +445,18 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                             # 獲取用戶
                             user = await get_user_by_line_id(user_id, db)
                             if not user:
+                                logger.error(f"未找到用戶: {user_id}")
                                 reply_text(reply_token, "找不到用戶資訊，請重新進行占卜。")
                                 continue
                             
+                            logger.info(f"找到用戶: {user.line_user_id}, 管理員: {user.is_admin()}, 付費會員: {user.is_premium()}")
+                            
                             # 檢查用戶權限
                             user_type = "admin" if user.is_admin() else ("premium" if user.is_premium() else "free")
+                            logger.info(f"用戶類型: {user_type}")
                             
                             if user_type == "free":
+                                logger.info("免費用戶嘗試查看詳細解釋，已拒絕")
                                 reply_text(reply_token, "🔒 此功能需要付費會員才能使用。\n\n💎 升級付費會員可查看：\n• 四化星詳細解釋\n• 吉凶指引\n• 完整占卜分析\n\n請聯繫管理員升級會員。")
                                 continue
                             
@@ -459,8 +466,11 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                             ).order_by(DivinationHistory.divination_time.desc()).first()
                             
                             if not latest_record:
+                                logger.error(f"未找到用戶 {user.id} 的占卜記錄")
                                 reply_text(reply_token, "找不到占卜記錄，請先進行占卜。")
                                 continue
+                            
+                            logger.info(f"找到占卜記錄，ID: {latest_record.id}, 時間: {latest_record.divination_time}")
                             
                             # 恢復占卜結果數據
                             try:
@@ -468,6 +478,8 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                                 sihua_results = json.loads(latest_record.sihua_results or "[]")
                                 taichi_palace_mapping = json.loads(latest_record.taichi_palace_mapping or "{}")
                                 taichi_chart_data = json.loads(latest_record.taichi_chart_data or "{}")
+                                
+                                logger.info(f"數據解析成功 - 四化結果: {len(sihua_results)}個, 太極映射: {len(taichi_palace_mapping)}個")
                                 
                                 # 構建完整的占卜結果數據
                                 divination_result = {
@@ -484,6 +496,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                                 logger.info(f"恢復占卜數據成功，四化結果數量: {len(sihua_results)}")
                                 
                                 # 生成四化詳細解釋
+                                logger.info(f"開始生成 {sihua_type} 星詳細解釋")
                                 detail_message = divination_flex_generator.generate_sihua_detail_message(
                                     divination_result, sihua_type, user_type
                                 )
@@ -532,6 +545,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                                 reply_text(reply_token, "占卜記錄數據格式錯誤，請重新進行占卜。")
                             
                         else:
+                            logger.warning(f"查看請求格式不正確: {text}")
                             reply_text(reply_token, "請使用正確的格式，例如：查看祿星更多解釋")
                             
                     except Exception as e:
@@ -546,6 +560,7 @@ async def line_bot_webhook(request: Request, db: Session = Depends(get_db)):
                     await _handle_test_status_command(user_id, reply_token, db)
 
                 else:
+                    logger.warning(f"未匹配的文字訊息: {text} (來自用戶: {user_id})")
                     reply_text(reply_token, "您好！請點擊下方選單或輸入「功能選單」開始使用。")
 
             elif isinstance(event, PostbackEvent):
